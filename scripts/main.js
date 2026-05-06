@@ -1,7 +1,11 @@
 import { Constants } from "./constants/Constants.js";
 import { ActiveEffectSheetRegistrar } from "./applications/ActiveEffectSheetRegistrar.js";
 import { AuraEffectsCompatibility } from "./compat/AuraEffectsCompatibility.js";
+import { DaeCompatibility } from "./compat/DaeCompatibility.js";
 import { ActiveEffectConditionHooks } from "./hooks/ActiveEffectConditionHooks.js";
+import { ActiveEffectMacroChangeHooks } from "./hooks/ActiveEffectMacroChangeHooks.js";
+
+DaeCompatibility.activate();
 
 Hooks.once("init", () => {
   Constants.debug("module init");
@@ -22,6 +26,7 @@ Hooks.once("setup", () => {
   }
 
   ActiveEffectConditionHooks.activate();
+  ActiveEffectMacroChangeHooks.activate();
 });
 
 Hooks.once("ready", () => {

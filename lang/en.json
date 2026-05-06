@@ -11,6 +11,11 @@
       "Placeholder": "Example: return actor?.system?.attributes?.hp?.value > 0;",
       "Wiki": "Open wiki",
       "Invalid": "This condition has invalid code."
+    },
+    "MacroChange": {
+      "Name": "Macro to Execute",
+      "Description": "Execute a world macro when this Active Effect is applied or removed. Value format: macro name or UUID, followed by optional arguments.",
+      "MacroNotFound": "Macro not found: {macro}"
     }
   }
 }

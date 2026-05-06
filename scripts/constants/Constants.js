@@ -4,6 +4,9 @@ export class Constants {
   static FLAG_CONDITION = "condition";
   static CONDITION_FLAG_PATH = `flags.${Constants.MODULE_ID}.${Constants.FLAG_CONDITION}`;
   static DEBUG_GLOBAL = "SC_CONDITIONAL_AE_DEBUG";
+  static MACRO_EXECUTE_CHANGE_KEY = "cae.macro.execute";
+  static LEGACY_MACRO_EXECUTE_CHANGE_KEY = `${Constants.MODULE_ID}.macro.execute`;
+  static DAE_MACRO_EXECUTE_CHANGE_KEY = "macro.execute";
 
   static debug(message, data = undefined) {
     if (!globalThis[Constants.DEBUG_GLOBAL]) {
@@ -26,5 +29,9 @@ export class Constants {
 
   static isDnd5eActive() {
     return game?.system?.id === "dnd5e";
+  }
+
+  static isDaeActive() {
+    return game?.modules?.get("dae")?.active === true;
   }
 }
