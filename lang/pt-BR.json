@@ -1,0 +1,16 @@
+{
+  "SCConditionalAE": {
+    "Sheets": {
+      "ActiveEffect": "SC Active Effect Condicional"
+    },
+    "ConditionTab": {
+      "Label": "Condição",
+      "Heading": "Condição do Active Effect",
+      "Hint": "Use JavaScript. Este Active Effect só é aplicado quando o script retornar true.",
+      "Variables": "Variáveis disponíveis: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game.",
+      "Placeholder": "Exemplo: return actor?.system?.attributes?.hp?.value > 0;",
+      "Wiki": "Abrir wiki",
+      "Invalid": "Esta condição contém código inválido."
+    }
+  }
+}

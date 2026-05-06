@@ -1,0 +1,26 @@
+.sc-cae-condition-tab fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-cae-condition-tab .sc-cae-help-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-12, 12px);
+}
+
+.sc-cae-condition-code {
+  min-height: 220px;
+}
+
+.sc-cae-condition-code--readonly {
+  width: 100%;
+  resize: vertical;
+}
+
+.sc-cae-validation-warning {
+  margin: 0;
+}

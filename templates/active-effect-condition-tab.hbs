@@ -1,0 +1,34 @@
+<section class="tab scrollable {{#if tab.active}}active{{/if}} sc-cae-condition-tab" data-tab="{{ tab.id }}" data-group="{{ tab.group }}">
+  <fieldset>
+    <legend>{{ strings.heading }}</legend>
+    <p class="hint">{{ strings.hint }}</p>
+    <p class="hint">{{ strings.variables }}</p>
+    <a class="sc-cae-help-link" href="{{ conditionWikiUrl }}" target="_blank" rel="noopener">
+      <i class="fas fa-up-right-from-square"></i> {{ strings.wiki }}
+    </a>
+
+    {{#if conditionInvalid}}
+    <p class="notification warning sc-cae-validation-warning">
+      <i class="fas fa-triangle-exclamation"></i>
+      {{ strings.invalid }} {{ validationMessage }}
+    </p>
+    {{/if}}
+
+    {{#if editable}}
+    <code-mirror
+      name="{{ conditionFlagPath }}"
+      language="javascript"
+      indent="2"
+      class="sc-cae-condition-code"
+      aria-label="{{ strings.label }}"
+    >{{ condition }}</code-mirror>
+    {{else}}
+    <textarea
+      name="{{ conditionFlagPath }}"
+      class="sc-cae-condition-code sc-cae-condition-code--readonly"
+      rows="10"
+      placeholder="{{ strings.placeholder }}"
+      disabled>{{ condition }}</textarea>
+    {{/if}}
+  </fieldset>
+</section>
