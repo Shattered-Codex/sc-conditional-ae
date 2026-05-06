@@ -3,6 +3,7 @@ import { ActiveEffectSheetRegistrar } from "./applications/ActiveEffectSheetRegi
 import { AuraEffectsCompatibility } from "./compat/AuraEffectsCompatibility.js";
 import { DaeCompatibility } from "./compat/DaeCompatibility.js";
 import { ActiveEffectConditionHooks } from "./hooks/ActiveEffectConditionHooks.js";
+import { ActiveEffectFormulaChangeHooks } from "./hooks/ActiveEffectFormulaChangeHooks.js";
 import { ActiveEffectMacroChangeHooks } from "./hooks/ActiveEffectMacroChangeHooks.js";
 
 DaeCompatibility.activate();
@@ -26,6 +27,7 @@ Hooks.once("setup", () => {
   }
 
   ActiveEffectConditionHooks.activate();
+  ActiveEffectFormulaChangeHooks.activate();
   ActiveEffectMacroChangeHooks.activate();
 });
 

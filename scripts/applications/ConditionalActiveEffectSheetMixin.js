@@ -1,5 +1,6 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 
 const TEMPLATE_PATH = `modules/${Constants.MODULE_ID}/templates/active-effect-condition-tab.hbs`;
 
@@ -22,7 +23,7 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
       const submitData = typeof super._processFormData === "function"
         ? super._processFormData(...args)
         : findSubmitDataArgument(args);
-      cleanConditionSubmitData(submitData);
+      cleanSubmitData(this, submitData);
       return submitData;
     }
 
@@ -30,15 +31,20 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
       const submitData = typeof super._prepareSubmitData === "function"
         ? super._prepareSubmitData(...args)
         : findSubmitDataArgument(args);
-      cleanConditionSubmitData(submitData);
+      cleanSubmitData(this, submitData);
       return submitData;
     }
 
     _processSubmitData(...args) {
-      cleanConditionSubmitData(findSubmitDataArgument(args));
+      cleanSubmitData(this, findSubmitDataArgument(args));
       return typeof super._processSubmitData === "function"
         ? super._processSubmitData(...args)
         : this.document.update(findSubmitDataArgument(args));
+    }
+
+    _onRender(...args) {
+      super._onRender?.(...args);
+      restoreFormulaChangeInputs(this);
     }
   };
 }
@@ -145,9 +151,32 @@ function cleanConditionSubmitData(submitData) {
   }
 }
 
+function cleanSubmitData(sheet, submitData) {
+  const data = submitData?.object && typeof submitData.object === "object" ? submitData.object : submitData;
+  cleanConditionSubmitData(data);
+  ActiveEffectFormulaChangeService.prepareSubmitData(sheet.document, data);
+}
+
+function restoreFormulaChangeInputs(sheet) {
+  const formulaChanges = ActiveEffectFormulaChangeService.getFormulaChanges(sheet.document);
+  const root = sheet.element instanceof HTMLElement ? sheet.element : sheet.element?.[0];
+  for (const [index, formulaChange] of Object.entries(formulaChanges)) {
+    const input = root?.querySelector?.(`[name="changes.${index}.value"], [name="changes[${index}][value]"]`);
+    if (!input || typeof formulaChange?.formula !== "string") {
+      continue;
+    }
+
+    input.value = formulaChange.formula;
+  }
+}
+
 // Foundry v13 passes submitData as args[2]; v14 changed the signature.
 // This heuristic finds the correct argument across both versions and dnd5e overrides.
 function findSubmitDataArgument(args) {
+  if (args[2]?.object && typeof args[2].object === "object") {
+    return args[2].object;
+  }
+
   if (args[2] && typeof args[2] === "object") {
     return args[2];
   }

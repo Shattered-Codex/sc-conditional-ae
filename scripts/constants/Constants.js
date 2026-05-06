@@ -2,7 +2,9 @@ export class Constants {
   static MODULE_ID = "sc-conditional-ae";
   static MODULE_WIKI_URL = "https://wiki.shattered-codex.com/modules/sc-conditional-ae";
   static FLAG_CONDITION = "condition";
+  static FLAG_FORMULA_CHANGES = "formulaChanges";
   static CONDITION_FLAG_PATH = `flags.${Constants.MODULE_ID}.${Constants.FLAG_CONDITION}`;
+  static FORMULA_CHANGES_FLAG_PATH = `flags.${Constants.MODULE_ID}.${Constants.FLAG_FORMULA_CHANGES}`;
   static DEBUG_GLOBAL = "SC_CONDITIONAL_AE_DEBUG";
   static MACRO_EXECUTE_CHANGE_KEY = "cae.macro.execute";
   static LEGACY_MACRO_EXECUTE_CHANGE_KEY = `${Constants.MODULE_ID}.macro.execute`;

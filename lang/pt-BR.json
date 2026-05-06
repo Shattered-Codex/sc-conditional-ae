@@ -16,6 +16,13 @@
       "Name": "Macro para executar",
       "Description": "Executa uma macro do mundo quando este Active Effect é aplicado ou removido. Formato do valor: nome ou UUID da macro, seguido por argumentos opcionais.",
       "MacroNotFound": "Macro não encontrada: {macro}"
+    },
+    "FormulaChange": {
+      "DialogTitle": "Rolar fórmula do Active Effect",
+      "DialogHint": "Confirme ou ajuste a fórmula que será rolada para este Active Effect.",
+      "RollButton": "Rolar",
+      "RollFlavor": "Rolagem de fórmula do Active Effect",
+      "InvalidFormula": "Fórmula inválida no Active Effect."
     }
   }
 }
