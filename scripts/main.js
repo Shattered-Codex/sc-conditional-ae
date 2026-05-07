@@ -6,6 +6,7 @@ import { DaeCompatibility } from "./compat/DaeCompatibility.js";
 import { ActiveEffectConditionHooks } from "./hooks/ActiveEffectConditionHooks.js";
 import { ActiveEffectFormulaChangeHooks } from "./hooks/ActiveEffectFormulaChangeHooks.js";
 import { ActiveEffectMacroChangeHooks } from "./hooks/ActiveEffectMacroChangeHooks.js";
+import { ActiveEffectConditionService } from "./services/ActiveEffectConditionService.js";
 import { ModuleSettings } from "./settings/ModuleSettings.js";
 import { ModuleSettingsRegistrar } from "./settings/ModuleSettingsRegistrar.js";
 
@@ -40,6 +41,18 @@ Hooks.once("setup", () => {
 
 Hooks.once("ready", () => {
   Constants.debug("module ready; scheduling Active Effect sheet registration");
+
+  const module = game.modules.get(Constants.MODULE_ID);
+  if (module) {
+    module.api = {
+      getCondition: ActiveEffectConditionService.getCondition.bind(ActiveEffectConditionService),
+      hasCondition: ActiveEffectConditionService.hasCondition.bind(ActiveEffectConditionService),
+      validateCondition: ActiveEffectConditionService.validateCondition.bind(ActiveEffectConditionService),
+      evaluate: ActiveEffectConditionService.evaluate.bind(ActiveEffectConditionService),
+      shouldSuppress: ActiveEffectConditionService.shouldSuppress.bind(ActiveEffectConditionService)
+    };
+  }
+
   window.setTimeout(() => {
     ActiveEffectSheetRegistrar.registerSheets();
   }, 0);

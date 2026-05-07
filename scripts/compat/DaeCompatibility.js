@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 
 export class DaeCompatibility {
   static #registered = false;
@@ -175,9 +176,9 @@ export class DaeCompatibility {
   }
 
   static #buildEvaluationContext(effect, options) {
-    const actor = options.actor ?? DaeCompatibility.#getAffectedActor(effect);
-    const origin = options.origin ?? DaeCompatibility.#getOrigin(effect);
-    const item = options.item ?? DaeCompatibility.#getItem(effect, origin);
+    const actor = options.actor ?? ActiveEffectContextBuilder.getAffectedActor(effect);
+    const origin = options.origin ?? ActiveEffectContextBuilder.getOrigin(effect);
+    const item = options.item ?? ActiveEffectContextBuilder.getItem(effect, origin);
     const rollData = actor?.getRollData?.() ?? {};
 
     return foundry.utils.mergeObject(rollData, {
@@ -190,76 +191,12 @@ export class DaeCompatibility {
       hasProperty: foundry.utils.hasProperty.bind(foundry.utils),
       item,
       origin,
-      originActor: DaeCompatibility.#getOriginActor(origin),
+      originActor: ActiveEffectContextBuilder.getOriginActor(origin),
       rollData: foundry.utils.deepClone(rollData),
       source: typeof effect?.toObject === "function" ? foundry.utils.deepClone(effect.toObject(false)) : foundry.utils.deepClone(effect ?? null),
       targetActor: actor,
       time: game.time ?? null,
       user: game.user ?? null
     }, { inplace: false });
-  }
-
-  static #getAffectedActor(effect) {
-    const parent = effect?.parent;
-    if (parent instanceof CONFIG.Actor.documentClass) {
-      return parent;
-    }
-
-    if (parent instanceof CONFIG.Item.documentClass) {
-      return parent.actor ?? parent.parent ?? null;
-    }
-
-    return null;
-  }
-
-  static #getOrigin(effect) {
-    const originUuid = effect?.origin ?? foundry.utils.getProperty(effect ?? {}, "origin");
-    if (!originUuid || typeof fromUuidSync !== "function") {
-      return null;
-    }
-
-    try {
-      return fromUuidSync(originUuid) ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  static #getItem(effect, origin) {
-    if (effect?.parent instanceof CONFIG.Item.documentClass) {
-      return effect.parent;
-    }
-
-    if (origin instanceof CONFIG.Item.documentClass) {
-      return origin;
-    }
-
-    if (origin instanceof CONFIG.ActiveEffect.documentClass && origin.parent instanceof CONFIG.Item.documentClass) {
-      return origin.parent;
-    }
-
-    return null;
-  }
-
-  static #getOriginActor(origin) {
-    if (origin instanceof CONFIG.Actor.documentClass) {
-      return origin;
-    }
-
-    if (origin instanceof CONFIG.Item.documentClass) {
-      return origin.actor ?? null;
-    }
-
-    if (origin instanceof CONFIG.ActiveEffect.documentClass) {
-      const parent = origin.parent;
-      if (parent instanceof CONFIG.Actor.documentClass) {
-        return parent;
-      }
-      if (parent instanceof CONFIG.Item.documentClass) {
-        return parent.actor ?? null;
-      }
-    }
-
-    return null;
   }
 }

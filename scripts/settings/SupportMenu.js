@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { resolveSettingsRoot } from "./resolveSettingsRoot.js";
 
 const { ApplicationV2 } = foundry?.applications?.api ?? {};
 if (!ApplicationV2) {
@@ -31,7 +32,7 @@ export class SupportMenu extends ApplicationV2 {
   }
 
   static bindSettingsButton(html) {
-    const root = SupportMenu.#resolveRoot(html);
+    const root = resolveSettingsRoot(html);
     if (!root) {
       return;
     }
@@ -62,18 +63,5 @@ export class SupportMenu extends ApplicationV2 {
         SupportMenu.openPatreon();
       }, { capture: true });
     }
-  }
-
-  static #resolveRoot(html) {
-    if (!html) {
-      return null;
-    }
-    if (html.jquery || typeof html.get === "function") {
-      return html[0] ?? html.get(0) ?? null;
-    }
-    if (html instanceof Element || html?.querySelector) {
-      return html;
-    }
-    return null;
   }
 }
