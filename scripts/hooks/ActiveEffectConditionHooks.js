@@ -4,6 +4,7 @@ import { ActiveEffectConditionService } from "../services/ActiveEffectConditionS
 export class ActiveEffectConditionHooks {
   static #suppressionPatched = false;
   static #preCreateHookRegistered = false;
+  static #readyRefreshScheduled = false;
 
   static activate() {
     if (!Constants.isDnd5eActive()) {
@@ -12,6 +13,7 @@ export class ActiveEffectConditionHooks {
 
     ActiveEffectConditionHooks.#patchSuppression();
     ActiveEffectConditionHooks.#registerPreCreateHook();
+    ActiveEffectConditionHooks.#scheduleReadyRefresh();
   }
 
   static #patchSuppression() {
@@ -107,6 +109,19 @@ export class ActiveEffectConditionHooks {
     Hooks.on("preCreateActiveEffect", ActiveEffectConditionHooks.#onPreCreateActiveEffect);
   }
 
+  static #scheduleReadyRefresh() {
+    if (ActiveEffectConditionHooks.#readyRefreshScheduled) {
+      return;
+    }
+
+    ActiveEffectConditionHooks.#readyRefreshScheduled = true;
+    Hooks.once("ready", () => {
+      window.setTimeout(() => {
+        ActiveEffectConditionHooks.#refreshConditionedActors();
+      }, 0);
+    });
+  }
+
   static #onPreCreateActiveEffect(effect, data) {
     const parent = effect?.parent;
     if (!(parent instanceof CONFIG.Actor.documentClass)) {
@@ -132,6 +147,60 @@ export class ActiveEffectConditionHooks {
     }
 
     return null;
+  }
+
+  static #refreshConditionedActors() {
+    const actors = new Map();
+
+    for (const actor of game.actors?.contents ?? []) {
+      if (ActiveEffectConditionHooks.#actorHasConditionedEffects(actor)) {
+        actors.set(actor.uuid, actor);
+      }
+    }
+
+    for (const token of canvas?.tokens?.placeables ?? []) {
+      const actor = token?.actor;
+      if (!actor || actors.has(actor.uuid)) {
+        continue;
+      }
+
+      if (ActiveEffectConditionHooks.#actorHasConditionedEffects(actor)) {
+        actors.set(actor.uuid, actor);
+      }
+    }
+
+    for (const actor of actors.values()) {
+      try {
+        actor.reset();
+      } catch (error) {
+        console.warn(`[${Constants.MODULE_ID}] could not refresh actor condition state`, {
+          actor: actor?.uuid ?? actor?.name ?? actor,
+          error
+        });
+      }
+    }
+  }
+
+  static #actorHasConditionedEffects(actor) {
+    if (!(actor instanceof CONFIG.Actor.documentClass)) {
+      return false;
+    }
+
+    for (const effect of actor.effects ?? []) {
+      if (ActiveEffectConditionService.hasCondition(effect)) {
+        return true;
+      }
+    }
+
+    for (const item of actor.items ?? []) {
+      for (const effect of item.effects ?? []) {
+        if (ActiveEffectConditionService.hasCondition(effect)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   static #hasPrototypeMember(prototype, propertyName) {

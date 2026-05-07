@@ -12,6 +12,23 @@
   font-size: var(--font-size-12, 12px);
 }
 
+.sc-cae-condition-tab .sc-cae-compatibility-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid rgba(88, 166, 255, 0.35);
+  border-radius: 6px;
+  background: rgba(88, 166, 255, 0.12);
+  color: #9ecbff;
+}
+
+.sc-cae-condition-tab .sc-cae-compatibility-hint i {
+  color: #58a6ff;
+}
+
 .sc-cae-condition-code {
   min-height: 220px;
 }

@@ -1,15 +1,22 @@
 import { Constants } from "../constants/Constants.js";
+import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 
 export class ActiveEffectConditionService {
   static #compiledConditionCache = new Map();
   static #CONDITION_CACHE_LIMIT = 100;
 
   static getCondition(effect) {
-    return String(
+    const nativeCondition = String(
       effect?.getFlag?.(Constants.MODULE_ID, Constants.FLAG_CONDITION)
       ?? foundry.utils.getProperty(effect ?? {}, Constants.CONDITION_FLAG_PATH)
       ?? ""
     );
+
+    if (nativeCondition.trim().length > 0) {
+      return nativeCondition;
+    }
+
+    return DaeCompatibility.getCondition(effect);
   }
 
   static hasCondition(effect) {
@@ -20,6 +27,10 @@ export class ActiveEffectConditionService {
     const source = String(code ?? "");
     if (!source.trim().length) {
       return { valid: true, error: null };
+    }
+
+    if (DaeCompatibility.isCompatibilityCondition(source)) {
+      return DaeCompatibility.validateCondition(source);
     }
 
     try {
@@ -39,6 +50,10 @@ export class ActiveEffectConditionService {
     const rawCode = ActiveEffectConditionService.getCondition(effect);
     if (!rawCode.trim().length) {
       return { available: true, error: null };
+    }
+
+    if (DaeCompatibility.isCompatibilityCondition(rawCode)) {
+      return DaeCompatibility.evaluateCondition(rawCode, effect, options);
     }
 
     try {

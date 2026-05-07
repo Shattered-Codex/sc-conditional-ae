@@ -7,6 +7,7 @@
       "Label": "Condição",
       "Heading": "Condição do Active Effect",
       "Hint": "Use JavaScript. Este Active Effect só é aplicado quando o script retornar true.",
+      "CompatibilityHint": "Esta condição veio do DAE. O SC Conditional AE está adaptando isso automaticamente.",
       "Variables": "Variáveis disponíveis: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game.",
       "Placeholder": "Exemplo: return actor?.system?.attributes?.hp?.value > 0;",
       "Wiki": "Abrir wiki",

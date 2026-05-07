@@ -2,6 +2,12 @@
   <fieldset>
     <legend>{{ strings.heading }}</legend>
     <p class="hint">{{ strings.hint }}</p>
+    {{#if strings.compatibilityHint}}
+    <p class="hint sc-cae-compatibility-hint">
+      <i class="fas fa-wand-magic-sparkles"></i>
+      {{ strings.compatibilityHint }}
+    </p>
+    {{/if}}
     <p class="hint">{{ strings.variables }}</p>
     <a class="sc-cae-help-link" href="{{ conditionWikiUrl }}" target="_blank" rel="noopener">
       <i class="fas fa-up-right-from-square"></i> {{ strings.wiki }}
@@ -21,14 +27,14 @@
       indent="2"
       class="sc-cae-condition-code"
       aria-label="{{ strings.label }}"
-    >{{ condition }}</code-mirror>
+    >{{ conditionInputValue }}</code-mirror>
     {{else}}
     <textarea
       name="{{ conditionFlagPath }}"
       class="sc-cae-condition-code sc-cae-condition-code--readonly"
       rows="10"
       placeholder="{{ strings.placeholder }}"
-      disabled>{{ condition }}</textarea>
+      disabled>{{ conditionInputValue }}</textarea>
     {{/if}}
   </fieldset>
 </section>

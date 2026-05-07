@@ -2,6 +2,8 @@
 
 Adds a Condition tab to dnd5e Active Effect configuration sheets.
 
+If an Active Effect still uses a DAE condition from `flags.dae.enableCondition` or `flags.dae.disableCondition`, SC - Conditional AE adapts it automatically in the Condition tab. DAE-style expressions, including `@` roll data references, are preserved when the effect is saved into `flags.sc-conditional-ae.condition`.
+
 ## Macro changes
 
 Use `cae.macro.execute` with change mode `Custom` to execute a world macro when an Active Effect is applied or removed.

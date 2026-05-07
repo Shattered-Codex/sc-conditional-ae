@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -181,11 +182,14 @@ function getExtendedTabs(tabs) {
 
 function buildConditionContext(sheet, context) {
   const condition = ActiveEffectConditionService.getCondition(sheet.document);
+  const conditionInputValue = DaeCompatibility.toDisplayCondition(condition);
   const validation = ActiveEffectConditionService.validateCondition(condition);
+  const usesDaeCompatibility = DaeCompatibility.isCompatibilityCondition(condition);
 
   return {
     tab: getConditionTab(sheet, context),
     condition,
+    conditionInputValue,
     conditionFlagPath: Constants.CONDITION_FLAG_PATH,
     conditionWikiUrl: `${Constants.MODULE_WIKI_URL}#active-effect-condition`,
     conditionInvalid: !validation.valid,
@@ -197,6 +201,12 @@ function buildConditionContext(sheet, context) {
         "SCConditionalAE.ConditionTab.Hint",
         "Use JavaScript. This Active Effect is applied only when the script returns true."
       ),
+      compatibilityHint: usesDaeCompatibility
+        ? Constants.localize(
+          "SCConditionalAE.ConditionTab.CompatibilityHint",
+          "This condition came from DAE. SC Conditional AE is adapting it automatically."
+        )
+        : "",
       variables: Constants.localize(
         "SCConditionalAE.ConditionTab.Variables",
         "Available variables: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
@@ -225,18 +235,35 @@ function getConditionTab(sheet, context) {
   };
 }
 
-function cleanConditionSubmitData(submitData) {
+function cleanConditionSubmitData(sheet, submitData) {
   const condition = foundry.utils.getProperty(submitData ?? {}, Constants.CONDITION_FLAG_PATH);
-  if (typeof condition === "string" && !condition.trim().length) {
-    foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, null);
+  if (typeof condition !== "string") {
+    return;
   }
+
+  const trimmedCondition = condition.trim();
+  if (!trimmedCondition.length) {
+    foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, null);
+    foundry.utils.setProperty(submitData, Constants.DAE_CONDITION_FLAG_PATH, null);
+    foundry.utils.setProperty(submitData, Constants.DAE_DISABLE_CONDITION_FLAG_PATH, null);
+    return;
+  }
+
+  const fallbackMode = DaeCompatibility.getCompatibilityMode(
+    ActiveEffectConditionService.getCondition(sheet.document)
+  );
+  const normalizedCondition = DaeCompatibility.normalizeSubmittedCondition(trimmedCondition, fallbackMode);
+
+  foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, normalizedCondition);
+  foundry.utils.setProperty(submitData, Constants.DAE_CONDITION_FLAG_PATH, null);
+  foundry.utils.setProperty(submitData, Constants.DAE_DISABLE_CONDITION_FLAG_PATH, null);
 }
 
 function cleanSubmitData(sheet, submitData) {
   const data = submitData?.object && typeof submitData.object === "object" ? submitData.object : submitData;
   const targets = getSubmitDataTargets(submitData, data);
   for (const target of targets) {
-    cleanConditionSubmitData(target);
+    cleanConditionSubmitData(sheet, target);
     if (ModuleSettings.isFormulaChangesEnabled()) {
       collectFormulaSubmitData(sheet, target);
       ActiveEffectFormulaChangeService.prepareSubmitData(sheet.document, target);
