@@ -1,11 +1,16 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
+import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectFormulaChangeHooks {
   static #registered = false;
 
   static activate() {
-    if (ActiveEffectFormulaChangeHooks.#registered || !Constants.isDnd5eActive()) {
+    if (
+      ActiveEffectFormulaChangeHooks.#registered
+      || !Constants.isDnd5eActive()
+      || !ModuleSettings.isFormulaChangesEnabled()
+    ) {
       return;
     }
 

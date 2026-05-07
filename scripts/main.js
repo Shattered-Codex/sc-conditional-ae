@@ -6,12 +6,15 @@ import { DaeCompatibility } from "./compat/DaeCompatibility.js";
 import { ActiveEffectConditionHooks } from "./hooks/ActiveEffectConditionHooks.js";
 import { ActiveEffectFormulaChangeHooks } from "./hooks/ActiveEffectFormulaChangeHooks.js";
 import { ActiveEffectMacroChangeHooks } from "./hooks/ActiveEffectMacroChangeHooks.js";
+import { ModuleSettings } from "./settings/ModuleSettings.js";
+import { ModuleSettingsRegistrar } from "./settings/ModuleSettingsRegistrar.js";
 
 DaeCompatibility.activate();
 
 Hooks.once("init", () => {
   Constants.debug("module init");
   AuraEffectsCompatibility.activate();
+  ModuleSettingsRegistrar.register();
 });
 
 Hooks.once("setup", () => {
@@ -28,9 +31,11 @@ Hooks.once("setup", () => {
   }
 
   ActiveEffectConditionHooks.activate();
-  ActiveEffectFormulaChangeHooks.activate();
+  if (ModuleSettings.isFormulaChangesEnabled()) {
+    ActiveEffectFormulaChangeHooks.activate();
+    activateFormulaColumnRenderHook();
+  }
   ActiveEffectMacroChangeHooks.activate();
-  activateFormulaColumnRenderHook();
 });
 
 Hooks.once("ready", () => {

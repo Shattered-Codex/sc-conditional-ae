@@ -1,6 +1,7 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
+import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 const TEMPLATE_PATH = `modules/${Constants.MODULE_ID}/templates/active-effect-condition-tab.hbs`;
 const CHANGE_SECTION_SELECTOR = "section.changes, section[data-tab='changes'], section[data-tab='effects']";
@@ -66,8 +67,10 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
     _onRender(...args) {
       super._onRender?.(...args);
       ensureMinimumSheetWidth(this);
-      scheduleFormulaColumnRender(this);
-      activateFormulaColumnObserver(this);
+      if (ModuleSettings.isFormulaChangesEnabled()) {
+        scheduleFormulaColumnRender(this);
+        activateFormulaColumnObserver(this);
+      }
     }
 
     _onClose(...args) {
@@ -84,6 +87,10 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
 }
 
 function getExtendedDefaultOptions(options) {
+  if (!ModuleSettings.isFormulaChangesEnabled()) {
+    return options;
+  }
+
   const configuredWidth = Number(options.position?.width);
   const width = Number.isFinite(configuredWidth)
     ? Math.max(configuredWidth, MINIMUM_SHEET_WIDTH)
@@ -99,6 +106,10 @@ function getExtendedDefaultOptions(options) {
 }
 
 function ensureMinimumSheetWidth(sheet) {
+  if (!ModuleSettings.isFormulaChangesEnabled()) {
+    return;
+  }
+
   const root = getSheetRoot(sheet);
   const currentWidth = root?.getBoundingClientRect?.().width ?? 0;
   if (currentWidth >= MINIMUM_SHEET_WIDTH) {
@@ -116,7 +127,7 @@ function ensureMinimumSheetWidth(sheet) {
 }
 
 function getExtendedParts(parts) {
-  if (parts.condition) {
+  if (!ModuleSettings.isConditionTabEnabled() || parts.condition) {
     return parts;
   }
 
@@ -134,6 +145,10 @@ function getExtendedParts(parts) {
 }
 
 function getExtendedTabs(tabs) {
+  if (!ModuleSettings.isConditionTabEnabled()) {
+    return tabs;
+  }
+
   const sheetTabs = tabs.sheet ?? {
     tabs: [
       { id: "details", icon: "fa-solid fa-book" },
@@ -222,7 +237,9 @@ function cleanSubmitData(sheet, submitData) {
   const targets = getSubmitDataTargets(submitData, data);
   for (const target of targets) {
     cleanConditionSubmitData(target);
-    ActiveEffectFormulaChangeService.prepareSubmitData(sheet.document, target);
+    if (ModuleSettings.isFormulaChangesEnabled()) {
+      ActiveEffectFormulaChangeService.prepareSubmitData(sheet.document, target);
+    }
   }
 }
 
@@ -253,6 +270,10 @@ function getSubmitDataTargets(submitData, primaryData) {
 }
 
 function renderFormulaColumn(sheet, rootOverride) {
+  if (!ModuleSettings.isFormulaChangesEnabled()) {
+    return;
+  }
+
   const root = getSheetRoot(sheet, rootOverride);
   if (!root) {
     return;

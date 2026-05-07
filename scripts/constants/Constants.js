@@ -1,6 +1,7 @@
 export class Constants {
   static MODULE_ID = "sc-conditional-ae";
   static MODULE_WIKI_URL = "https://wiki.shattered-codex.com/modules/sc-conditional-ae";
+  static PATREON_URL = "https://www.patreon.com/c/shatteredcodex?utm_source=sc-conditional-ae&utm_medium=foundry_module&utm_campaign=support_button";
   static FLAG_CONDITION = "condition";
   static FLAG_FORMULA_CHANGES = "formulaChanges";
   static CONDITION_FLAG_PATH = `flags.${Constants.MODULE_ID}.${Constants.FLAG_CONDITION}`;

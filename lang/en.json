@@ -26,6 +26,26 @@
       "Column": "Formula",
       "ColumnHint": "Formula rolled when this Active Effect is activated.",
       "Placeholder": "Optional formula"
+    },
+    "Settings": {
+      "EnableFormulaChanges": {
+        "Name": "Enable formula column",
+        "Hint": "Adds the Formula column to Active Effect changes and rolls formulas when effects are activated."
+      },
+      "ShowConditionTab": {
+        "Name": "Show condition tab",
+        "Hint": "Adds the Condition tab to Active Effect configuration sheets."
+      },
+      "SupportMenu": {
+        "Name": "Support the developer",
+        "Label": "Patreon support",
+        "Hint": "Support Shattered Codex development on Patreon."
+      },
+      "DocumentationMenu": {
+        "Name": "Documentation",
+        "Label": "Open wiki",
+        "Hint": "Open the SC - Conditional AE documentation wiki."
+      }
     }
   }
 }

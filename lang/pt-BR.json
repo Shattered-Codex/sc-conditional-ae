@@ -26,6 +26,26 @@
       "Column": "Fórmula",
       "ColumnHint": "Fórmula rolada quando este Active Effect é ativado.",
       "Placeholder": "Fórmula opcional"
+    },
+    "Settings": {
+      "EnableFormulaChanges": {
+        "Name": "Habilitar coluna de fórmula",
+        "Hint": "Adiciona a coluna Fórmula aos changes do Active Effect e rola fórmulas quando os efeitos são ativados."
+      },
+      "ShowConditionTab": {
+        "Name": "Exibir aba de condição",
+        "Hint": "Adiciona a aba Condição às janelas de configuração de Active Effect."
+      },
+      "SupportMenu": {
+        "Name": "Apoiar o desenvolvedor",
+        "Label": "Apoiar no Patreon",
+        "Hint": "Apoie o desenvolvimento do Shattered Codex no Patreon."
+      },
+      "DocumentationMenu": {
+        "Name": "Documentação",
+        "Label": "Abrir wiki",
+        "Hint": "Abre a wiki de documentação do SC - Conditional AE."
+      }
     }
   }
 }
