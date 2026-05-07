@@ -495,7 +495,7 @@ function updateFormulaInput(container, valueInput, row, formulaChanges, fallback
   const input = container.querySelector(".sc-cae-formula-input") ?? createFormulaInput(index);
   input.name = `${Constants.FORMULA_CHANGES_FLAG_PATH}.${index}.formula`;
 
-  const formulaChange = formulaChanges[index] ?? findFormulaChangeForRow(row, formulaChanges);
+  const formulaChange = formulaChanges[index];
   const formula = String(formulaChange?.formula ?? "");
   if (document.activeElement !== input && input.value !== formula) {
     input.value = formula;
@@ -518,13 +518,6 @@ function createFormulaInput(index) {
   );
   input.dataset.tooltipDirection = "UP";
   return input;
-}
-
-function findFormulaChangeForRow(row, formulaChanges) {
-  const key = getChangeKeyInput(row)?.value;
-  return Object.values(formulaChanges).find(formulaChange => (
-    formulaChange?.key && formulaChange.key === key
-  )) ?? null;
 }
 
 function findChangeRow(root, input, index) {

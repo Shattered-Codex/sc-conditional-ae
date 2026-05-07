@@ -1,7 +1,6 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectConditionService } from "./ActiveEffectConditionService.js";
 
-const DICE_FORMULA_PATTERN = /(?:^|[^a-zA-Z])(?:\d+)?d\d+/i;
 const ROLL_UPDATE_OPTION = "formulaRollUpdate";
 
 export class ActiveEffectFormulaChangeService {
@@ -211,7 +210,7 @@ export class ActiveEffectFormulaChangeService {
         formula,
         key: change.key
       };
-      if (ActiveEffectFormulaChangeService.#shouldResetFormulaBackedValue(change.value)) {
+      if (ActiveEffectFormulaChangeService.#shouldResetFormulaBackedValue(change.value, formula, existingFormulaChange?.formula)) {
         change.value = "0";
       }
       changed = true;
@@ -226,9 +225,7 @@ export class ActiveEffectFormulaChangeService {
       return indexed;
     }
 
-    return Object.values(existingFormulaChanges).find(formulaChange => (
-      ActiveEffectFormulaChangeService.#isCompatibleStoredFormula(change, formulaChange)
-    )) ?? {};
+    return {};
   }
 
   static #getFormulaForPreparedChange(change, existingFormulaChange, submittedFormulaChange) {
@@ -247,10 +244,6 @@ export class ActiveEffectFormulaChangeService {
 
     if (ActiveEffectFormulaChangeService.#isCompatibleStoredFormula(change, existingFormulaChange)) {
       return String(existingFormulaChange.formula).trim();
-    }
-
-    if (ActiveEffectFormulaChangeService.#isFormulaValue(change.value)) {
-      return String(change.value).trim();
     }
 
     return null;
@@ -432,14 +425,19 @@ export class ActiveEffectFormulaChangeService {
     delete target[property];
   }
 
-  static #isFormulaValue(value) {
+  static #shouldResetFormulaBackedValue(value, formula, existingFormula) {
     value = String(value ?? "").trim();
-    return DICE_FORMULA_PATTERN.test(value);
-  }
+    if (!value.length) {
+      return true;
+    }
 
-  static #shouldResetFormulaBackedValue(value) {
-    value = String(value ?? "").trim();
-    return !value.length || ActiveEffectFormulaChangeService.#isFormulaValue(value);
+    formula = String(formula ?? "").trim();
+    if (formula.length && value === formula) {
+      return true;
+    }
+
+    existingFormula = String(existingFormula ?? "").trim();
+    return existingFormula.length && value === existingFormula;
   }
 
   static #isCustomChange(change) {
