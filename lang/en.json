@@ -32,6 +32,8 @@
       "DialogTitle": "Roll Active Effect Formula",
       "DialogHint": "Confirm or edit the formula to roll for this Active Effect.",
       "RollButton": "Roll",
+      "RollAllLabel": "Roll all formulas",
+      "RollAllUnavailableLabel": "Formulas unavailable right now",
       "RollFlavor": "Active Effect formula roll",
       "InvalidFormula": "Invalid Active Effect formula.",
       "Column": "Formula",

@@ -32,6 +32,8 @@
       "DialogTitle": "Rolar fórmula do Active Effect",
       "DialogHint": "Confirme ou ajuste a fórmula que será rolada para este Active Effect.",
       "RollButton": "Rolar",
+      "RollAllLabel": "Rolar todas as fórmulas",
+      "RollAllUnavailableLabel": "As fórmulas não estão disponíveis agora",
       "RollFlavor": "Rolagem de fórmula do Active Effect",
       "InvalidFormula": "Fórmula inválida no Active Effect.",
       "Column": "Fórmula",

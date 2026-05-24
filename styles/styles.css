@@ -156,3 +156,36 @@
   color: #ff6a72;
   text-shadow: 0 0 6px rgba(255, 66, 77, 0.35);
 }
+
+.sc-cae-formula-roll-control {
+  color: var(--dnd5e-color-gold, #d4b66a);
+}
+
+[data-tidy-effect-name-container] > .sc-cae-formula-roll-control {
+  margin-left: 0.35rem;
+}
+
+.sc-cae-formula-roll-control:hover,
+.sc-cae-formula-roll-control:focus {
+  color: #f3d37c;
+  text-shadow: 0 0 6px rgba(212, 182, 106, 0.35);
+}
+
+.sc-cae-formula-roll-control.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.sc-cae-formula-roll-control.loading i {
+  animation: sc-cae-spin 1s linear infinite;
+}
+
+@keyframes sc-cae-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

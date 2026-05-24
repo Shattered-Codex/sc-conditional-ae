@@ -1,6 +1,7 @@
 import { Constants } from "./constants/Constants.js";
 import { ActiveEffectSheetRegistrar } from "./applications/ActiveEffectSheetRegistrar.js";
 import { activateFormulaColumnRenderHook } from "./applications/ConditionalActiveEffectSheetMixin.js";
+import { EffectListFormulaRollButtonRenderer } from "./applications/EffectListFormulaRollButtonRenderer.js";
 import { AuraEffectsCompatibility } from "./compat/AuraEffectsCompatibility.js";
 import { DaeCompatibility } from "./compat/DaeCompatibility.js";
 import { ActiveEffectConditionHooks } from "./hooks/ActiveEffectConditionHooks.js";
@@ -35,6 +36,7 @@ Hooks.once("setup", () => {
   if (ModuleSettings.isFormulaChangesEnabled()) {
     ActiveEffectFormulaChangeHooks.activate();
     activateFormulaColumnRenderHook();
+    EffectListFormulaRollButtonRenderer.activate();
   }
   ActiveEffectMacroChangeHooks.activate();
 });
