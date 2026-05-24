@@ -1,5 +1,6 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
+import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectFormulaChangeHooks {
@@ -59,7 +60,11 @@ export class ActiveEffectFormulaChangeHooks {
   }
 
   static #isActive(effect) {
-    return effect?.active !== false && effect?.disabled !== true;
+    const conditionEvaluation = ActiveEffectConditionService.evaluate(effect);
+    return effect?.active !== false
+      && effect?.disabled !== true
+      && !conditionEvaluation.error
+      && conditionEvaluation.available;
   }
 
   static #roll(effect) {

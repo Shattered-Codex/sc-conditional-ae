@@ -1,5 +1,6 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectMacroChangeService } from "../services/ActiveEffectMacroChangeService.js";
+import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 
 export class ActiveEffectMacroChangeHooks {
   static #registered = false;
@@ -61,7 +62,11 @@ export class ActiveEffectMacroChangeHooks {
   }
 
   static #isActive(effect) {
-    return effect?.active !== false && effect?.disabled !== true;
+    const conditionEvaluation = ActiveEffectConditionService.evaluate(effect);
+    return effect?.active !== false
+      && effect?.disabled !== true
+      && !conditionEvaluation.error
+      && conditionEvaluation.available;
   }
 
   static #execute(effect, action) {

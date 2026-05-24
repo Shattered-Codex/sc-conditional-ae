@@ -20,6 +20,43 @@
     </p>
     {{/if}}
 
+    <div class="sc-cae-evaluation sc-cae-evaluation--{{ evaluation.state }}">
+      <div class="sc-cae-evaluation__header">{{ strings.evaluationHeading }}</div>
+      <p class="hint sc-cae-evaluation__message">
+        {{#if evaluation.isEmpty}}
+        {{ strings.evaluationEmpty }}
+        {{else}}
+          {{#if evaluation.isTrue}}
+          {{ strings.evaluationTrue }}
+          {{else}}
+            {{#if evaluation.isFalse}}
+            {{ strings.evaluationFalse }}
+            {{else}}
+            {{ strings.evaluationError }} {{ evaluation.errorMessage }}
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      </p>
+      {{#if evaluation.hasResult}}
+      <p class="hint sc-cae-evaluation__detail">
+        <strong>{{ strings.evaluationResult }}:</strong>
+        <code>{{ evaluation.resultLabel }}</code>
+      </p>
+      {{/if}}
+      {{#if evaluation.contextLabel}}
+      <p class="hint sc-cae-evaluation__detail">
+        <strong>{{ strings.evaluationContext }}:</strong>
+        {{ evaluation.contextLabel }}
+      </p>
+      {{/if}}
+      {{#if evaluation.effectStateLabel}}
+      <p class="hint sc-cae-evaluation__detail">
+        <strong>{{ strings.evaluationEffectState }}:</strong>
+        <code>{{ evaluation.effectStateLabel }}</code>
+      </p>
+      {{/if}}
+    </div>
+
     {{#if editable}}
     <code-mirror
       name="{{ conditionFlagPath }}"

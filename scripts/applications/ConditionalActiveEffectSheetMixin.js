@@ -174,6 +174,7 @@ function buildConditionContext(sheet, context) {
   const conditionInputValue = DaeCompatibility.toDisplayCondition(condition);
   const validation = ActiveEffectConditionService.validateCondition(condition);
   const usesDaeCompatibility = DaeCompatibility.isCompatibilityCondition(condition);
+  const evaluation = buildConditionEvaluationContext(sheet, condition, validation);
 
   return {
     tab: getConditionTab(sheet, context),
@@ -183,6 +184,7 @@ function buildConditionContext(sheet, context) {
     conditionWikiUrl: `${Constants.MODULE_WIKI_URL}#active-effect-condition`,
     conditionInvalid: !validation.valid,
     validationMessage: validation.error?.message ?? "",
+    evaluation,
     strings: {
       label: Constants.localize("SCConditionalAE.ConditionTab.Label", "Condition"),
       heading: Constants.localize("SCConditionalAE.ConditionTab.Heading", "Active Effect condition"),
@@ -204,10 +206,144 @@ function buildConditionContext(sheet, context) {
         "SCConditionalAE.ConditionTab.Placeholder",
         "Example: return actor?.system?.attributes?.hp?.value > 0;"
       ),
+      evaluationHeading: Constants.localize("SCConditionalAE.ConditionTab.Evaluation.Heading", "Current evaluation"),
+      evaluationEmpty: Constants.localize(
+        "SCConditionalAE.ConditionTab.Evaluation.Empty",
+        "No condition configured. The effect is available."
+      ),
+      evaluationTrue: Constants.localize(
+        "SCConditionalAE.ConditionTab.Evaluation.True",
+        "The condition currently resolves to true. The effect is available."
+      ),
+      evaluationFalse: Constants.localize(
+        "SCConditionalAE.ConditionTab.Evaluation.False",
+        "The condition currently resolves to false. The effect is suppressed."
+      ),
+      evaluationError: Constants.localize(
+        "SCConditionalAE.ConditionTab.Evaluation.Error",
+        "The condition threw an error while being evaluated."
+      ),
+      evaluationResult: Constants.localize("SCConditionalAE.ConditionTab.Evaluation.Result", "Returned value"),
+      evaluationContext: Constants.localize("SCConditionalAE.ConditionTab.Evaluation.Context", "Evaluated against"),
+      evaluationEffectState: Constants.localize("SCConditionalAE.ConditionTab.Evaluation.EffectState", "Effect state"),
       wiki: Constants.localize("SCConditionalAE.ConditionTab.Wiki", "Open wiki"),
       invalid: Constants.localize("SCConditionalAE.ConditionTab.Invalid", "This condition has invalid code.")
     }
   };
+}
+
+function buildConditionEvaluationContext(sheet, condition, validation) {
+  const trimmedCondition = String(condition ?? "").trim();
+  if (!trimmedCondition.length) {
+    return {
+      state: "empty",
+      available: true,
+      isEmpty: true,
+      isTrue: false,
+      isFalse: false,
+      isError: false,
+      hasResult: false,
+      resultLabel: "",
+      contextLabel: getEvaluationContextLabel(sheet.document),
+      effectStateLabel: getEffectStateLabel(sheet.document)
+    };
+  }
+
+  if (!validation.valid) {
+    return {
+      state: "error",
+      available: false,
+      isEmpty: false,
+      isTrue: false,
+      isFalse: false,
+      isError: true,
+      hasResult: false,
+      resultLabel: "",
+      contextLabel: getEvaluationContextLabel(sheet.document),
+      effectStateLabel: getEffectStateLabel(sheet.document),
+      errorMessage: validation.error?.message ?? ""
+    };
+  }
+
+  const evaluation = ActiveEffectConditionService.evaluate(sheet.document);
+  return {
+    state: evaluation.error ? "error" : (evaluation.available ? "true" : "false"),
+    available: evaluation.available,
+    isEmpty: false,
+    isTrue: !evaluation.error && evaluation.available,
+    isFalse: !evaluation.error && !evaluation.available,
+    isError: Boolean(evaluation.error),
+    hasResult: !evaluation.error,
+    resultLabel: formatConditionResult(evaluation.result),
+    contextLabel: getEvaluationContextLabel(sheet.document),
+    effectStateLabel: getEffectStateLabel(sheet.document),
+    errorMessage: evaluation.error?.message ?? ""
+  };
+}
+
+function formatConditionResult(value) {
+  if (value === undefined) {
+    return "undefined";
+  }
+
+  if (typeof value === "string") {
+    return JSON.stringify(value);
+  }
+
+  if (typeof value === "function") {
+    return "[Function]";
+  }
+
+  if (typeof value === "object" && value !== null) {
+    try {
+      const serialized = JSON.stringify(value);
+      return serialized.length > 180 ? `${serialized.slice(0, 177)}...` : serialized;
+    } catch {
+      return "[Object]";
+    }
+  }
+
+  return String(value);
+}
+
+function getEvaluationContextLabel(effect) {
+  const parent = effect?.parent;
+  if (parent instanceof CONFIG.Actor.documentClass) {
+    return parent.name ?? parent.uuid ?? "";
+  }
+
+  if (parent instanceof CONFIG.Item.documentClass) {
+    const actor = parent.actor ?? parent.parent ?? null;
+    if (actor instanceof CONFIG.Actor.documentClass) {
+      return `${actor.name ?? actor.uuid ?? ""} / ${parent.name ?? parent.uuid ?? ""}`;
+    }
+
+    return parent.name ?? parent.uuid ?? "";
+  }
+
+  return effect?.name ?? effect?.uuid ?? "";
+}
+
+function getEffectStateLabel(effect) {
+  const states = [];
+
+  if (effect?.disabled === true) {
+    states.push("disabled");
+  }
+
+  if (effect?.isSuppressed === true) {
+    states.push("suppressed");
+  }
+
+  if (effect?.active === false) {
+    states.push("inactive");
+  }
+
+  if (!states.length) {
+    states.push("active");
+  }
+
+  return states.join(", ");
 }
 
 function getConditionTab(sheet, context) {
@@ -232,20 +368,13 @@ function cleanConditionSubmitData(sheet, submitData) {
 
   const trimmedCondition = condition.trim();
   if (!trimmedCondition.length) {
-    foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, null);
-    foundry.utils.setProperty(submitData, Constants.DAE_CONDITION_FLAG_PATH, null);
-    foundry.utils.setProperty(submitData, Constants.DAE_DISABLE_CONDITION_FLAG_PATH, null);
+    DaeCompatibility.applyConditionSubmitData(submitData, "");
     return;
   }
 
-  const fallbackMode = DaeCompatibility.getCompatibilityMode(
-    ActiveEffectConditionService.getCondition(sheet.document)
-  );
-  const normalizedCondition = DaeCompatibility.normalizeSubmittedCondition(trimmedCondition, fallbackMode);
-
-  foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, normalizedCondition);
-  foundry.utils.setProperty(submitData, Constants.DAE_CONDITION_FLAG_PATH, null);
-  foundry.utils.setProperty(submitData, Constants.DAE_DISABLE_CONDITION_FLAG_PATH, null);
+  const existingCondition = ActiveEffectConditionService.getCondition(sheet.document);
+  const fallbackMode = DaeCompatibility.getCompatibilityMode(existingCondition);
+  DaeCompatibility.applyConditionSubmitData(submitData, trimmedCondition, fallbackMode);
 }
 
 function cleanSubmitData(sheet, submitData) {

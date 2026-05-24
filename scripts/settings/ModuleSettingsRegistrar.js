@@ -14,6 +14,7 @@ export class ModuleSettingsRegistrar {
 
     ModuleSettingsRegistrar.#registerFormulaSetting();
     ModuleSettingsRegistrar.#registerConditionTabSetting();
+    ModuleSettingsRegistrar.#registerDebugSetting();
     ModuleSettingsRegistrar.#registerSupportMenu();
     ModuleSettingsRegistrar.#registerDocumentationMenu();
   }
@@ -45,6 +46,20 @@ export class ModuleSettingsRegistrar {
       type: Boolean,
       default: true,
       requiresReload: true
+    });
+  }
+
+  static #registerDebugSetting() {
+    game.settings.register(Constants.MODULE_ID, ModuleSettings.SETTING_DEBUG_LOGGING, {
+      name: Constants.localize("SCConditionalAE.Settings.DebugLogging.Name", "Enable debug logging"),
+      hint: Constants.localize(
+        "SCConditionalAE.Settings.DebugLogging.Hint",
+        "Logs condition evaluation, suppression refreshes, and activation transitions to the browser console."
+      ),
+      scope: "client",
+      config: true,
+      type: Boolean,
+      default: false
     });
   }
 

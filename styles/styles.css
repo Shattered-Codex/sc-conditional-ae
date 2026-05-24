@@ -42,6 +42,41 @@
   margin: 0;
 }
 
+.sc-cae-evaluation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sc-cae-evaluation--true {
+  border-color: rgba(72, 187, 120, 0.35);
+  background: rgba(72, 187, 120, 0.08);
+}
+
+.sc-cae-evaluation--false,
+.sc-cae-evaluation--error {
+  border-color: rgba(245, 101, 101, 0.35);
+  background: rgba(245, 101, 101, 0.08);
+}
+
+.sc-cae-evaluation__header {
+  font-weight: 700;
+}
+
+.sc-cae-evaluation__message,
+.sc-cae-evaluation__detail {
+  margin: 0;
+}
+
+.sc-cae-evaluation__detail code {
+  user-select: text;
+}
+
 .sc-cae-formula-cell {
   min-width: 0;
   vertical-align: top;

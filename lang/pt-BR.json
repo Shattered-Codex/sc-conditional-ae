@@ -10,6 +10,16 @@
       "CompatibilityHint": "Esta condição veio do DAE. O SC Conditional AE está adaptando isso automaticamente.",
       "Variables": "Variáveis disponíveis: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game.",
       "Placeholder": "Exemplo: return actor?.system?.attributes?.hp?.value > 0;",
+      "Evaluation": {
+        "Heading": "Avaliação atual",
+        "Empty": "Nenhuma condição configurada. O efeito está disponível.",
+        "True": "A condição atualmente resolve para true. O efeito está disponível.",
+        "False": "A condição atualmente resolve para false. O efeito está suprimido.",
+        "Error": "A condição gerou um erro durante a avaliação.",
+        "Result": "Valor retornado",
+        "Context": "Avaliado contra",
+        "EffectState": "Estado do efeito"
+      },
       "Wiki": "Abrir wiki",
       "Invalid": "Esta condição contém código inválido."
     },
@@ -36,6 +46,10 @@
       "ShowConditionTab": {
         "Name": "Exibir aba de condição",
         "Hint": "Adiciona a aba Condição às janelas de configuração de Active Effect."
+      },
+      "DebugLogging": {
+        "Name": "Habilitar logs de debug",
+        "Hint": "Registra no console do navegador a avaliação de condições, refreshes de supressão e transições de ativação."
       },
       "SupportMenu": {
         "Name": "Apoiar o desenvolvedor",

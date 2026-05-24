@@ -94,6 +94,37 @@ export class DaeCompatibility {
       : trimmedExpression;
   }
 
+  static applyConditionSubmitData(submitData, condition, fallbackMode = null) {
+    const normalizedCondition = DaeCompatibility.normalizeSubmittedCondition(condition, fallbackMode);
+    if (!normalizedCondition.length) {
+      DaeCompatibility.#clearConditionSubmitData(submitData);
+      return normalizedCondition;
+    }
+
+    if (DaeCompatibility.isCompatibilityCondition(normalizedCondition)) {
+      const { mode, expression } = DaeCompatibility.unwrapCompatibilityCondition(normalizedCondition);
+      const trimmedExpression = expression.trim();
+
+      foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, null);
+      foundry.utils.setProperty(
+        submitData,
+        Constants.DAE_CONDITION_FLAG_PATH,
+        mode === "enable" ? trimmedExpression : null
+      );
+      foundry.utils.setProperty(
+        submitData,
+        Constants.DAE_DISABLE_CONDITION_FLAG_PATH,
+        mode === "disable" ? trimmedExpression : null
+      );
+      return normalizedCondition;
+    }
+
+    foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, normalizedCondition);
+    foundry.utils.setProperty(submitData, Constants.DAE_CONDITION_FLAG_PATH, null);
+    foundry.utils.setProperty(submitData, Constants.DAE_DISABLE_CONDITION_FLAG_PATH, null);
+    return normalizedCondition;
+  }
+
   static looksLikeCompatibilityExpression(condition) {
     const source = String(condition ?? "");
     return source.includes("@")
@@ -145,17 +176,22 @@ export class DaeCompatibility {
     const { mode, expression } = DaeCompatibility.unwrapCompatibilityCondition(condition);
     const trimmedExpression = expression.trim();
     if (!trimmedExpression.length) {
-      return { available: true, error: null };
+      return { available: true, error: null, result: true };
     }
 
     try {
       const context = DaeCompatibility.#buildEvaluationContext(effect, options);
       const preparedExpression = Roll.replaceFormulaData(trimmedExpression, context, { missing: "0", warn: false });
-      const result = Boolean(DaeCompatibility.#evaluateExpression(preparedExpression, context));
-      return { available: mode === "disable" ? !result : result, error: null };
+      const rawResult = DaeCompatibility.#evaluateExpression(preparedExpression, context);
+      const result = Boolean(rawResult);
+      return {
+        available: mode === "disable" ? !result : result,
+        error: null,
+        result: rawResult
+      };
     } catch (error) {
       console.warn(`[${Constants.MODULE_ID}] DAE condition evaluation failed`, error);
-      return { available: false, error };
+      return { available: false, error, result: null };
     }
   }
 
@@ -198,5 +234,11 @@ export class DaeCompatibility {
       time: game.time ?? null,
       user: game.user ?? null
     }, { inplace: false });
+  }
+
+  static #clearConditionSubmitData(submitData) {
+    foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, null);
+    foundry.utils.setProperty(submitData, Constants.DAE_CONDITION_FLAG_PATH, null);
+    foundry.utils.setProperty(submitData, Constants.DAE_DISABLE_CONDITION_FLAG_PATH, null);
   }
 }

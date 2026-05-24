@@ -1,10 +1,12 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { DaeCompatibility } from "../compat/DaeCompatibility.js";
+import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectConditionService {
   static #compiledConditionCache = new Map();
   static #CONDITION_CACHE_LIMIT = 100;
+  static #evaluationStack = new Set();
 
   static getCondition(effect) {
     const nativeCondition = String(
@@ -50,24 +52,50 @@ export class ActiveEffectConditionService {
   static evaluate(effect, options = {}) {
     const rawCode = ActiveEffectConditionService.getCondition(effect);
     if (!rawCode.trim().length) {
-      return { available: true, error: null };
+      return { available: true, error: null, result: true };
+    }
+
+    if (ActiveEffectConditionService.#isEvaluating(effect)) {
+      ActiveEffectConditionService.#debug("skipping recursive condition evaluation", {
+        effect: ActiveEffectConditionService.#describeEffect(effect)
+      });
+      return { available: true, error: null, result: true };
     }
 
     if (DaeCompatibility.isCompatibilityCondition(rawCode)) {
-      return DaeCompatibility.evaluateCondition(rawCode, effect, options);
+      return ActiveEffectConditionService.#evaluateWithRecursionGuard(
+        effect,
+        () => {
+          const evaluation = DaeCompatibility.evaluateCondition(rawCode, effect, options);
+          ActiveEffectConditionService.#debug("evaluated DAE compatibility condition", {
+            effect: ActiveEffectConditionService.#describeEffect(effect),
+            available: evaluation.available,
+            result: evaluation.result
+          });
+          return evaluation;
+        }
+      );
     }
 
-    try {
-      const runner = ActiveEffectConditionService.#compileCondition(rawCode);
-      const result = runner(ActiveEffectConditionService.#buildContext(effect, options));
-      if (result && typeof result.then === "function") {
-        throw new Error("Active Effect conditions must be synchronous.");
+    return ActiveEffectConditionService.#evaluateWithRecursionGuard(effect, () => {
+      try {
+        const runner = ActiveEffectConditionService.#compileCondition(rawCode);
+        const result = runner(ActiveEffectConditionService.#buildContext(effect, options));
+        if (result && typeof result.then === "function") {
+          throw new Error("Active Effect conditions must be synchronous.");
+        }
+        const evaluation = { available: Boolean(result), error: null, result };
+        ActiveEffectConditionService.#debug("evaluated active effect condition", {
+          effect: ActiveEffectConditionService.#describeEffect(effect),
+          available: evaluation.available,
+          result: evaluation.result
+        });
+        return evaluation;
+      } catch (error) {
+        console.warn(`[${Constants.MODULE_ID}] active effect condition evaluation failed`, error);
+        return { available: false, error, result: null };
       }
-      return { available: Boolean(result), error: null };
-    } catch (error) {
-      console.warn(`[${Constants.MODULE_ID}] active effect condition evaluation failed`, error);
-      return { available: false, error };
-    }
+    });
   }
 
   static #compileCondition(code) {
@@ -117,8 +145,7 @@ ${body}`
     const affectedActor = options.actor ?? ActiveEffectContextBuilder.getAffectedActor(effect);
     const origin = options.origin ?? ActiveEffectContextBuilder.getOrigin(effect);
     const item = options.item ?? ActiveEffectContextBuilder.getItem(effect, origin);
-
-    return {
+    const context = {
       actor: affectedActor,
       deepClone: foundry.utils.deepClone.bind(foundry.utils),
       effect: effect ?? null,
@@ -128,11 +155,21 @@ ${body}`
       item,
       origin,
       originActor: ActiveEffectContextBuilder.getOriginActor(origin),
-      rollData: affectedActor?.getRollData?.() ?? null,
       source: ActiveEffectConditionService.#getSourceData(effect),
       targetActor: affectedActor,
       user: game.user ?? null
     };
+
+    Object.defineProperty(context, "rollData", {
+      configurable: false,
+      enumerable: true,
+      get() {
+        // Resolve roll data lazily so ordinary conditions do not trigger Actor preparation work.
+        return options.rollData ?? affectedActor?.getRollData?.() ?? null;
+      }
+    });
+
+    return context;
   }
 
   static #getSourceData(effect) {
@@ -141,5 +178,53 @@ ${body}`
     }
 
     return foundry.utils.deepClone(effect ?? null);
+  }
+
+  static #evaluateWithRecursionGuard(effect, callback) {
+    const key = ActiveEffectConditionService.#getEvaluationKey(effect);
+    // Foundry may consult suppression while building actor data for the same effect.
+    ActiveEffectConditionService.#evaluationStack.add(key);
+
+    try {
+      return callback();
+    } finally {
+      ActiveEffectConditionService.#evaluationStack.delete(key);
+    }
+  }
+
+  static #isEvaluating(effect) {
+    return ActiveEffectConditionService.#evaluationStack.has(
+      ActiveEffectConditionService.#getEvaluationKey(effect)
+    );
+  }
+
+  static #getEvaluationKey(effect) {
+    return effect?.uuid
+      ?? effect?.id
+      ?? effect?._id
+      ?? effect;
+  }
+
+  static #debug(message, data = undefined) {
+    if (!ModuleSettings.isDebugLoggingEnabled()) {
+      return;
+    }
+
+    const prefix = `[${Constants.MODULE_ID}] ${message}`;
+    if (data === undefined) {
+      console.debug(prefix);
+      return;
+    }
+
+    console.debug(prefix, data);
+  }
+
+  static #describeEffect(effect) {
+    return {
+      uuid: effect?.uuid ?? null,
+      id: effect?.id ?? effect?._id ?? null,
+      name: effect?.name ?? effect?.label ?? null,
+      parent: effect?.parent?.uuid ?? effect?.parent?.name ?? null
+    };
   }
 }
