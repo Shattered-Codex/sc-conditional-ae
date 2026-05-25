@@ -9,9 +9,12 @@ export class ActiveEffectFormulaChangeService {
   }
 
   static prepareCreateSource(effect, data) {
-    const prepared = ActiveEffectFormulaChangeService.#prepareChanges(data);
+    const submittedFormulaChanges = ActiveEffectFormulaChangeService.#getSubmittedFormulaChanges(data);
+    const prepared = ActiveEffectFormulaChangeService.#prepareChanges(data, {
+      submitted: submittedFormulaChanges
+    });
     if (!prepared.changed) {
-      if (ActiveEffectFormulaChangeService.#hasSubmittedFormulaChanges(ActiveEffectFormulaChangeService.#getSubmittedFormulaChanges(data))) {
+      if (ActiveEffectFormulaChangeService.#hasSubmittedFormulaChanges(submittedFormulaChanges)) {
         const sourceUpdate = {};
         ActiveEffectFormulaChangeService.#clearFormulaChanges(sourceUpdate);
         effect.updateSource(sourceUpdate);
@@ -136,16 +139,16 @@ export class ActiveEffectFormulaChangeService {
 
   static async rollFormulaChanges(effect) {
     if (!ActiveEffectFormulaChangeService.hasFormulaChanges(effect)) {
-      return;
+      return false;
     }
 
     if (ActiveEffectConditionService.shouldSuppress(effect)) {
-      return;
+      return false;
     }
 
     const actor = ActiveEffectFormulaChangeService.#getActor(effect);
     if (!actor) {
-      return;
+      return false;
     }
 
     const changes = foundry.utils.deepClone(effect.changes ?? []);
@@ -174,12 +177,13 @@ export class ActiveEffectFormulaChangeService {
     }
 
     if (!changed) {
-      return;
+      return false;
     }
 
     const updateData = { changes };
     ActiveEffectFormulaChangeService.#setFormulaChanges(updateData, formulaChanges);
     await effect.update(updateData, { [Constants.MODULE_ID]: { [ROLL_UPDATE_OPTION]: true } });
+    return true;
   }
 
   static #prepareChanges(source, formulaChangeSources = {}) {

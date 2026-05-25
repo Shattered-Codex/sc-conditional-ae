@@ -161,8 +161,18 @@
   color: var(--dnd5e-color-gold, #d4b66a);
 }
 
-[data-tidy-effect-name-container] > .sc-cae-formula-roll-control {
+[data-tidy-effect-name-container] > .sc-cae-formula-roll-control,
+.tidy-table-cell.primary > .sc-cae-formula-roll-control,
+.item-table-cell.primary > .sc-cae-formula-roll-control {
+  display: inline-flex;
+  align-items: center;
   margin-left: 0.35rem;
+  margin-right: 0.35rem;
+  flex-shrink: 0;
+}
+
+.tidy-table-actions > .sc-cae-formula-roll-control {
+  margin-inline: 0;
 }
 
 .sc-cae-formula-roll-control:hover,
@@ -178,6 +188,29 @@
 
 .sc-cae-formula-roll-control.loading i {
   animation: sc-cae-spin 1s linear infinite;
+}
+
+.sc-cae-formula-request-card .card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sc-cae-formula-request-card .card-content p {
+  margin: 0;
+}
+
+.sc-cae-formula-request-reason {
+  color: var(--color-text-secondary, #b5b3a4);
+  font-size: var(--font-size-12, 12px);
+}
+
+.sc-cae-formula-request-button {
+  align-self: flex-start;
+}
+
+.sc-cae-formula-request-button.loading::after {
+  content: "…";
 }
 
 @keyframes sc-cae-spin {

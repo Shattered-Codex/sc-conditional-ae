@@ -32,6 +32,11 @@
       "DialogTitle": "Roll Active Effect Formula",
       "DialogHint": "Confirm or edit the formula to roll for this Active Effect.",
       "RollButton": "Roll",
+      "ChatCardButton": "Roll formulas",
+      "ChatCardTitle": "Formula roll available",
+      "ChatCardHint": "This Active Effect has formula-backed changes ready to roll.",
+      "ChatCardReasonActivation": "Triggered because the Active Effect was activated.",
+      "ChatCardReasonCondition": "Triggered because the condition became true.",
       "RollAllLabel": "Roll all formulas",
       "RollAllUnavailableLabel": "Formulas unavailable right now",
       "RollFlavor": "Active Effect formula roll",
@@ -44,6 +49,10 @@
       "EnableFormulaChanges": {
         "Name": "Enable formula column",
         "Hint": "Adds the Formula column to Active Effect changes and rolls formulas when effects are activated."
+      },
+      "UseFormulaChatCard": {
+        "Name": "Post formula roll chat card",
+        "Hint": "When a conditional effect becomes available or a formula-backed Active Effect is activated, post a chat card with a roll button instead of rolling immediately."
       },
       "ShowConditionTab": {
         "Name": "Show condition tab",

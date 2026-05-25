@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { ActiveEffectFormulaChatCardService } from "../services/ActiveEffectFormulaChatCardService.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -68,7 +69,7 @@ export class ActiveEffectFormulaChangeHooks {
   }
 
   static #roll(effect) {
-    ActiveEffectFormulaChangeService.rollFormulaChanges(effect)
+    ActiveEffectFormulaChatCardService.requestRoll(effect, { reason: "activation" })
       .catch(error => console.warn(`[${Constants.MODULE_ID}] active effect formula change hook failed`, error));
   }
 }

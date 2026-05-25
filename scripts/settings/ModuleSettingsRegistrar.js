@@ -13,6 +13,7 @@ export class ModuleSettingsRegistrar {
     ModuleSettingsRegistrar.#registered = true;
 
     ModuleSettingsRegistrar.#registerFormulaSetting();
+    ModuleSettingsRegistrar.#registerFormulaChatCardSetting();
     ModuleSettingsRegistrar.#registerConditionTabSetting();
     ModuleSettingsRegistrar.#registerDebugSetting();
     ModuleSettingsRegistrar.#registerSupportMenu();
@@ -31,6 +32,20 @@ export class ModuleSettingsRegistrar {
       type: Boolean,
       default: true,
       requiresReload: true
+    });
+  }
+
+  static #registerFormulaChatCardSetting() {
+    game.settings.register(Constants.MODULE_ID, ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD, {
+      name: Constants.localize("SCConditionalAE.Settings.UseFormulaChatCard.Name", "Post formula roll chat card"),
+      hint: Constants.localize(
+        "SCConditionalAE.Settings.UseFormulaChatCard.Hint",
+        "When a conditional effect becomes available or a formula-backed Active Effect is activated, post a chat card with a roll button instead of rolling immediately."
+      ),
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: false
     });
   }
 

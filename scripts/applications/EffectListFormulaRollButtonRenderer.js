@@ -16,7 +16,13 @@ export class EffectListFormulaRollButtonRenderer {
     "renderItemSheet",
     "renderItemSheet5e",
     "renderContainerSheet",
-    "tidy5e-sheet.renderActorSheet"
+    "tidy5e-sheet.renderActorSheet",
+    "renderTidy5eCharacterSheet",
+    "renderTidy5eNpcSheet",
+    "renderTidy5eVehicleSheet",
+    "renderTidy5eCharacterSheetQuadrone",
+    "renderTidy5eNpcSheetQuadrone",
+    "renderTidy5eVehicleSheetQuadrone"
   ];
 
   static activate() {
@@ -43,10 +49,11 @@ export class EffectListFormulaRollButtonRenderer {
   static #getRootElement(app, html) {
     const appElement = EffectListFormulaRollButtonRenderer.#coerceElement(app?.element);
     if (appElement) {
-      return appElement;
+      return EffectListFormulaRollButtonRenderer.#getRenderRoot(appElement);
     }
 
-    return EffectListFormulaRollButtonRenderer.#coerceElement(html);
+    const htmlElement = EffectListFormulaRollButtonRenderer.#coerceElement(html);
+    return htmlElement ? EffectListFormulaRollButtonRenderer.#getRenderRoot(htmlElement) : null;
   }
 
   static #coerceElement(candidate) {
@@ -59,6 +66,14 @@ export class EffectListFormulaRollButtonRenderer {
     }
 
     return candidate?.[0] instanceof Element || candidate?.[0] instanceof DocumentFragment ? candidate[0] : null;
+  }
+
+  static #getRenderRoot(element) {
+    if (element instanceof Element && element.shadowRoot) {
+      return element.shadowRoot;
+    }
+
+    return element;
   }
 
   static #observeSheet(app, root) {
@@ -136,10 +151,11 @@ export class EffectListFormulaRollButtonRenderer {
         ?? EffectListFormulaRollButtonRenderer.#createButton(effect);
 
       EffectListFormulaRollButtonRenderer.#updateButton(button, effect);
+      EffectListFormulaRollButtonRenderer.#syncButtonClasses(button, target);
 
       if (!button.isConnected) {
-        if (target.type === "controls") {
-          const contextMenu = target.element.querySelector("[data-context-menu]");
+        if (target.type === "controls" || target.type === "tidy-actions") {
+          const contextMenu = target.element.querySelector("[data-context-menu], [data-action='showContextMenu']");
           target.element.insertBefore(button, contextMenu ?? null);
         } else {
           target.element.append(button);
@@ -160,6 +176,15 @@ export class EffectListFormulaRollButtonRenderer {
     });
     EffectListFormulaRollButtonRenderer.#updateButton(button, effect);
     return button;
+  }
+
+  static #syncButtonClasses(button, target) {
+    const isTidyActions = target?.type === "tidy-actions";
+    const isTidyName = target?.type === "name";
+    button.classList.toggle("tidy-table-button", isTidyActions);
+    for (const cls of ["effect-control", "item-control", "active-effect-control", "inline-icon-button"]) {
+      button.classList.toggle(cls, !isTidyName);
+    }
   }
 
   static #updateButton(button, effect) {
@@ -228,9 +253,18 @@ export class EffectListFormulaRollButtonRenderer {
       return { type: "controls", element: controls };
     }
 
-    const tidyNameContainer = row.querySelector("[data-tidy-effect-name-container]");
+    const tidyNameContainer = row.querySelector(
+      "[data-tidy-effect-name-container], .tidy-table-cell.primary, .item-table-cell.primary"
+    );
     if (tidyNameContainer) {
       return { type: "name", element: tidyNameContainer };
+    }
+
+    const tidyActions = row.querySelector(
+      ".tidy-table-actions, [data-tidy-column-key='actions'][data-tidy-sheet-part='table-cell']"
+    );
+    if (tidyActions) {
+      return { type: "tidy-actions", element: tidyActions };
     }
 
     return null;

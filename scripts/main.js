@@ -8,6 +8,7 @@ import { ActiveEffectConditionHooks } from "./hooks/ActiveEffectConditionHooks.j
 import { ActiveEffectFormulaChangeHooks } from "./hooks/ActiveEffectFormulaChangeHooks.js";
 import { ActiveEffectMacroChangeHooks } from "./hooks/ActiveEffectMacroChangeHooks.js";
 import { ActiveEffectConditionService } from "./services/ActiveEffectConditionService.js";
+import { ActiveEffectFormulaChatCardService } from "./services/ActiveEffectFormulaChatCardService.js";
 import { ModuleSettings } from "./settings/ModuleSettings.js";
 import { ModuleSettingsRegistrar } from "./settings/ModuleSettingsRegistrar.js";
 
@@ -34,6 +35,7 @@ Hooks.once("setup", () => {
 
   ActiveEffectConditionHooks.activate();
   if (ModuleSettings.isFormulaChangesEnabled()) {
+    ActiveEffectFormulaChatCardService.activate();
     ActiveEffectFormulaChangeHooks.activate();
     activateFormulaColumnRenderHook();
     EffectListFormulaRollButtonRenderer.activate();

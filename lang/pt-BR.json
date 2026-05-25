@@ -32,6 +32,11 @@
       "DialogTitle": "Rolar fórmula do Active Effect",
       "DialogHint": "Confirme ou ajuste a fórmula que será rolada para este Active Effect.",
       "RollButton": "Rolar",
+      "ChatCardButton": "Rolar fórmulas",
+      "ChatCardTitle": "Rolagem de fórmula disponível",
+      "ChatCardHint": "Este Active Effect tem changes com fórmula prontos para rolar.",
+      "ChatCardReasonActivation": "Disparado porque o Active Effect foi ativado.",
+      "ChatCardReasonCondition": "Disparado porque a condição se tornou true.",
       "RollAllLabel": "Rolar todas as fórmulas",
       "RollAllUnavailableLabel": "As fórmulas não estão disponíveis agora",
       "RollFlavor": "Rolagem de fórmula do Active Effect",
@@ -44,6 +49,10 @@
       "EnableFormulaChanges": {
         "Name": "Habilitar coluna de fórmula",
         "Hint": "Adiciona a coluna Fórmula aos changes do Active Effect e rola fórmulas quando os efeitos são ativados."
+      },
+      "UseFormulaChatCard": {
+        "Name": "Enviar card de rolagem da fórmula",
+        "Hint": "Quando um efeito condicional ficar disponível ou um Active Effect com fórmula for ativado, envia um card no chat com botão para rolar em vez de rolar imediatamente."
       },
       "ShowConditionTab": {
         "Name": "Exibir aba de condição",

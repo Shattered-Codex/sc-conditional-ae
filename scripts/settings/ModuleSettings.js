@@ -4,11 +4,16 @@ export class ModuleSettings {
   static SETTING_SUPPORT_MENU = "supportMenu";
   static SETTING_DOCUMENTATION_MENU = "docsMenu";
   static SETTING_ENABLE_FORMULA_CHANGES = "enableFormulaChanges";
+  static SETTING_USE_FORMULA_CHAT_CARD = "useFormulaChatCard";
   static SETTING_SHOW_CONDITION_TAB = "showConditionTab";
   static SETTING_DEBUG_LOGGING = "debugLogging";
 
   static isFormulaChangesEnabled() {
     return ModuleSettings.#getBoolean(ModuleSettings.SETTING_ENABLE_FORMULA_CHANGES, true);
+  }
+
+  static isFormulaChatCardEnabled() {
+    return ModuleSettings.#getBoolean(ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD, false);
   }
 
   static isConditionTabEnabled() {
