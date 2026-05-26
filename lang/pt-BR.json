@@ -82,6 +82,29 @@
         "Name": "Documentação",
         "Label": "Abrir wiki",
         "Hint": "Abre a wiki de documentação do SC - Conditional AE."
+      },
+      "ModuleSettingsMenu": {
+        "Name": "Configurações do módulo",
+        "Label": "Abrir configurações",
+        "Hint": "Abre a janela de configuração do SC - Conditional AE."
+      },
+      "App": {
+        "Title": "Configurações do SC - Conditional AE",
+        "Intro": "Configure o comportamento dos Active Effects condicionais, o suporte a fórmulas e os diagnósticos do módulo.",
+        "WorldSection": {
+          "Title": "Comportamento dos efeitos",
+          "Description": "Configurações de mundo que controlam a aba de condição, as fórmulas e o comportamento dos cards no chat.",
+          "PermissionNote": "Somente um GM pode alterar as configurações desta seção."
+        },
+        "ClientSection": {
+          "Title": "Diagnóstico",
+          "Description": "Configurações locais do cliente para troubleshooting e logs no navegador."
+        },
+        "DaeWarningTitle": "Aviso de compatibilidade com DAE",
+        "DaeWarning": "Essa mensagem do libWrapper é apenas um warning. Quando o DAE está ativo, os dois módulos tocam o mesmo pipeline de Active Effects, então o console do navegador pode reportar um conflito potencial mesmo quando o comportamento está funcionando normalmente.",
+        "Save": "Salvar",
+        "Cancel": "Cancelar",
+        "Saved": "Configurações do SC - Conditional AE salvas."
       }
     }
   }

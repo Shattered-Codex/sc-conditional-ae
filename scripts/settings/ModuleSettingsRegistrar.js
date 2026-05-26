@@ -1,8 +1,9 @@
 import { Constants } from "../constants/Constants.js";
 import { DocumentationMenu } from "./DocumentationMenu.js";
 import { ModuleSettings } from "./ModuleSettings.js";
-import { SupportMenu } from "./SupportMenu.js";
+import { ModuleSettingsMenu } from "./ModuleSettingsMenu.js";
 import { resolveSettingsRoot } from "./resolveSettingsRoot.js";
+import { SupportMenu } from "./SupportMenu.js";
 
 export class ModuleSettingsRegistrar {
   static #registered = false;
@@ -19,7 +20,27 @@ export class ModuleSettingsRegistrar {
     ModuleSettingsRegistrar.#registerDebugSetting();
     ModuleSettingsRegistrar.#registerSupportMenu();
     ModuleSettingsRegistrar.#registerDocumentationMenu();
-    ModuleSettingsRegistrar.#registerConditionTabDaeNotice();
+    ModuleSettingsRegistrar.#registerModuleSettingsMenu();
+
+    Hooks.on("renderSettingsConfig", (_app, html) => {
+      ModuleSettingsRegistrar.#injectMainSettingsWarning(html);
+      SupportMenu.bindSettingsButton(html);
+      DocumentationMenu.bindSettingsButton(html);
+    });
+  }
+
+  static #registerModuleSettingsMenu() {
+    game.settings.registerMenu(Constants.MODULE_ID, ModuleSettings.SETTING_MODULE_SETTINGS_MENU, {
+      name: Constants.localize("SCConditionalAE.Settings.ModuleSettingsMenu.Name", "Module settings"),
+      label: Constants.localize("SCConditionalAE.Settings.ModuleSettingsMenu.Label", "Open settings"),
+      hint: Constants.localize(
+        "SCConditionalAE.Settings.ModuleSettingsMenu.Hint",
+        "Open the SC - Conditional AE configuration window."
+      ),
+      icon: "fas fa-sliders",
+      type: ModuleSettingsMenu,
+      restricted: false
+    });
   }
 
   static #registerFormulaSetting() {
@@ -30,7 +51,7 @@ export class ModuleSettingsRegistrar {
         "Adds the Formula column to Active Effect changes and rolls formulas when effects are activated."
       ),
       scope: "world",
-      config: true,
+      config: false,
       type: Boolean,
       default: true,
       requiresReload: true
@@ -45,7 +66,7 @@ export class ModuleSettingsRegistrar {
         "When a conditional effect becomes available or a formula-backed Active Effect is activated, post a chat card with a roll button instead of rolling immediately."
       ),
       scope: "world",
-      config: true,
+      config: false,
       type: Boolean,
       default: false
     });
@@ -59,7 +80,7 @@ export class ModuleSettingsRegistrar {
         "Adds the Condition tab to Active Effect configuration sheets."
       ),
       scope: "world",
-      config: true,
+      config: false,
       type: Boolean,
       default: true,
       requiresReload: true
@@ -74,37 +95,9 @@ export class ModuleSettingsRegistrar {
         "Logs condition evaluation, suppression refreshes, and activation transitions to the browser console."
       ),
       scope: "client",
-      config: true,
+      config: false,
       type: Boolean,
       default: false
-    });
-  }
-
-  static #registerConditionTabDaeNotice() {
-    const settingId = `${Constants.MODULE_ID}.${ModuleSettings.SETTING_SHOW_CONDITION_TAB}`;
-    const noticeText = Constants.localize(
-      "SCConditionalAE.Settings.ShowConditionTab.DaeNotice",
-      "If you use Dynamic Active Effects (DAE) with the condition tab enabled, a libWrapper conflict warning may appear in the browser console. This is expected behavior and can be safely ignored."
-    );
-
-    Hooks.on("renderSettingsConfig", (_app, html) => {
-      const root = resolveSettingsRoot(html);
-      if (!root) {
-        return;
-      }
-
-      const settingRow = root.querySelector(
-        `[data-setting-id="${settingId}"], [data-key="${settingId}"]`
-      );
-      if (!settingRow || settingRow.dataset.scCaeDaeNoticeBound === "true") {
-        return;
-      }
-
-      settingRow.dataset.scCaeDaeNoticeBound = "true";
-      const notice = document.createElement("p");
-      notice.className = "sc-cae-settings-notice";
-      notice.innerHTML = `<i class="fas fa-triangle-exclamation"></i><span>${noticeText}</span>`;
-      settingRow.insertAdjacentElement("afterend", notice);
     });
   }
 
@@ -120,10 +113,6 @@ export class ModuleSettingsRegistrar {
       type: SupportMenu,
       restricted: true
     });
-
-    Hooks.on("renderSettingsConfig", (_app, html) => {
-      SupportMenu.bindSettingsButton(html);
-    });
   }
 
   static #registerDocumentationMenu() {
@@ -138,9 +127,68 @@ export class ModuleSettingsRegistrar {
       type: DocumentationMenu,
       restricted: true
     });
+  }
 
-    Hooks.on("renderSettingsConfig", (_app, html) => {
-      DocumentationMenu.bindSettingsButton(html);
-    });
+  static #injectMainSettingsWarning(html) {
+    if (!Constants.isDaeActive()) {
+      return;
+    }
+
+    const root = resolveSettingsRoot(html);
+    if (!root || root.querySelector("[data-sc-cae-main-notice='true']")) {
+      return;
+    }
+
+    const settingKeys = [
+      `${Constants.MODULE_ID}.${ModuleSettings.SETTING_SUPPORT_MENU}`,
+      `${Constants.MODULE_ID}.${ModuleSettings.SETTING_DOCUMENTATION_MENU}`,
+      `${Constants.MODULE_ID}.${ModuleSettings.SETTING_MODULE_SETTINGS_MENU}`
+    ];
+
+    const lastRow = settingKeys
+      .map(key => root.querySelector(
+        `[data-setting-id="${key}"], [data-menu-id="${key}"], [data-key="${key}"], [data-setting="${key}"]`
+      ))
+      .map(element => ModuleSettingsRegistrar.#resolveSettingsBlock(element))
+      .filter(Boolean)
+      .at(-1);
+
+    if (!(lastRow instanceof Element)) {
+      return;
+    }
+
+    const notice = document.createElement("p");
+    notice.className = "sc-cae-settings-menu-notice";
+    notice.dataset.scCaeMainNotice = "true";
+    notice.innerHTML = [
+      `<i class="fas fa-triangle-exclamation"></i>`,
+      `<span>`,
+      `<strong>${Constants.localize("SCConditionalAE.Settings.App.DaeWarningTitle", "DAE compatibility warning")}.</strong> `,
+      `${Constants.localize("SCConditionalAE.Settings.App.DaeWarning", "This libWrapper message is only a warning.")}`,
+      `</span>`
+    ].join("");
+
+    lastRow.insertAdjacentElement("afterend", notice);
+  }
+
+  static #resolveSettingsBlock(element) {
+    if (!(element instanceof Element)) {
+      return null;
+    }
+
+    const formGroup = element.matches(".form-group")
+      ? element
+      : element.closest(".form-group");
+
+    if (!(formGroup instanceof Element)) {
+      return element;
+    }
+
+    const notes = formGroup.nextElementSibling;
+    if (notes instanceof Element && notes.matches(".notes")) {
+      return notes;
+    }
+
+    return formGroup;
   }
 }

@@ -204,24 +204,274 @@
   min-width: 0;
 }
 
-.sc-cae-settings-notice {
+.sc-cae-settings-app {
+  --sc-cae-bg-panel: #161923;
+  --sc-cae-bg-card-soft: #1a1c28;
+  --sc-cae-border: #3f4457;
+  --sc-cae-border-soft: #323749;
+  --sc-cae-accent: #39f08c;
+  --sc-cae-text: #ddd8cd;
+  --sc-cae-text-dim: #aba494;
+  --sc-cae-text-strong: #f0ecde;
+  color: var(--sc-cae-text);
+}
+
+.sc-cae-settings-app .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: #0d1115;
+  color: var(--sc-cae-text);
+}
+
+.sc-cae-settings-app .window-header button,
+.sc-cae-settings-app .window-header .header-button,
+.sc-cae-settings-app .window-header .header-control,
+.sc-cae-settings-app .window-header .window-control {
+  min-height: 1.8rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--sc-cae-text-dim);
+  box-shadow: none;
+}
+
+.sc-cae-settings-app .window-header button:hover,
+.sc-cae-settings-app .window-header button:focus-visible,
+.sc-cae-settings-app .window-header .header-button:hover,
+.sc-cae-settings-app .window-header .header-button:focus-visible,
+.sc-cae-settings-app .window-header .header-control:hover,
+.sc-cae-settings-app .window-header .header-control:focus-visible,
+.sc-cae-settings-app .window-header .window-control:hover,
+.sc-cae-settings-app .window-header .window-control:focus-visible {
+  border: 0;
+  background: color-mix(in srgb, var(--sc-cae-bg-card-soft) 86%, black 14%);
+  color: var(--sc-cae-text-strong);
+  box-shadow: none;
+}
+
+.sc-cae-settings-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 0.85rem;
+  min-height: 0;
+  padding: 0.9rem;
+  overflow: hidden;
+}
+
+.sc-cae-settings-menu-notice {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin: 0 0 4px;
+  clear: both;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 10px 0 0;
   padding: 8px 12px;
-  border: 1px solid rgba(234, 179, 8, 0.45);
+  border: 1px solid color-mix(in srgb, #d7a21d 54%, var(--sc-cae-border) 46%);
   border-radius: 6px;
-  background: rgba(234, 179, 8, 0.1);
+  background: color-mix(in srgb, #d7a21d 10%, var(--sc-cae-bg-panel) 90%);
   font-size: var(--font-size-12, 12px);
   line-height: 1.45;
-  color: var(--color-text-dark-secondary, #5d5347);
+  color: var(--sc-cae-text);
 }
 
-.sc-cae-settings-notice i {
-  color: rgb(202, 153, 0);
+.sc-cae-settings-menu-notice i {
+  color: #d7a21d;
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+.sc-cae-settings-menu-notice strong {
+  color: var(--sc-cae-text-strong);
+}
+
+.sc-cae-settings-hero,
+.sc-cae-settings-card {
+  border: 1px solid var(--sc-cae-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--sc-cae-bg-panel) 88%, black 12%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.sc-cae-settings-hero {
+  padding: 1rem 1rem 0.95rem;
+  background:
+    radial-gradient(circle at top right, rgba(57, 240, 140, 0.08), transparent 36%),
+    color-mix(in srgb, var(--sc-cae-bg-panel) 90%, black 10%);
+}
+
+.sc-cae-settings-hero h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--sc-cae-text-strong);
+}
+
+.sc-cae-settings-hero p {
+  margin: 0;
+  color: var(--sc-cae-text-dim);
+  line-height: 1.35;
+}
+
+.sc-cae-settings-disclaimer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, #d7a21d 54%, var(--sc-cae-border) 46%);
+  border-radius: 8px;
+  background: color-mix(in srgb, #d7a21d 10%, var(--sc-cae-bg-panel) 90%);
+}
+
+.sc-cae-settings-disclaimer header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sc-cae-settings-disclaimer h4,
+.sc-cae-settings-disclaimer p {
+  margin: 0;
+  color: var(--sc-cae-text);
+}
+
+.sc-cae-settings-disclaimer h4 {
+  color: var(--sc-cae-text-strong);
+}
+
+.sc-cae-settings-disclaimer i {
+  color: #d7a21d;
+}
+
+.sc-cae-settings-sections {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.8rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.sc-cae-settings-card__header {
+  padding: 0.85rem 1rem 0.3rem;
+}
+
+.sc-cae-settings-card__header h4,
+.sc-cae-settings-card__header p {
+  margin: 0;
+}
+
+.sc-cae-settings-card__header h4 {
+  color: var(--sc-cae-text-strong);
+}
+
+.sc-cae-settings-card__header p + p,
+.sc-cae-settings-card__header .notes {
+  margin-top: 0.3rem;
+  color: var(--sc-cae-text-dim);
+  line-height: 1.35;
+}
+
+.sc-cae-settings-card__permission-note {
+  color: var(--sc-cae-text-dim);
+}
+
+.sc-cae-settings-field-list {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.2rem 1rem 1rem;
+}
+
+.sc-cae-settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--sc-cae-border-soft) 80%, transparent 20%);
+}
+
+.sc-cae-settings-row:first-child {
+  padding-top: 0.7rem;
+}
+
+.sc-cae-settings-row:last-child {
+  border-bottom: 0;
+}
+
+.sc-cae-settings-row.is-disabled {
+  opacity: 0.72;
+}
+
+.sc-cae-settings-row__copy {
+  min-width: 0;
+}
+
+.sc-cae-settings-row__name {
+  display: block;
+  margin-bottom: 0;
+  font-weight: 700;
+  color: var(--sc-cae-text-strong);
+}
+
+.sc-cae-settings-row__copy p {
+  margin: 0.28rem 0 0;
+  color: var(--sc-cae-text-dim);
+  line-height: 1.4;
+}
+
+.sc-cae-settings-row__checkbox {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+  accent-color: var(--sc-cae-accent);
+}
+
+.sc-cae-settings-footer {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 0.1rem;
+}
+
+.sc-cae-settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-width: 9rem;
+  min-height: 2.35rem;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--sc-cae-border-soft) 86%, #7e8db1 14%);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sc-cae-bg-card-soft) 90%, #0d1220 10%);
+  color: var(--sc-cae-text);
+  box-shadow: none;
+}
+
+.sc-cae-settings-button:hover,
+.sc-cae-settings-button:focus-visible {
+  border-color: color-mix(in srgb, var(--sc-cae-accent) 48%, #c8ffd8 52%);
+  color: var(--sc-cae-text-strong);
+  background: color-mix(in srgb, var(--sc-cae-accent) 12%, var(--sc-cae-bg-card-soft) 88%);
+}
+
+.sc-cae-settings-button--primary {
+  color: var(--sc-cae-text-strong);
+}
+
+.sc-cae-settings-button--ghost {
+  opacity: 0.92;
 }
 
 .sc-cae-docs-button i.fa-hat-wizard,

@@ -82,6 +82,29 @@
         "Name": "Documentation",
         "Label": "Open wiki",
         "Hint": "Open the SC - Conditional AE documentation wiki."
+      },
+      "ModuleSettingsMenu": {
+        "Name": "Module settings",
+        "Label": "Open settings",
+        "Hint": "Open the SC - Conditional AE configuration window."
+      },
+      "App": {
+        "Title": "SC - Conditional AE Settings",
+        "Intro": "Configure conditional Active Effect behavior, formula support, and module diagnostics.",
+        "WorldSection": {
+          "Title": "Effect behavior",
+          "Description": "World-level settings that control condition tabs, formula changes, and chat-card behavior.",
+          "PermissionNote": "Only a GM can change the settings in this section."
+        },
+        "ClientSection": {
+          "Title": "Diagnostics",
+          "Description": "Client-side settings for troubleshooting and local browser logging."
+        },
+        "DaeWarningTitle": "DAE compatibility warning",
+        "DaeWarning": "This libWrapper message is only a warning. When DAE is active, both modules touch the same Active Effect pipeline, so the browser console may report a potential conflict even when behavior is working normally.",
+        "Save": "Save",
+        "Cancel": "Cancel",
+        "Saved": "SC - Conditional AE settings saved."
       }
     }
   }

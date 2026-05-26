@@ -1,0 +1,64 @@
+<section class="sc-cae-settings-shell" data-application-part="main">
+  <div class="sc-cae-settings-hero">
+    <div>
+      <h3>{{header.title}}</h3>
+      <p class="notes">{{header.intro}}</p>
+    </div>
+  </div>
+
+  {{#if daeWarning}}
+    <section class="sc-cae-settings-disclaimer">
+      <header>
+        <i class="fas fa-triangle-exclamation"></i>
+        <h4>{{daeWarning.title}}</h4>
+      </header>
+      <p>{{daeWarning.text}}</p>
+    </section>
+  {{/if}}
+
+  <div class="sc-cae-settings-sections">
+    {{#each sections}}
+      <section class="sc-cae-settings-card">
+        <header class="sc-cae-settings-card__header">
+          <h4>{{this.title}}</h4>
+          {{#if this.description}}
+            <p class="notes">{{this.description}}</p>
+          {{/if}}
+          {{#if this.permissionNote}}
+            <p class="hint sc-cae-settings-card__permission-note">{{this.permissionNote}}</p>
+          {{/if}}
+        </header>
+
+        <div class="sc-cae-settings-field-list">
+          {{#each this.fields}}
+            <label class="sc-cae-settings-row {{#if this.disabled}}is-disabled{{/if}}">
+              <div class="sc-cae-settings-row__copy">
+                <span class="sc-cae-settings-row__name">{{this.name}}</span>
+                <p class="hint">{{this.hint}}</p>
+              </div>
+
+              <input
+                type="checkbox"
+                name="{{this.key}}"
+                class="sc-cae-settings-row__checkbox"
+                {{#if this.checked}}checked{{/if}}
+                {{#if this.disabled}}disabled{{/if}}
+              >
+            </label>
+          {{/each}}
+        </div>
+      </section>
+    {{/each}}
+  </div>
+
+  <footer class="form-footer sc-cae-settings-footer">
+    <button type="submit" class="sc-cae-settings-button sc-cae-settings-button--primary">
+      <i class="fa-solid fa-floppy-disk"></i>
+      <span>{{strings.save}}</span>
+    </button>
+    <button type="button" class="sc-cae-settings-button sc-cae-settings-button--ghost" data-action="cancel">
+      <i class="fa-solid fa-xmark"></i>
+      <span>{{strings.cancel}}</span>
+    </button>
+  </footer>
+</section>
