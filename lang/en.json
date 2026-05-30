@@ -26,10 +26,12 @@
       "BadgeLabelHint": "Single-line label shown on inactive effects. Leave blank to hide.",
       "BadgeLabelPlaceholder": "e.g. Condition not met",
       "ApplyBehavior": "When applied to a target",
-      "ApplyBehaviorHint": "Choose whether applying this effect to a target should update an existing copy or create a new duplicate.",
-      "ApplyBehaviorAuto": "Auto",
-      "ApplyBehaviorUpdate": "Update existing",
-      "ApplyBehaviorDuplicate": "Create duplicate"
+      "ApplyBehaviorUpdate": "Default",
+      "ApplyBehaviorDuplicate": "Stack",
+      "ApplyBehaviorDae": "Same as DAE",
+      "ApplyBehaviorUpdateHint": "Reapplies the current Active Effect on the target instead of creating a new one.",
+      "ApplyBehaviorDuplicateHint": "Adds a new Active Effect instead of updating the existing one.",
+      "ApplyBehaviorDaeHint": "Uses DAE's Stackable setting to decide whether the effect stacks."
     },
     "MacroChange": {
       "Name": "Macro to Execute",

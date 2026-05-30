@@ -1,29 +1,59 @@
 import { Constants } from "../constants/Constants.js";
-import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectTransferMetadataService } from "../services/ActiveEffectTransferMetadataService.js";
+import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class EffectApplicationHooks {
-  static #patched = false;
+  static #PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.effectApplicationPatched`);
+  static #ORIGINAL_APPLY = Symbol(`${Constants.MODULE_ID}.originalApplyEffectToActor`);
+  static #hooksRegistered = false;
 
   static activate() {
-    if (EffectApplicationHooks.#patched || !Constants.isDnd5eActive()) {
+    if (!Constants.isDnd5eActive()) {
       return;
     }
 
+    if (!EffectApplicationHooks.#hooksRegistered) {
+      EffectApplicationHooks.#hooksRegistered = true;
+      Hooks.once("ready", () => {
+        EffectApplicationHooks.#patchEffectApplication();
+      });
+      Hooks.on("renderChatMessage", () => {
+        EffectApplicationHooks.#patchEffectApplication();
+      });
+    }
+
+    EffectApplicationHooks.#patchEffectApplication();
+  }
+
+  static #patchEffectApplication() {
     const elementClass = globalThis.window?.customElements?.get?.("effect-application");
-    const originalApply = elementClass?.prototype?._applyEffectToActor;
+    const currentApply = elementClass?.prototype?._applyEffectToActor;
+    if (currentApply?.[EffectApplicationHooks.#PATCH_MARKER] === true) {
+      return;
+    }
+
+    const originalApply = currentApply?.[EffectApplicationHooks.#ORIGINAL_APPLY] ?? currentApply;
     if (typeof originalApply !== "function") {
       console.warn(`[${Constants.MODULE_ID}] EffectApplicationHooks: could not patch _applyEffectToActor — element or method not found`, { elementClass, originalApply });
       return;
     }
 
-    elementClass.prototype._applyEffectToActor = async function(effect, actor) {
+    EffectApplicationHooks.#debug("patching effect-application _applyEffectToActor", {
+      elementClass: elementClass?.name ?? null
+    });
+
+    const patchedApply = async function(effect, actor) {
       if (!(effect instanceof CONFIG.ActiveEffect.documentClass)) {
         return originalApply.call(this, effect, actor);
       }
 
-      Constants.debug("EffectApplicationHooks._applyEffectToActor", { effect, actor });
+      EffectApplicationHooks.#debug("apply effect to actor invoked", {
+        actor: actor?.uuid ?? actor?.id ?? null,
+        effect: effect?.uuid ?? effect?.id ?? null,
+        effectName: effect?.name ?? null,
+        effectApplyBehavior: foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH) ?? null
+      });
       const activity = this.chatMessage?.getAssociatedActivity?.() ?? null;
       const sourceEffect = EffectApplicationHooks.#resolveSourceEffect(effect, activity);
       const concentration = this.chatMessage?.getAssociatedActor?.()?.effects?.get?.(this.chatMessage?.system?.concentration);
@@ -42,14 +72,32 @@ export class EffectApplicationHooks {
         }
       };
 
-      const shouldCreateDuplicate = EffectApplicationHooks.#shouldCreateDuplicateEffect(sourceEffect ?? effect);
       const existingEffect = actor.effects.find(candidate => candidate.origin === origin.uuid);
+      const shouldCreateDuplicate = EffectApplicationHooks.#shouldCreateDuplicateEffect(
+        sourceEffect,
+        effect,
+        origin,
+        existingEffect
+      );
+      EffectApplicationHooks.#debug("resolved target effect application behavior", {
+        actor: actor?.uuid ?? actor?.id ?? null,
+        sourceEffect: sourceEffect?.uuid ?? sourceEffect?.id ?? null,
+        sourceEffectApplyBehavior: foundry.utils.getProperty(sourceEffect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH) ?? null,
+        origin: origin?.uuid ?? origin?.id ?? null,
+        existingEffect: existingEffect?.uuid ?? existingEffect?.id ?? null,
+        shouldCreateDuplicate
+      });
       if (existingEffect && !shouldCreateDuplicate) {
         const updateData = foundry.utils.mergeObject({
           ...EffectApplicationHooks.#getInitialDurationData(effect.constructor),
           disabled: false
         }, effectFlags);
         ActiveEffectTransferMetadataService.mergeModuleFlags(sourceEffect ?? effect, updateData, { activity });
+        EffectApplicationHooks.#debug("updating existing target effect", {
+          actor: actor?.uuid ?? actor?.id ?? null,
+          existingEffect: existingEffect?.uuid ?? existingEffect?.id ?? null,
+          origin: origin?.uuid ?? origin?.id ?? null
+        });
         return existingEffect.update(updateData, {
           [Constants.MODULE_ID]: {
             [ActiveEffectFormulaChangeService.REAPPLY_UPDATE_OPTION]: true
@@ -61,21 +109,30 @@ export class EffectApplicationHooks {
         throw new Error(game.i18n.localize("DND5E.EffectApplyWarningConcentration"));
       }
 
-      const effectData = foundry.utils.mergeObject({
-        ...(sourceEffect ?? effect).toObject(),
+      const effectData = (sourceEffect ?? effect).toObject();
+      delete effectData._id;
+
+      foundry.utils.mergeObject(effectData, {
         disabled: false,
         transfer: false,
         origin: origin.uuid
-      }, effectFlags);
+      }, { inplace: true });
+      foundry.utils.mergeObject(effectData, effectFlags, { inplace: true });
       const flagsMerged = ActiveEffectTransferMetadataService.mergeModuleFlags(sourceEffect ?? effect, effectData, { activity });
-      Constants.debug("EffectApplicationHooks._applyEffectToActor: effectData prepared", {
+      EffectApplicationHooks.#enforceDuplicateDaeStacking(sourceEffect ?? effect, effectData);
+      EffectApplicationHooks.#debug("creating duplicated target effect", {
+        actor: actor?.uuid ?? actor?.id ?? null,
+        origin: origin?.uuid ?? origin?.id ?? null,
         flagsMerged,
-        moduleFlags: foundry.utils.getProperty(effectData, `flags.${Constants.MODULE_ID}`)
+        moduleFlags: foundry.utils.getProperty(effectData, `flags.${Constants.MODULE_ID}`),
+        daeStackable: foundry.utils.getProperty(effectData, "flags.dae.stackable") ?? null
       });
       return ActiveEffect.implementation.create(effectData, { parent: actor });
     };
 
-    EffectApplicationHooks.#patched = true;
+    patchedApply[EffectApplicationHooks.#PATCH_MARKER] = true;
+    patchedApply[EffectApplicationHooks.#ORIGINAL_APPLY] = originalApply;
+    elementClass.prototype._applyEffectToActor = patchedApply;
   }
 
   static #getInitialDurationData(effectClass) {
@@ -223,20 +280,72 @@ export class EffectApplicationHooks {
     }));
   }
 
-  static #shouldCreateDuplicateEffect(effect) {
-    const applyBehavior = String(
-      foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH) ?? "auto"
-    ).trim().toLowerCase();
+  static #shouldCreateDuplicateEffect(...effects) {
+    const candidates = effects.filter(effect => effect instanceof CONFIG.ActiveEffect.documentClass);
+    for (const effect of candidates) {
+      const applyBehavior = EffectApplicationHooks.#normalizeApplyBehavior(
+        foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
+      );
 
-    if (applyBehavior === "duplicate") {
-      return true;
+      if (applyBehavior === "duplicate") {
+        return true;
+      }
+
+      if (applyBehavior === "dae") {
+        return Constants.isDaeActive();
+      }
+
+      if (applyBehavior === "update") {
+        return false;
+      }
     }
 
-    if (applyBehavior === "update") {
-      return false;
+    return false;
+  }
+
+  static #normalizeApplyBehavior(value) {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (["duplicate", "stack"].includes(normalized)) {
+      return "duplicate";
     }
 
-    return ActiveEffectConditionService.hasCondition(effect)
-      || ActiveEffectFormulaChangeService.hasFormulaChanges(effect);
+    if (["dae", "same-as-dae", "sameasdae"].includes(normalized)) {
+      return "dae";
+    }
+
+    if (["auto", "update", "default"].includes(normalized)) {
+      return "update";
+    }
+    
+    return "update";
+  }
+
+  static #enforceDuplicateDaeStacking(sourceEffect, effectData) {
+    if (!Constants.isDaeActive()) {
+      return;
+    }
+
+    const applyBehavior = EffectApplicationHooks.#normalizeApplyBehavior(
+      foundry.utils.getProperty(sourceEffect ?? effectData, Constants.APPLY_BEHAVIOR_FLAG_PATH)
+    );
+    if (applyBehavior !== "duplicate") {
+      return;
+    }
+
+    foundry.utils.setProperty(effectData, "flags.dae.stackable", "multi");
+  }
+
+  static #debug(message, data = undefined) {
+    if (!ModuleSettings.isDebugLoggingEnabled()) {
+      return;
+    }
+
+    const prefix = `[${Constants.MODULE_ID}] ${message}`;
+    if (data === undefined) {
+      console.debug(prefix);
+      return;
+    }
+
+    console.debug(prefix, data);
   }
 }

@@ -4,6 +4,7 @@ import { ActiveEffectFormulaChatCardService } from "../services/ActiveEffectForm
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectMacroChangeService } from "../services/ActiveEffectMacroChangeService.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { ActiveEffectTransferHooks } from "./ActiveEffectTransferHooks.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectConditionHooks {
@@ -302,7 +303,11 @@ export class ActiveEffectConditionHooks {
       return false;
     }
 
-    return (item.effects ?? []).some(effect => ActiveEffectConditionService.hasCondition(effect));
+    const actor = item.actor ?? item.parent ?? null;
+    return (item.effects ?? []).some(effect => (
+      ActiveEffectConditionService.hasCondition(effect)
+      && !ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, actor)
+    ));
   }
 
   static #renderActorApplications(actor) {
@@ -427,7 +432,10 @@ export class ActiveEffectConditionHooks {
 
     for (const item of actor.items ?? []) {
       for (const effect of item.effects ?? []) {
-        if (ActiveEffectConditionService.hasCondition(effect)) {
+        if (
+          ActiveEffectConditionService.hasCondition(effect)
+          && !ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, actor)
+        ) {
           effects.push(effect);
         }
       }
@@ -437,6 +445,10 @@ export class ActiveEffectConditionHooks {
   }
 
   static #shouldSkipChangeApplication(effect, model) {
+    if (ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, model)) {
+      return true;
+    }
+
     if (!ActiveEffectConditionService.hasCondition(effect)) {
       return false;
     }

@@ -1,17 +1,12 @@
 <section class="tab scrollable {{#if tab.active}}active{{/if}} sc-cae-condition-tab" data-tab="{{ tab.id }}" data-group="{{ tab.group }}">
   <fieldset>
     <legend>{{ strings.heading }}</legend>
-    <p class="hint">{{ strings.hint }}</p>
     {{#if strings.compatibilityHint}}
     <p class="hint sc-cae-compatibility-hint">
       <i class="fas fa-wand-magic-sparkles"></i>
       {{ strings.compatibilityHint }}
     </p>
     {{/if}}
-    <p class="hint">{{ strings.variables }}</p>
-    <a class="sc-cae-help-link" href="{{ conditionWikiUrl }}" target="_blank" rel="noopener">
-      <i class="fas fa-up-right-from-square"></i> {{ strings.wiki }}
-    </a>
 
     {{#if conditionInvalid}}
     <p class="notification warning sc-cae-validation-warning">
@@ -20,8 +15,9 @@
     </p>
     {{/if}}
 
-    <div class="sc-cae-evaluation sc-cae-evaluation--{{ evaluation.state }}">
-      <div class="sc-cae-evaluation__header">{{ strings.evaluationHeading }}</div>
+    <details class="sc-cae-evaluation sc-cae-evaluation--{{ evaluation.state }}" open>
+      <summary class="sc-cae-evaluation__header">{{ strings.evaluationHeading }}</summary>
+      <div class="sc-cae-evaluation__body">
       <p class="hint sc-cae-evaluation__message">
         {{#if evaluation.isEmpty}}
         {{ strings.evaluationEmpty }}
@@ -55,7 +51,8 @@
         <code>{{ evaluation.effectStateLabel }}</code>
       </p>
       {{/if}}
-    </div>
+      </div>
+    </details>
 
     <div class="form-group sc-cae-badge-label-group">
       <label>{{ strings.badgeLabel }}</label>
@@ -87,9 +84,11 @@
       <div class="form-fields">
         {{#if editable}}
         <select name="{{ applyBehaviorFlagPath }}">
-          <option value="auto" {{#if applyBehaviorIsAuto}}selected{{/if}}>{{ strings.applyBehaviorAuto }}</option>
-          <option value="update" {{#if applyBehaviorIsUpdate}}selected{{/if}}>{{ strings.applyBehaviorUpdate }}</option>
+          <option value="auto" {{#if applyBehaviorIsDefault}}selected{{/if}}>{{ strings.applyBehaviorUpdate }}</option>
           <option value="duplicate" {{#if applyBehaviorIsDuplicate}}selected{{/if}}>{{ strings.applyBehaviorDuplicate }}</option>
+          {{#if showDaeApplyBehavior}}
+          <option value="dae" {{#if applyBehaviorIsDae}}selected{{/if}}>{{ strings.applyBehaviorDae }}</option>
+          {{/if}}
         </select>
         {{else}}
         <input
@@ -99,7 +98,22 @@
         />
         {{/if}}
       </div>
-      <p class="hint">{{ strings.applyBehaviorHint }}</p>
+      <p class="hint" data-sc-cae-apply-behavior-hint>{{ applyBehaviorDescription }}</p>
+    </div>
+
+    <div class="sc-cae-code-header">
+      <div class="sc-cae-code-header-title">
+        <span>{{ strings.label }}</span>
+        <i
+          class="fa-solid fa-circle-info sc-cae-code-help-icon"
+          data-tooltip="{{ codeHelpTooltip }}"
+          data-tooltip-direction="UP"
+          aria-label="{{ strings.helpTooltipLabel }}"
+        ></i>
+      </div>
+      <a class="sc-cae-help-link" href="{{ conditionWikiUrl }}" target="_blank" rel="noopener">
+        <i class="fas fa-up-right-from-square"></i> {{ strings.wiki }}
+      </a>
     </div>
 
     {{#if editable}}

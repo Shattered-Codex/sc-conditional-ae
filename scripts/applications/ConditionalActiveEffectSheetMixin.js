@@ -64,6 +64,7 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
       super._onRender?.(...args);
       ensureMinimumSheetWidth(this);
       activateBadgeLabelCounter(this);
+      activateApplyBehaviorHint(this);
       if (ModuleSettings.isFormulaChangesEnabled()) {
         FormulaColumnRenderer.scheduleRender(this);
         FormulaColumnRenderer.activateObserver(this);
@@ -189,6 +190,26 @@ function activateBadgeLabelCounter(sheet) {
   });
 }
 
+function activateApplyBehaviorHint(sheet) {
+  const root = FormulaColumnRenderer.getSheetRoot(sheet) ?? sheet.element;
+  if (!root) {
+    return;
+  }
+
+  const select = root.querySelector(`select[name="${Constants.APPLY_BEHAVIOR_FLAG_PATH}"]`);
+  const hint = root.querySelector("[data-sc-cae-apply-behavior-hint]");
+  if (!select || !hint) {
+    return;
+  }
+
+  const syncHint = () => {
+    hint.textContent = getApplyBehaviorDescription(String(select.value ?? ""));
+  };
+
+  syncHint();
+  select.addEventListener("change", syncHint);
+}
+
 function buildConditionContext(sheet, context) {
   const condition = ActiveEffectConditionService.getCondition(sheet.document);
   const conditionInputValue = DaeCompatibility.toDisplayCondition(condition);
@@ -201,6 +222,8 @@ function buildConditionContext(sheet, context) {
   const applyBehavior = String(
     foundry.utils.getProperty(sheet.document ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH) ?? "auto"
   );
+  const normalizedApplyBehavior = normalizeDisplayedApplyBehavior(applyBehavior);
+  const showDaeApplyBehavior = Constants.isDaeActive();
 
   return {
     tab: getConditionTab(sheet, context),
@@ -210,16 +233,19 @@ function buildConditionContext(sheet, context) {
     conditionBadgeLabel,
     conditionBadgeLabelLength: conditionBadgeLabel.length,
     conditionBadgeLabelFlagPath: Constants.CONDITION_BADGE_LABEL_FLAG_PATH,
-    applyBehavior,
-    applyBehaviorIsAuto: applyBehavior === "auto",
-    applyBehaviorIsUpdate: applyBehavior === "update",
-    applyBehaviorIsDuplicate: applyBehavior === "duplicate",
+    applyBehavior: getApplyBehaviorLabel(normalizedApplyBehavior),
+    applyBehaviorDescription: getApplyBehaviorDescription(normalizedApplyBehavior),
+    applyBehaviorIsDefault: normalizedApplyBehavior === "default",
+    applyBehaviorIsDuplicate: normalizedApplyBehavior === "duplicate",
+    applyBehaviorIsDae: normalizedApplyBehavior === "dae",
     applyBehaviorFlagPath: Constants.APPLY_BEHAVIOR_FLAG_PATH,
+    showDaeApplyBehavior,
     badgeLabelMaxLength: Constants.CONDITION_BADGE_LABEL_MAX_LENGTH,
     conditionWikiUrl: `${Constants.MODULE_WIKI_URL}#active-effect-condition`,
     conditionInvalid: !validation.valid,
     validationMessage: validation.error?.message ?? "",
     evaluation,
+    codeHelpTooltip: buildCodeHelpTooltip(sheet, usesDaeCompatibility),
     strings: {
       label: Constants.localize("SCConditionalAE.ConditionTab.Label", "Condition"),
       heading: Constants.localize("SCConditionalAE.ConditionTab.Heading", "Active Effect condition"),
@@ -263,6 +289,7 @@ function buildConditionContext(sheet, context) {
       evaluationEffectState: Constants.localize("SCConditionalAE.ConditionTab.Evaluation.EffectState", "Effect state"),
       wiki: Constants.localize("SCConditionalAE.ConditionTab.Wiki", "Open wiki"),
       invalid: Constants.localize("SCConditionalAE.ConditionTab.Invalid", "This condition has invalid code."),
+      helpTooltipLabel: Constants.localize("SCConditionalAE.ConditionTab.HelpTooltipLabel", "Code help"),
       badgeLabel: Constants.localize("SCConditionalAE.ConditionTab.BadgeLabel", "Condition badge label"),
       badgeLabelHint: Constants.localize(
         "SCConditionalAE.ConditionTab.BadgeLabelHint",
@@ -273,15 +300,95 @@ function buildConditionContext(sheet, context) {
         "e.g. Condition not met"
       ),
       applyBehavior: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehavior", "When applied to a target"),
-      applyBehaviorHint: Constants.localize(
-        "SCConditionalAE.ConditionTab.ApplyBehaviorHint",
-        "Choose whether applying this effect to a target should update an existing copy or create a new duplicate."
+      applyBehaviorUpdate: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorUpdate", "Default"),
+      applyBehaviorDuplicate: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorDuplicate", "Stack"),
+      applyBehaviorDae: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorDae", "Same as DAE"),
+      applyBehaviorUpdateHint: Constants.localize(
+        "SCConditionalAE.ConditionTab.ApplyBehaviorUpdateHint",
+        "Reapplies the current Active Effect on the target instead of creating a new one."
       ),
-      applyBehaviorAuto: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorAuto", "Auto"),
-      applyBehaviorUpdate: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorUpdate", "Update existing"),
-      applyBehaviorDuplicate: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorDuplicate", "Create duplicate")
+      applyBehaviorDuplicateHint: Constants.localize(
+        "SCConditionalAE.ConditionTab.ApplyBehaviorDuplicateHint",
+        "Adds a new Active Effect instead of updating the existing one."
+      ),
+      applyBehaviorDaeHint: Constants.localize(
+        "SCConditionalAE.ConditionTab.ApplyBehaviorDaeHint",
+        "Uses DAE's Stackable setting to decide whether the effect stacks."
+      )
     }
   };
+}
+
+function buildCodeHelpTooltip(sheet, usesDaeCompatibility) {
+  const lines = [
+    Constants.localize(
+      "SCConditionalAE.ConditionTab.Hint",
+      "Use JavaScript. This Active Effect is applied only when the script returns true."
+    ),
+    Constants.localize(
+      "SCConditionalAE.ConditionTab.Variables",
+      "Available variables: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
+    )
+  ];
+
+  if (usesDaeCompatibility) {
+    lines.push(
+      Constants.localize(
+        "SCConditionalAE.ConditionTab.CompatibilityHint",
+        "This condition came from DAE. SC Conditional AE is adapting it automatically."
+      )
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function normalizeDisplayedApplyBehavior(applyBehavior) {
+  const normalized = String(applyBehavior ?? "").trim().toLowerCase();
+  if (["duplicate", "stack"].includes(normalized)) {
+    return "duplicate";
+  }
+
+  if (["dae", "same-as-dae", "sameasdae"].includes(normalized) && Constants.isDaeActive()) {
+    return "dae";
+  }
+
+  return "default";
+}
+
+function getApplyBehaviorLabel(applyBehavior) {
+  const normalized = normalizeDisplayedApplyBehavior(applyBehavior);
+  if (normalized === "duplicate") {
+    return Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorDuplicate", "Stack");
+  }
+
+  if (normalized === "dae") {
+    return Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorDae", "Same as DAE");
+  }
+
+  return Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorUpdate", "Default");
+}
+
+function getApplyBehaviorDescription(applyBehavior) {
+  const normalized = normalizeDisplayedApplyBehavior(applyBehavior);
+  if (normalized === "duplicate") {
+    return Constants.localize(
+      "SCConditionalAE.ConditionTab.ApplyBehaviorDuplicateHint",
+      "Adds a new Active Effect instead of updating the existing one."
+    );
+  }
+
+  if (normalized === "dae") {
+    return Constants.localize(
+      "SCConditionalAE.ConditionTab.ApplyBehaviorDaeHint",
+      "Uses DAE's Stackable setting to decide whether the effect stacks."
+    );
+  }
+
+  return Constants.localize(
+    "SCConditionalAE.ConditionTab.ApplyBehaviorUpdateHint",
+    "Reapplies the current Active Effect on the target instead of creating a new one."
+  );
 }
 
 function buildConditionEvaluationContext(sheet, condition, validation) {
@@ -433,12 +540,48 @@ function cleanSubmitData(sheet, submitData) {
   const data = submitData?.object && typeof submitData.object === "object" ? submitData.object : submitData;
   const targets = getSubmitDataTargets(submitData, data);
   for (const target of targets) {
+    collectCustomFieldSubmitData(sheet, target);
+    syncDaeStackingSubmitData(target);
     cleanConditionSubmitData(sheet, target);
     if (ModuleSettings.isFormulaChangesEnabled()) {
       collectFormulaSubmitData(sheet, target);
       ActiveEffectFormulaChangeService.prepareSubmitData(sheet.document, target);
     }
   }
+}
+
+function collectCustomFieldSubmitData(sheet, submitData) {
+  const root = FormulaColumnRenderer.getSheetRoot(sheet) ?? sheet.element;
+  if (!root || !submitData) {
+    return;
+  }
+
+  for (const element of root.querySelectorAll([
+    `[name="${Constants.CONDITION_BADGE_LABEL_FLAG_PATH}"]`,
+    `[name="${Constants.APPLY_BEHAVIOR_FLAG_PATH}"]`,
+    `[name="${Constants.CONDITION_FLAG_PATH}"]`
+  ].join(", "))) {
+    if (!element?.name) {
+      continue;
+    }
+
+    foundry.utils.setProperty(submitData, element.name, element.value ?? "");
+  }
+}
+
+function syncDaeStackingSubmitData(submitData) {
+  if (!Constants.isDaeActive() || !submitData) {
+    return;
+  }
+
+  const applyBehavior = normalizeDisplayedApplyBehavior(
+    foundry.utils.getProperty(submitData, Constants.APPLY_BEHAVIOR_FLAG_PATH)
+  );
+  if (applyBehavior !== "duplicate") {
+    return;
+  }
+
+  foundry.utils.setProperty(submitData, "flags.dae.stackable", "multi");
 }
 
 function collectFormulaSubmitData(sheet, submitData) {
