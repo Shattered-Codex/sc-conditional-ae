@@ -2,7 +2,7 @@
   "id": "sc-conditional-ae",
   "title": "SC - Conditional AE",
   "description": "Adds JavaScript conditions to Active Effects.",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "media": [
     {
       "type": "setup",
@@ -58,6 +58,6 @@
     "recommends": []
   },
   "url": "https://github.com/Shattered-Codex/sc-conditiona-ae",
-  "download": "https://github.com/Shattered-Codex/sc-conditiona-ae/releases/download/v0.0.3/sc-conditional-ae.zip",
+  "download": "https://github.com/Shattered-Codex/sc-conditiona-ae/releases/download/v0.0.5/sc-conditional-ae.zip",
   "manifest": "https://github.com/Shattered-Codex/sc-conditiona-ae/releases/latest/download/module.json"
 }
