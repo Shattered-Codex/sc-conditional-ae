@@ -16,10 +16,11 @@ jobs:
 
     env:
       GH_TOKEN: ${{ github.token }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -290,10 +291,26 @@ jobs:
 
           MANIFEST_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/module.json"
           NOTES_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+          MANIFEST_VERSION=$(jq -r '.version // empty' module.json)
 
           COMPAT_MIN=$(jq -r '.compatibility.minimum // empty' module.json)
           COMPAT_VERIFIED=$(jq -r '.compatibility.verified // empty' module.json)
           COMPAT_MAX=$(jq -r '.compatibility.maximum // empty' module.json)
+
+          if [ -z "${MODULE_ID}" ]; then
+            echo "MODULE_ID is empty. Skipping Foundry publish."
+            exit 1
+          fi
+
+          if [ -z "${MANIFEST_VERSION}" ]; then
+            echo "module.json is missing a version. Skipping Foundry publish."
+            exit 1
+          fi
+
+          if [ "${MANIFEST_VERSION}" != "${VERSION}" ]; then
+            echo "module.json version (${MANIFEST_VERSION}) does not match release version (${VERSION})."
+            exit 1
+          fi
 
           if [ -z "${COMPAT_MIN}" ] || [ -z "${COMPAT_VERIFIED}" ]; then
             echo "Compatibility data is missing from module.json. Skipping Foundry publish."
@@ -322,8 +339,51 @@ jobs:
               }
             }')
 
-          curl -sSf -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: ${RELEASE_TOKEN}" \
-            -d "${payload}" \
-            https://foundryvtt.com/_api/packages/release_version/
+          echo "Preparing Foundry publish for package '${MODULE_ID}' version '${VERSION}'."
+          echo "Manifest URL: ${MANIFEST_URL}"
+          echo "Notes URL: ${NOTES_URL}"
+
+          publish_to_foundry() {
+            local dry_run="$1"
+            local request_payload="$2"
+            local response_file http_code
+
+            response_file=$(mktemp)
+            http_code=$(curl -sS \
+              -o "${response_file}" \
+              -w "%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -H "Authorization: ${RELEASE_TOKEN}" \
+              -d "${request_payload}" \
+              https://foundryvtt.com/_api/packages/release_version/ || true)
+
+            if [ "${http_code}" != "200" ]; then
+              echo "Foundry publish request failed with HTTP ${http_code} (dry-run=${dry_run})."
+              if jq empty "${response_file}" >/dev/null 2>&1; then
+                jq . "${response_file}"
+              else
+                cat "${response_file}"
+              fi
+
+              if [ "${http_code}" = "403" ]; then
+                echo "A 403 from Foundry usually means the release token is invalid, revoked, or does not belong to package '${MODULE_ID}'."
+              fi
+
+              rm -f "${response_file}"
+              return 1
+            fi
+
+            echo "Foundry publish request succeeded (dry-run=${dry_run})."
+            if jq empty "${response_file}" >/dev/null 2>&1; then
+              jq . "${response_file}"
+            else
+              cat "${response_file}"
+            fi
+
+            rm -f "${response_file}"
+          }
+
+          dry_run_payload=$(printf '%s' "${payload}" | jq '. + {"dry-run": true}')
+          publish_to_foundry "true" "${dry_run_payload}"
+          publish_to_foundry "false" "${payload}"
