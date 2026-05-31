@@ -1,4 +1,7 @@
 import { Constants } from "../constants/Constants.js";
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
+import { FormulaRollCardRenderer } from "../helpers/FormulaRollCardRenderer.js";
+import { HtmlHelpers } from "../helpers/HtmlHelpers.js";
 import { ActiveEffectConditionService } from "./ActiveEffectConditionService.js";
 
 const ROLL_UPDATE_OPTION = "formulaRollUpdate";
@@ -243,7 +246,7 @@ export class ActiveEffectFormulaChangeService {
   }
 
   static #getFormulaForPreparedChange(change, existingFormulaChange, submittedFormulaChange) {
-    if (!ActiveEffectFormulaChangeService.#isFormulaEligibleChange(change)) {
+    if (!ActiveEffectContextBuilder.isFormulaEligibleChange(change)) {
       return null;
     }
 
@@ -496,23 +499,6 @@ export class ActiveEffectFormulaChangeService {
     return existingFormula.length && value === existingFormula;
   }
 
-  static #isCustomChange(change) {
-    return Number(change.mode) === CONST.ACTIVE_EFFECT_MODES.CUSTOM
-      || String(change.mode ?? "").toLowerCase() === "custom"
-      || String(change.type ?? "").toLowerCase() === "custom";
-  }
-
-  static #isFormulaEligibleChange(change) {
-    if (!change?.key || ActiveEffectFormulaChangeService.#isCustomChange(change)) {
-      return false;
-    }
-
-    return ![
-      Constants.MACRO_EXECUTE_CHANGE_KEY,
-      Constants.LEGACY_MACRO_EXECUTE_CHANGE_KEY,
-      Constants.DAE_MACRO_EXECUTE_CHANGE_KEY
-    ].includes(change.key);
-  }
 
   static #zeroFormulaChangeValues(effect) {
     const changes = foundry.utils.deepClone(effect.changes ?? []);
@@ -662,7 +648,12 @@ export class ActiveEffectFormulaChangeService {
       return null;
     }
 
-    messageConfig.data.content = await ActiveEffectFormulaChangeService.#buildFormulaRollCardContent({ change, effect, roll });
+    messageConfig.data.content = await FormulaRollCardRenderer.build({
+      change,
+      effect,
+      roll,
+      title: ActiveEffectFormulaChangeService.#getFormulaRollTitle(effect)
+    });
     await BasicRoll.buildPost(rolls, rollConfig, messageConfig);
 
     return {
@@ -679,7 +670,12 @@ export class ActiveEffectFormulaChangeService {
     const roll = new Roll(ActiveEffectFormulaChangeService.#normalizeRollFormula(proposedFormula), actor.getRollData?.() ?? {});
     await roll.evaluate();
     await roll.toMessage({
-      content: await ActiveEffectFormulaChangeService.#buildFormulaRollCardContent({ change, effect, roll }),
+      content: await FormulaRollCardRenderer.build({
+        change,
+        effect,
+        roll,
+        title: ActiveEffectFormulaChangeService.#getFormulaRollTitle(effect)
+      }),
       speaker: ChatMessage.getSpeaker({ actor })
     });
     return {
@@ -692,64 +688,6 @@ export class ActiveEffectFormulaChangeService {
     return value.startsWith("-") ? value.replace(/^-\s*/, "0 - ") : value;
   }
 
-  static async #buildFormulaRollCardContent({ change, effect, roll }) {
-    const title = ActiveEffectFormulaChangeService.#escapeHtml(
-      ActiveEffectFormulaChangeService.#getFormulaRollTitle(effect)
-    );
-    const subtitle = ActiveEffectFormulaChangeService.#escapeHtml(change.key ?? "");
-    const img = ActiveEffectFormulaChangeService.#escapeHtml(
-      effect.img ?? effect.icon ?? "icons/svg/d20.svg"
-    );
-    const uuid = ActiveEffectFormulaChangeService.#escapeHtml(effect.uuid ?? "");
-
-    return `
-      <div class="chat-card item-card sc-cae-formula-roll-card" data-effect-uuid="${uuid}">
-        <section class="card-header">
-          <header class="summary">
-            <img class="gold-icon" src="${img}" alt="${title}">
-            <div class="name-stacked border">
-              <span class="title">${title}</span>
-              ${subtitle ? `<span class="subtitle">${subtitle}</span>` : ""}
-            </div>
-          </header>
-        </section>
-        ${await ActiveEffectFormulaChangeService.#renderRollContent(roll)}
-      </div>
-    `;
-  }
-
-  static async #renderRollContent(roll) {
-    if (!roll) {
-      return "";
-    }
-
-    try {
-      if (typeof roll.render === "function") {
-        return ActiveEffectFormulaChangeService.#expandRenderedRollContent(await roll.render());
-      }
-    } catch (error) {
-      console.warn(`[${Constants.MODULE_ID}] active effect formula roll render failed`, error);
-    }
-
-    const formula = ActiveEffectFormulaChangeService.#escapeHtml(roll.formula ?? "");
-    const total = ActiveEffectFormulaChangeService.#escapeHtml(roll.total ?? "");
-    return `
-      <div class="dice-roll">
-        <div class="dice-result">
-          <div class="dice-formula">${formula}</div>
-          <h4 class="dice-total">${total}</h4>
-        </div>
-      </div>
-    `;
-  }
-
-  static #expandRenderedRollContent(content) {
-    return String(content ?? "").replace(
-      /class=(["'])dice-roll(?![^"']*\bexpanded\b)/,
-      "class=$1dice-roll expanded"
-    );
-  }
-
   static #getFormulaRollTitle(effect) {
     return String(
       effect.name
@@ -760,10 +698,10 @@ export class ActiveEffectFormulaChangeService {
 
   static async #promptFormula({ actor, change, effect, formula }) {
     const title = Constants.localize("SCConditionalAE.FormulaChange.DialogTitle", "Roll Active Effect Formula");
-    const escapedFormula = ActiveEffectFormulaChangeService.#escapeHtml(String(formula ?? ""));
-    const escapedEffectName = ActiveEffectFormulaChangeService.#escapeHtml(effect.name ?? "");
-    const escapedActorName = ActiveEffectFormulaChangeService.#escapeHtml(actor.name ?? "");
-    const escapedKey = ActiveEffectFormulaChangeService.#escapeHtml(change.key ?? "");
+    const escapedFormula = HtmlHelpers.escape(String(formula ?? ""));
+    const escapedEffectName = HtmlHelpers.escape(effect.name ?? "");
+    const escapedActorName = HtmlHelpers.escape(actor.name ?? "");
+    const escapedKey = HtmlHelpers.escape(change.key ?? "");
     const content = `
       <p>${Constants.localize("SCConditionalAE.FormulaChange.DialogHint", "Confirm or edit the formula to roll for this Active Effect.")}</p>
       <p><strong>${escapedEffectName}</strong> - ${escapedActorName}</p>
@@ -794,12 +732,6 @@ export class ActiveEffectFormulaChangeService {
         }
       ]
     });
-  }
-
-  static #escapeHtml(value) {
-    const element = document.createElement("div");
-    element.textContent = String(value ?? "");
-    return element.innerHTML;
   }
 
   static #getResponsibleUser(actor) {

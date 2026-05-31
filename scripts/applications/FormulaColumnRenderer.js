@@ -9,6 +9,19 @@ const CHANGE_VALUE_INPUT_SELECTOR = `[name*="changes"][name$=".value"], [name*="
 
 export class FormulaColumnRenderer {
   static #observers = new WeakMap();
+  static #renderHookRegistered = false;
+
+  static activateRenderHook() {
+    if (FormulaColumnRenderer.#renderHookRegistered) {
+      return;
+    }
+
+    FormulaColumnRenderer.#renderHookRegistered = true;
+    Hooks.on("renderActiveEffectConfig", (app, html) => {
+      FormulaColumnRenderer.scheduleRender(app, html);
+      FormulaColumnRenderer.activateObserver(app, html);
+    });
+  }
 
   static scheduleRender(sheet, rootOverride) {
     FormulaColumnRenderer.#render(sheet, rootOverride);

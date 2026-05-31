@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { HtmlHelpers } from "../helpers/HtmlHelpers.js";
 import { ActiveEffectFormulaChangeService } from "./ActiveEffectFormulaChangeService.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 
@@ -87,26 +88,26 @@ export class ActiveEffectFormulaChatCardService {
     }
 
     const actor = ActiveEffectFormulaChatCardService.#getActor(effect);
-    const title = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const title = HtmlHelpers.escape(
       Constants.localize("SCConditionalAE.FormulaChange.ChatCardTitle", "Formula roll available")
     );
-    const effectName = ActiveEffectFormulaChatCardService.#escapeHtml(effect.name ?? "");
-    const actorName = ActiveEffectFormulaChatCardService.#escapeHtml(actor?.name ?? "");
-    const img = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const effectName = HtmlHelpers.escape(effect.name ?? "");
+    const actorName = HtmlHelpers.escape(actor?.name ?? "");
+    const img = HtmlHelpers.escape(
       effect.img ?? effect.icon ?? "icons/svg/d20.svg"
     );
-    const effectUuid = ActiveEffectFormulaChatCardService.#escapeHtml(effect.uuid ?? "");
+    const effectUuid = HtmlHelpers.escape(effect.uuid ?? "");
     const rawEffectName = String(effect.name ?? "").trim();
-    const hint = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const hint = HtmlHelpers.escape(
       ActiveEffectFormulaChatCardService.#getIntroLabel(reason, rawEffectName || title)
     );
-    const reasonText = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const reasonText = HtmlHelpers.escape(
       ActiveEffectFormulaChatCardService.#getReasonLabel(reason, rawEffectName || "This effect")
     );
-    const prompt = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const prompt = HtmlHelpers.escape(
       Constants.localize("SCConditionalAE.FormulaChange.ChatCardPrompt", "Do you want to roll them now?")
     );
-    const buttonLabel = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const buttonLabel = HtmlHelpers.escape(
       Constants.localize("SCConditionalAE.FormulaChange.ChatCardButton", "Roll all formulas")
     );
     const listHtml = formulaEntries
@@ -155,23 +156,23 @@ export class ActiveEffectFormulaChatCardService {
   }
 
   static #buildFormulaEntryHtml(effectUuid, formulaEntry) {
-    const keyLabel = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const keyLabel = HtmlHelpers.escape(
       Constants.localize("SCConditionalAE.FormulaChange.ChatCardAttributeKeyLabel", "Attribute Key")
     );
-    const currentValueLabel = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const currentValueLabel = HtmlHelpers.escape(
       Constants.localize("SCConditionalAE.FormulaChange.ChatCardCurrentValueLabel", "Current Value")
     );
-    const formulaLabel = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const formulaLabel = HtmlHelpers.escape(
       Constants.localize("SCConditionalAE.FormulaChange.ChatCardFormulaLabel", "Formula")
     );
-    const rollLabel = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const rollLabel = HtmlHelpers.escape(
       Constants.localize("SCConditionalAE.FormulaChange.RollButton", "Roll")
     );
-    const displayKey = ActiveEffectFormulaChatCardService.#escapeHtml(
+    const displayKey = HtmlHelpers.escape(
       formulaEntry.key || ActiveEffectFormulaChatCardService.#getFallbackChangeLabel(formulaEntry.index)
     );
-    const currentValue = ActiveEffectFormulaChatCardService.#escapeHtml(formulaEntry.currentValue || "0");
-    const formula = ActiveEffectFormulaChatCardService.#escapeHtml(formulaEntry.formula);
+    const currentValue = HtmlHelpers.escape(formulaEntry.currentValue || "0");
+    const formula = HtmlHelpers.escape(formulaEntry.formula);
 
     return `
       <div class="sc-cae-formula-request-entry" role="listitem">
@@ -241,12 +242,6 @@ export class ActiveEffectFormulaChatCardService {
     }
 
     return null;
-  }
-
-  static #escapeHtml(value) {
-    const element = document.createElement("div");
-    element.textContent = String(value ?? "");
-    return element.innerHTML;
   }
 
   static #localizeFormat(key, fallback, data) {

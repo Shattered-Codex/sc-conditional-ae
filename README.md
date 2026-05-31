@@ -13,121 +13,141 @@
 [![libWrapper Recommended](https://img.shields.io/badge/libWrapper-Recommended-8A2BE2?style=for-the-badge)](https://github.com/ruipin/fvtt-lib-wrapper)
 ![Downloads](https://img.shields.io/github/downloads/Shattered-Codex/sc-conditional-ae/total?style=for-the-badge)
 
-Add JavaScript conditions, formula-backed changes, and macro execution to dnd5e Active Effects.
+Add JavaScript conditions, formula-backed changes, and macro execution to `dnd5e` Active Effects.
 
 [Report an issue or request a feature](https://github.com/Shattered-Codex/sc-conditional-ae/issues) - [Official Wiki](https://wiki.shattered-codex.com/modules/sc-conditional-ae)
 
 ---
 
-## What does this module do?
+## Overview
 
-SC - Conditional AE extends the **dnd5e Active Effect** workflow in three ways:
+SC - Conditional AE extends the `dnd5e` Active Effect workflow in three major ways:
 
-1. It adds a **Condition** tab to the Active Effect configuration sheet.
-2. It adds an optional **Formula** column to effect changes.
-3. It lets an Active Effect **execute a world macro** when the effect turns on or off.
+| Feature | What it adds | Typical use |
+|---|---|---|
+| Condition tab | A dedicated Active Effect tab that evaluates JavaScript or compatible DAE expressions | Only apply an effect while HP is above 0, while combat is running, or when an item matches a rule |
+| Formula column | A per-change formula field that rolls when the effect becomes active | Randomized bonuses, penalties, temp HP changes, or re-rollable values |
+| Macro execution change | A special change key that executes a world macro when the effect turns on or off | Trigger side effects, automation, chat output, or external module integrations |
 
-In practice, that means you can do things like:
+Additional current module behavior:
 
-- Apply an effect only while the actor has more than 0 HP.
-- Roll a formula when the effect activates and write the total into the change value.
-- Trigger a macro when the effect is applied or removed.
+| Area | Current behavior |
+|---|---|
+| Condition UX | Includes live validation, current evaluation feedback, a wiki shortcut, and a configurable inactive badge label |
+| Target application | Lets you choose whether reapplying an effect to a target updates the existing effect or stacks a duplicate |
+| Formula UX | Supports immediate rolling or optional chat cards, plus roll buttons on effect lists |
+| Transfer handling | Preserves module flags on transferred effects so condition, formula, and apply-behavior metadata survive target application |
+| Compatibility | Supports Foundry VTT `v13` and `v14`, `dnd5e` `4.0.0+`, DAE condition content, and Aura Effects fallback typing |
 
-If a condition returns `false`, the effect is **suppressed** and does not apply.
+If a condition resolves to `false`, or throws an error, the effect is suppressed and its changes do not apply.
 
 ---
 
 ## Requirements
 
-- **Foundry VTT:** version 13 or 14
-- **System:** D&D 5e
-- **Recommended:** [libWrapper](https://github.com/ruipin/fvtt-lib-wrapper) for best compatibility
-- **Optional compatibility:** DAE expressions and legacy DAE condition flags are supported
+| Requirement | Status |
+|---|---|
+| Foundry VTT | `13` or `14` |
+| System | `dnd5e` |
+| Minimum `dnd5e` version | `4.0.0` |
+| `libWrapper` | Recommended for best compatibility |
+| DAE | Optional, with compatibility support |
 
 ---
 
 ## Installation
 
 1. Open Foundry VTT and go to **Add-on Modules -> Install Module**.
-2. Paste this URL into the **Manifest URL** field:
+2. Paste this manifest URL:
 
 ```text
 https://github.com/Shattered-Codex/sc-conditional-ae/releases/latest/download/module.json
 ```
 
-3. Click **Install**, then enable **SC - Conditional AE** in your world.
-4. If you use many other modules, also install **libWrapper**.
+3. Install the module and enable **SC - Conditional AE** in your world.
+4. If your world uses many modules touching Active Effects, also install **libWrapper**.
 
 ---
 
-## How it works: the three pieces
+## Condition Tab
 
-Before configuring effects, it helps to know what the module adds:
+When **Show condition tab** is enabled, Active Effect sheets gain a **Condition** tab.
 
-| Feature | What it does | Where you use it |
-|---|---|---|
-| **Condition tab** | Runs JavaScript to decide whether the effect should be active | Active Effect sheet |
-| **Formula column** | Rolls a formula and writes the rolled total into the change value | Active Effect changes |
-| **Macro change** | Executes a world macro when the effect turns on or off | Active Effect changes |
+Write either:
 
----
+- a short JavaScript expression
+- or a small block with `return`
 
-## Using the Condition tab
-
-When **Show condition tab** is enabled, Active Effect sheets gain a new **Condition** tab.
-
-Write a JavaScript expression or a small `return` block there. The effect is applied only when the code returns `true`.
-
-Simple example:
-
-```js
-return actor?.system?.attributes?.hp?.value > 0;
-```
-
-Short expression example:
+Both forms are valid:
 
 ```js
 actor?.system?.attributes?.hp?.value > 0
 ```
 
-Both work. If you omit `return`, the module wraps the expression for you.
+```js
+return actor?.system?.attributes?.hp?.value > 0;
+```
+
+### What the tab includes
+
+| UI element | What it does |
+|---|---|
+| Condition editor | Stores the effect condition as JavaScript or adapted DAE-compatible content |
+| Current evaluation | Shows whether the effect is currently available, suppressed, empty, or throwing an error |
+| Condition badge label | Defines a short label shown on inactive effects when the condition is not met |
+| When applied to a target | Controls whether target application updates an existing effect or creates a new stack |
+| Wiki link | Opens the module wiki directly from the sheet |
 
 ### Available variables
 
-These are available inside the condition:
+| Variable | Meaning |
+|---|---|
+| `effect` | The Active Effect being evaluated |
+| `actor` | The affected actor |
+| `targetActor` | Alias of the affected actor |
+| `item` | The owning item, when applicable |
+| `origin` | The effect origin document, when available |
+| `originActor` | The actor tied to the origin document, when available |
+| `user` | The current Foundry user |
+| `rollData` | The actor roll data, resolved lazily |
+| `source` | A cloned source snapshot of the effect |
+| `getProperty` | `foundry.utils.getProperty` |
+| `hasProperty` | `foundry.utils.hasProperty` |
+| `deepClone` | `foundry.utils.deepClone` |
+| `game` | The Foundry `game` object |
 
-- `effect`
-- `actor`
-- `targetActor`
-- `item`
-- `origin`
-- `originActor`
-- `user`
-- `rollData`
-- `source`
-- `getProperty`
-- `hasProperty`
-- `deepClone`
-- `game`
+### Evaluation rules
 
-### Important notes
+| Rule | Behavior |
+|---|---|
+| Empty condition | The effect remains available |
+| `true` result | The effect applies normally |
+| `false` result | The effect is suppressed |
+| Error thrown | The effect is suppressed and the error is shown in the evaluation panel |
+| Promise or async result | Treated as invalid; conditions must be synchronous |
 
-- Conditions must be **synchronous**. Do not use async code.
-- Invalid code suppresses the effect instead of partially applying it.
-- The condition is checked both for actor effects and transferred item effects.
+### Apply behavior on targets
+
+This setting matters when an effect is applied to a target through the `dnd5e` effect application flow.
+
+| Option | Behavior |
+|---|---|
+| `Default` | Reapplies the current Active Effect by updating the existing target effect tied to the same origin |
+| `Stack` | Creates a new target-side Active Effect instead of updating the existing one |
+| `Same as DAE` | Uses DAE stacking semantics when DAE is active |
 
 ### Ready-to-copy examples
+
+Apply only while the actor has HP remaining:
+
+```js
+return actor?.system?.attributes?.hp?.value > 0;
+```
 
 Apply only while the actor is bloodied:
 
 ```js
 return actor?.system?.attributes?.hp?.value <= (actor?.system?.attributes?.hp?.max ?? 0) / 2;
-```
-
-Apply only to melee weapons:
-
-```js
-return item?.system?.type?.value === "martialM";
 ```
 
 Apply only while combat is active:
@@ -136,28 +156,38 @@ Apply only while combat is active:
 return Boolean(game.combat);
 ```
 
----
+Apply only for a specific item type:
 
-## DAE compatibility
-
-If an effect already uses one of these DAE flags:
-
-- `flags.dae.enableCondition`
-- `flags.dae.disableCondition`
-
-SC - Conditional AE automatically adapts that content into the **Condition** tab.
-
-That means you can open older DAE-based effects, edit them in the new UI, and save them without manually rewriting every condition first.
-
-DAE-style expressions that rely on `@` roll data references are also preserved.
+```js
+return item?.system?.type?.value === "martialM";
+```
 
 ---
 
-## Using formula-backed changes
+## DAE Compatibility
 
-When **Enable formula column** is enabled, the Active Effect changes table gets a **Formula** column.
+SC - Conditional AE can read and preserve DAE condition content.
 
-Use it on normal non-custom changes when you want the effect to roll a value at activation time.
+| DAE content | Support |
+|---|---|
+| `flags.dae.enableCondition` | Read and surfaced in the Condition tab |
+| `flags.dae.disableCondition` | Read and surfaced in the Condition tab |
+| `@` roll-data expressions | Preserved through compatibility evaluation |
+| `dae.eval(...)` and `dae.roll(...)` style expressions | Preserved when used as compatibility expressions |
+
+What this means in practice:
+
+- Older DAE-driven conditions can be opened in the new UI.
+- The module adapts them automatically instead of forcing a full rewrite.
+- If DAE is active, a `libWrapper` warning may appear in the browser console. That warning is expected and does not necessarily indicate broken behavior.
+
+---
+
+## Formula-Backed Changes
+
+When **Enable formula column** is enabled, the Active Effect changes table gains a **Formula** column.
+
+Use it on normal non-custom changes when you want the effect value to be rolled at activation time.
 
 Example:
 
@@ -168,35 +198,50 @@ Value: 0
 Formula: -2d6
 ```
 
-What happens:
+### Formula flow
 
-1. The effect becomes active.
-2. The responsible user is prompted to roll the formula.
-3. The rolled total is written into the normal **Value** field.
-4. If the effect is disabled and enabled again later, it rolls again.
+| Step | What happens |
+|---|---|
+| 1 | The effect becomes active, is re-enabled, or a previously false condition becomes true |
+| 2 | The responsible user is chosen |
+| 3 | The formula is rolled immediately, or a chat card is posted if that setting is enabled |
+| 4 | The total is written into the normal change value |
 
-### Who rolls?
+### Who rolls
 
-The module tries to give the roll to the most appropriate user:
+| Priority | User selected |
+|---|---|
+| 1 | An active non-GM owner of the actor |
+| 2 | An active GM, if no active player owner is available |
 
-- An active non-GM owner of the actor rolls first.
-- If there is no active player owner, the active GM rolls.
+### Formula UX
+
+| Feature | Behavior |
+|---|---|
+| Sheet column | Adds a formula input beside each eligible change value |
+| Immediate rolling | Default behavior when a formula-backed effect becomes active |
+| Chat card mode | Optional setting that posts a chat card with one-click roll buttons instead of rolling immediately |
+| Effect list roll button | Adds a d20 control to supported actor and item effect lists when formulas are available |
 
 ### Good use cases
 
-- Variable temporary HP penalties or bonuses
-- Randomized stat adjustments
-- Effects that should re-roll every time they come back online
+| Use case | Example |
+|---|---|
+| Variable bonuses | Random temporary stat boosts |
+| Variable penalties | Random HP max reductions or debuffs |
+| Re-roll on reactivation | Effects that should change every time they come back online |
 
 ---
 
-## Using macro execution changes
+## Macro Execution Changes
 
-To execute a world macro from an Active Effect, add a change with:
+To execute a world macro from an Active Effect, add a change with the following setup:
 
-- **Key:** `cae.macro.execute`
-- **Mode:** `Custom`
-- **Value:** macro name or UUID, followed by optional arguments
+| Field | Value |
+|---|---|
+| Key | `cae.macro.execute` |
+| Mode | `Custom` |
+| Value | Macro name or macro UUID, followed by optional arguments |
 
 Example:
 
@@ -204,104 +249,129 @@ Example:
 Apply Rage "fire" 2
 ```
 
-That would try to execute a world macro named `Apply Rage` and pass `fire` and `2` as arguments.
+That tries to execute the world macro `Apply Rage` and pass `fire` and `2` as arguments.
+
+### Supported change keys
+
+| Key | Status |
+|---|---|
+| `cae.macro.execute` | Primary key |
+| `sc-conditional-ae.macro.execute` | Legacy key, still supported |
+| `macro.execute` | Supported only when DAE is not active |
+
+If DAE is active, DAE remains responsible for `macro.execute`.
 
 ### What the macro receives
 
-The macro gets a scope containing:
+| Scope field | Meaning |
+|---|---|
+| `action` | `on` when applied or re-enabled, `off` when disabled or deleted |
+| `actor` | The actor that owns the effect |
+| `token` | The first active token found for the actor, when available |
+| `effect` | The Active Effect document |
+| `item` | The owning or origin item, when available |
+| `origin` | The origin document, when available |
+| `change` | The individual effect change being executed |
+| `args` | `[action, ...macroArgs, lastArg]` |
+| `macroArgs` | Parsed arguments after the macro name |
+| `lastArg` | DAE-style summary payload with actor, token, effect, item, and origin identifiers |
+| `speaker` | `ChatMessage.getSpeaker(...)` for the actor/token context |
+| `user` | The current Foundry user |
 
-- `action`
-- `actor`
-- `token`
-- `effect`
-- `item`
-- `origin`
-- `change`
-- `args`
-- `macroArgs`
-- `lastArg`
-- `speaker`
-- `user`
+### Macro notes
 
-`action` is:
-
-- `on` when the effect is applied or re-enabled
-- `off` when the effect is disabled or deleted
-
-### Compatibility notes
-
-- `sc-conditional-ae.macro.execute` is also supported as a legacy key.
-- `macro.execute` is supported when DAE is **not** active.
-- If DAE is active, DAE remains responsible for `macro.execute`.
+| Note | Details |
+|---|---|
+| Macro lookup | First tries UUID, then world macro ID/name |
+| Quoted arguments | Supported, including escaped quotes |
+| Condition-aware | `on` execution is skipped while the effect is suppressed |
+| Missing macro | Shows a warning notification instead of failing silently |
 
 ---
 
-## Module Settings
+## Applying Effects to Targets
 
-Go to **Game Settings -> Module Settings -> SC - Conditional AE**.
+The module now carries its own metadata when effects are transferred or applied to targets, so condition, formula, and apply-behavior flags stay attached to the target-side effect.
 
-| Setting | Default | What it does |
-|---|---|---|
-| **Enable formula column** | On | Adds the Formula column to Active Effect changes and enables activation-time rolls |
-| **Show condition tab** | On | Adds the Condition tab to Active Effect configuration sheets |
-| **Documentation** | - | Opens the module wiki |
-| **Support the developer** | - | Opens the Patreon support page |
-
-Both boolean settings require a reload after changing them.
+| Scenario | Behavior |
+|---|---|
+| Item effect transferred to actor | Module flags are mirrored so the actor-side effect keeps condition/formula metadata |
+| Reapplying the same origin effect | Controlled by the **When applied to a target** setting |
+| Stacked target application | Duplicate mode forces a fresh effect ID and multi-stack semantics |
+| Tidy 5e drag/drop | Supported through remembered drop context so transferred flags can be restored correctly |
 
 ---
 
-## Troubleshooting
+## Settings
 
-### The effect never applies
+Open **Game Settings -> Module Settings -> SC - Conditional AE -> Open settings**.
 
-Check these in order:
+The module uses an Application V2 settings window and also exposes documentation/support menus in module settings.
 
-1. Open the **Condition** tab and confirm the script returns `true`.
-2. Make sure the code is valid JavaScript.
-3. Do not use async code or Promises.
-4. If the effect came from DAE, verify the original expression still makes sense in the current actor data.
+| Setting | Scope | Default | Reload required | What it does |
+|---|---|---|---|---|
+| Enable formula column | World | On | Yes | Adds the Formula column and enables formula-backed Active Effect rolling |
+| Post formula roll chat card | World | Off | No | Posts a chat card when formulas become available instead of rolling immediately |
+| Show condition tab | World | On | Yes | Adds the Condition tab to Active Effect configuration sheets |
+| Enable debug logging | Client | Off | No | Logs condition evaluation, refreshes, and activation transitions to the browser console |
+| Documentation | Menu | - | No | Opens the module wiki |
+| Support the developer | Menu | - | No | Opens the Patreon support page |
 
-### The Formula column is missing
+---
 
-Check two things:
+## Public API
 
-1. **Enable formula column** must be on.
-2. Reload the world after changing that setting.
+On `ready`, the module exposes a small API on:
 
-### The macro does not run
+```js
+game.modules.get("sc-conditional-ae").api
+```
 
-Check these four things:
-
-1. The change key is `cae.macro.execute`.
-2. The change mode is **Custom**.
-3. The referenced macro exists in the **world macros** directory.
-4. The effect is not being suppressed by its condition.
-
-### My old DAE condition looks different now
-
-That is expected. The module reads old DAE condition flags and surfaces them in the new Condition tab so they can be edited in one place.
+| Method | What it does |
+|---|---|
+| `getCondition(effect)` | Returns the stored condition or adapted DAE condition |
+| `hasCondition(effect)` | Returns whether the effect has a condition |
+| `validateCondition(code)` | Validates condition code and returns `{ valid, error }` |
+| `evaluate(effect, options?)` | Evaluates the condition and returns `{ available, error, result }` |
+| `shouldSuppress(effect)` | Returns whether the effect should be suppressed |
 
 ---
 
 ## Compatibility
 
-| What | Status |
+| Integration | Status | Notes |
+|---|---|---|
+| Foundry VTT v13 | Supported | UI and Active Effect handling are built for v13 and v14 |
+| Foundry VTT v14 | Supported | Verified target in `module.json` |
+| `dnd5e` | Required | Module warns and stops setup outside `dnd5e` |
+| DAE conditions | Supported | Legacy flags and compatibility expressions are adapted |
+| DAE macro key | Partial | `macro.execute` is only handled here when DAE is not active |
+| Aura Effects | Safe fallback | Registers a fallback `auraeffects.aura` Active Effect type when needed |
+| `libWrapper` | Recommended | Best path for patch compatibility |
+
+---
+
+## Troubleshooting
+
+| Problem | What to check |
 |---|---|
-| Foundry VTT v13 | Supported |
-| Foundry VTT v14 | Supported |
-| D&D 5e system | Required |
-| DAE condition content | Supported |
-| Aura Effects typed data | Safe fallback included |
-| libWrapper | Recommended |
+| The effect never applies | Confirm the condition returns `true`, contains valid synchronous code, and still matches current actor/item data |
+| The effect shows as inactive with a badge | The configured condition badge label is appearing because the condition currently evaluates to `false` |
+| The Formula column is missing | Make sure **Enable formula column** is on, then reload the world |
+| The formula did not roll | Confirm the effect actually became active, the change is eligible, and the responsible user is the one viewing the prompt or chat card |
+| The macro did not run | Check the key, confirm the mode is `Custom`, verify the world macro exists, and confirm the effect is not suppressed |
+| I see a `libWrapper` warning with DAE active | This is an expected compatibility warning when both modules touch the Active Effect pipeline |
+| My old DAE condition now looks different | Expected; the module surfaces DAE condition content through the unified Condition tab |
 
 ---
 
 ## Useful Links
 
-- **Wiki:** https://wiki.shattered-codex.com/modules/sc-conditional-ae
-- **Bug reports and requests:** https://github.com/Shattered-Codex/sc-conditional-ae/issues
-- **Patreon:** https://www.patreon.com/c/shatteredcodex
+| Resource | Link |
+|---|---|
+| Wiki | https://wiki.shattered-codex.com/modules/sc-conditional-ae |
+| Bug reports and feature requests | https://github.com/Shattered-Codex/sc-conditional-ae/issues |
+| Patreon | https://www.patreon.com/c/shatteredcodex |
 
 ---
 

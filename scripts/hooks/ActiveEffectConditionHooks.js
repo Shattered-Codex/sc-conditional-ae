@@ -282,10 +282,11 @@ export class ActiveEffectConditionHooks {
     }
 
     if (refreshed) {
+      const conditionalEffects = ActiveEffectConditionHooks.#getConditionalEffects(actor);
       if (previousConditionState) {
-        ActiveEffectConditionHooks.#handleConditionalActivations(actor, previousConditionState);
+        ActiveEffectConditionHooks.#handleConditionalActivations(actor, previousConditionState, conditionalEffects);
       }
-      ActiveEffectConditionHooks.#cacheConditionalEffectState(actor);
+      ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects);
       ActiveEffectConditionHooks.#renderActorApplications(actor);
     }
   }
@@ -342,6 +343,8 @@ export class ActiveEffectConditionHooks {
       return;
     }
 
+    // v14 changed the render signature: named options object with parts for targeted re-renders.
+    // render(true) still works in v14 but re-renders all parts; parts:["effects"] avoids that.
     if (game.release?.generation > 13) {
       application.render({ force: true, parts: ["effects"] });
       return;
@@ -355,10 +358,10 @@ export class ActiveEffectConditionHooks {
     return cachedState ? new Map(cachedState) : null;
   }
 
-  static #cacheConditionalEffectState(actor) {
+  static #cacheConditionalEffectState(actor, conditionalEffects = null) {
     const state = new Map();
 
-    for (const effect of ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
+    for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
       state.set(effect.uuid, ActiveEffectConditionHooks.#isConditionAvailable(effect, actor));
     }
 
@@ -370,8 +373,8 @@ export class ActiveEffectConditionHooks {
     ActiveEffectConditionHooks.#cachedConditionAvailability.set(actor.uuid, state);
   }
 
-  static #handleConditionalActivations(actor, previousState) {
-    for (const effect of ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
+  static #handleConditionalActivations(actor, previousState, conditionalEffects = null) {
+    for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
       const wasAvailable = previousState.get(effect.uuid);
       const isAvailable = ActiveEffectConditionHooks.#isConditionAvailable(effect, actor);
       if (wasAvailable !== false || !isAvailable) {

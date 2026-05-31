@@ -87,8 +87,8 @@ export class ActiveEffectTransferMetadataService {
       return false;
     }
 
-    const targetChanges = ActiveEffectTransferMetadataService.#getChangeSignature(data?.changes ?? effect?.changes ?? []);
-    const candidateChanges = ActiveEffectTransferMetadataService.#getChangeSignature(candidate?.changes ?? []);
+    const targetChanges = ActiveEffectContextBuilder.getChangeSignature(data?.changes ?? effect?.changes ?? []);
+    const candidateChanges = ActiveEffectContextBuilder.getChangeSignature(candidate?.changes ?? []);
 
     if (targetChanges.length !== candidateChanges.length) {
       return false;
@@ -98,17 +98,6 @@ export class ActiveEffectTransferMetadataService {
       change.key === candidateChanges[index]?.key
       && change.mode === candidateChanges[index]?.mode
     ));
-  }
-
-  static #getChangeSignature(changes) {
-    if (!Array.isArray(changes)) {
-      return [];
-    }
-
-    return changes.map(change => ({
-      key: String(change?.key ?? "").trim(),
-      mode: Number(change?.mode ?? 0)
-    }));
   }
 
   static #getModuleFlags(source) {
@@ -154,7 +143,7 @@ export class ActiveEffectTransferMetadataService {
 
     const changes = ActiveEffectTransferMetadataService.#getChangesArray(targetData);
     const eligibleIndexes = changes
-      .map((change, index) => ActiveEffectTransferMetadataService.#isFormulaEligibleChange(change) ? index : null)
+      .map((change, index) => ActiveEffectContextBuilder.isFormulaEligibleChange(change) ? index : null)
       .filter(index => Number.isInteger(index));
 
     if (eligibleIndexes.length !== 1) {
@@ -196,7 +185,7 @@ export class ActiveEffectTransferMetadataService {
           return true;
         }
 
-        return ActiveEffectTransferMetadataService.#extractEffectId(reference) === sourceEffect.id;
+        return ActiveEffectContextBuilder.extractEffectId(reference) === sourceEffect.id;
       });
     });
   }
@@ -219,25 +208,6 @@ export class ActiveEffectTransferMetadataService {
     return linkedActivities[0];
   }
 
-  static #isFormulaEligibleChange(change) {
-    if (!change?.key) {
-      return false;
-    }
-
-    const mode = Number(change.mode);
-    const isCustom = mode === CONST.ACTIVE_EFFECT_MODES.CUSTOM
-      || String(change.mode ?? "").toLowerCase() === "custom"
-      || String(change.type ?? "").toLowerCase() === "custom";
-    if (isCustom) {
-      return false;
-    }
-
-    return ![
-      Constants.MACRO_EXECUTE_CHANGE_KEY,
-      Constants.LEGACY_MACRO_EXECUTE_CHANGE_KEY,
-      Constants.DAE_MACRO_EXECUTE_CHANGE_KEY
-    ].includes(change.key);
-  }
 
   static #shouldResetTransferredChangeValue(value) {
     return String(value ?? "").trim().length === 0 || String(value ?? "").trim() === "0";
@@ -273,8 +243,4 @@ export class ActiveEffectTransferMetadataService {
       .filter(reference => reference.length > 0);
   }
 
-  static #extractEffectId(reference) {
-    const match = String(reference ?? "").trim().match(/(?:^|\.)ActiveEffect\.([A-Za-z0-9]+)$/);
-    return match?.[1] ?? null;
-  }
 }

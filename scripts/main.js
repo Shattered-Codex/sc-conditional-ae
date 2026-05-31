@@ -1,7 +1,7 @@
 import { Constants } from "./constants/Constants.js";
 import { ActiveEffectSheetRegistrar } from "./applications/ActiveEffectSheetRegistrar.js";
-import { activateFormulaColumnRenderHook } from "./applications/ConditionalActiveEffectSheetMixin.js";
 import { EffectListFormulaRollButtonRenderer } from "./applications/EffectListFormulaRollButtonRenderer.js";
+import { FormulaColumnRenderer } from "./applications/FormulaColumnRenderer.js";
 import { AuraEffectsCompatibility } from "./compat/AuraEffectsCompatibility.js";
 import { DaeCompatibility } from "./compat/DaeCompatibility.js";
 import { ActiveEffectConditionHooks } from "./hooks/ActiveEffectConditionHooks.js";
@@ -43,7 +43,7 @@ Hooks.once("setup", () => {
   if (ModuleSettings.isFormulaChangesEnabled()) {
     ActiveEffectFormulaChatCardService.activate();
     ActiveEffectFormulaChangeHooks.activate();
-    activateFormulaColumnRenderHook();
+    FormulaColumnRenderer.activateRenderHook();
     EffectListFormulaRollButtonRenderer.activate();
   }
   ActiveEffectMacroChangeHooks.activate();

@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectTransferMetadataService } from "../services/ActiveEffectTransferMetadataService.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -225,7 +226,7 @@ export class EffectApplicationHooks {
       return null;
     }
 
-    const parsedId = EffectApplicationHooks.#extractEffectId(uuid);
+    const parsedId = ActiveEffectContextBuilder.extractEffectId(uuid);
     if (parsedId) {
       const matchedByParsedId = item.effects?.get?.(parsedId) ?? null;
       if (matchedByParsedId instanceof CONFIG.ActiveEffect.documentClass) {
@@ -245,11 +246,6 @@ export class EffectApplicationHooks {
     }
   }
 
-  static #extractEffectId(reference) {
-    const match = String(reference ?? "").trim().match(/(?:^|\.)ActiveEffect\.([A-Za-z0-9]+)$/);
-    return match?.[1] ?? null;
-  }
-
   static #hasMatchingSignature(candidate, effect) {
     const candidateName = String(candidate?.name ?? "").trim();
     const effectName = String(effect?.name ?? "").trim();
@@ -257,8 +253,8 @@ export class EffectApplicationHooks {
       return false;
     }
 
-    const candidateChanges = EffectApplicationHooks.#getChangeSignature(candidate?.changes ?? []);
-    const effectChanges = EffectApplicationHooks.#getChangeSignature(effect?.changes ?? []);
+    const candidateChanges = ActiveEffectContextBuilder.getChangeSignature(candidate?.changes ?? []);
+    const effectChanges = ActiveEffectContextBuilder.getChangeSignature(effect?.changes ?? []);
     if (candidateChanges.length !== effectChanges.length) {
       return false;
     }
@@ -269,21 +265,10 @@ export class EffectApplicationHooks {
     ));
   }
 
-  static #getChangeSignature(changes) {
-    if (!Array.isArray(changes)) {
-      return [];
-    }
-
-    return changes.map(change => ({
-      key: String(change?.key ?? "").trim(),
-      mode: Number(change?.mode ?? 0)
-    }));
-  }
-
   static #shouldCreateDuplicateEffect(...effects) {
     const candidates = effects.filter(effect => effect instanceof CONFIG.ActiveEffect.documentClass);
     for (const effect of candidates) {
-      const applyBehavior = EffectApplicationHooks.#normalizeApplyBehavior(
+      const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
         foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
       );
 
@@ -303,29 +288,12 @@ export class EffectApplicationHooks {
     return false;
   }
 
-  static #normalizeApplyBehavior(value) {
-    const normalized = String(value ?? "").trim().toLowerCase();
-    if (["duplicate", "stack"].includes(normalized)) {
-      return "duplicate";
-    }
-
-    if (["dae", "same-as-dae", "sameasdae"].includes(normalized)) {
-      return "dae";
-    }
-
-    if (["auto", "update", "default"].includes(normalized)) {
-      return "update";
-    }
-    
-    return "update";
-  }
-
   static #enforceDuplicateDaeStacking(sourceEffect, effectData) {
     if (!Constants.isDaeActive()) {
       return;
     }
 
-    const applyBehavior = EffectApplicationHooks.#normalizeApplyBehavior(
+    const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
       foundry.utils.getProperty(sourceEffect ?? effectData, Constants.APPLY_BEHAVIOR_FLAG_PATH)
     );
     if (applyBehavior !== "duplicate") {

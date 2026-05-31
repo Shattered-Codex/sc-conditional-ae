@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { ActiveEffectTransferContextService } from "../services/ActiveEffectTransferContextService.js";
 import { ActiveEffectTransferMetadataService } from "../services/ActiveEffectTransferMetadataService.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -116,7 +117,7 @@ export class ActiveEffectTransferHooks {
       return;
     }
 
-    const applyBehavior = ActiveEffectTransferHooks.#normalizeApplyBehavior(
+    const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
       foundry.utils.getProperty(data ?? effect, Constants.APPLY_BEHAVIOR_FLAG_PATH)
     );
     if (applyBehavior !== "duplicate") {
@@ -139,7 +140,7 @@ export class ActiveEffectTransferHooks {
       return;
     }
 
-    const applyBehavior = ActiveEffectTransferHooks.#normalizeApplyBehavior(
+    const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
       foundry.utils.getProperty(data ?? effect, Constants.APPLY_BEHAVIOR_FLAG_PATH)
     );
     if (applyBehavior !== "duplicate") {
@@ -153,23 +154,6 @@ export class ActiveEffectTransferHooks {
       effect: effect?.uuid ?? effect?.id ?? null,
       origin: data?.origin ?? effect?.origin ?? null
     });
-  }
-
-  static #normalizeApplyBehavior(value) {
-    const normalized = String(value ?? "").trim().toLowerCase();
-    if (["duplicate", "stack"].includes(normalized)) {
-      return "duplicate";
-    }
-
-    if (["dae", "same-as-dae", "sameasdae"].includes(normalized)) {
-      return "dae";
-    }
-
-    if (["update", "default"].includes(normalized)) {
-      return "update";
-    }
-
-    return "auto";
   }
 
   static shouldSkipTransferredItemApplication(effect, model) {
@@ -405,7 +389,7 @@ export class ActiveEffectTransferHooks {
 
   static #isStackedTransferSource(effect) {
     return ActiveEffectTransferHooks.#isTransferSourceEffect(effect)
-      && ActiveEffectTransferHooks.#normalizeApplyBehavior(
+      && ActiveEffectContextBuilder.normalizeApplyBehavior(
         foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
       ) === "duplicate"
       && effect.disabled !== true
@@ -421,7 +405,7 @@ export class ActiveEffectTransferHooks {
       return false;
     }
 
-    return ActiveEffectTransferHooks.#normalizeApplyBehavior(
+    return ActiveEffectContextBuilder.normalizeApplyBehavior(
       foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
     ) === "duplicate";
   }

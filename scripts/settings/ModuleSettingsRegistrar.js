@@ -2,8 +2,8 @@ import { Constants } from "../constants/Constants.js";
 import { DocumentationMenu } from "./DocumentationMenu.js";
 import { ModuleSettings } from "./ModuleSettings.js";
 import { ModuleSettingsMenu } from "./ModuleSettingsMenu.js";
-import { resolveSettingsRoot } from "./resolveSettingsRoot.js";
 import { SupportMenu } from "./SupportMenu.js";
+import { SettingsHelpers } from "../helpers/SettingsHelpers.js";
 
 export class ModuleSettingsRegistrar {
   static #registered = false;
@@ -134,7 +134,7 @@ export class ModuleSettingsRegistrar {
       return;
     }
 
-    const root = resolveSettingsRoot(html);
+    const root = SettingsHelpers.resolveRoot(html);
     if (!root || root.querySelector("[data-sc-cae-main-notice='true']")) {
       return;
     }

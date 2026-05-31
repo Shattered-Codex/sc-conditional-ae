@@ -1,5 +1,5 @@
 import { Constants } from "../constants/Constants.js";
-import { resolveSettingsRoot } from "./resolveSettingsRoot.js";
+import { SettingsHelpers } from "../helpers/SettingsHelpers.js";
 
 const { ApplicationV2 } = foundry?.applications?.api ?? {};
 if (!ApplicationV2) {
@@ -32,7 +32,7 @@ export class DocumentationMenu extends ApplicationV2 {
   }
 
   static bindSettingsButton(html) {
-    const root = resolveSettingsRoot(html);
+    const root = SettingsHelpers.resolveRoot(html);
     if (!root) {
       return;
     }

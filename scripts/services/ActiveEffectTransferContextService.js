@@ -1,3 +1,5 @@
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
+
 export class ActiveEffectTransferContextService {
   static #PENDING_TTL_MS = 10000;
   static #pendingByActorUser = new Map();
@@ -83,8 +85,8 @@ export class ActiveEffectTransferContextService {
       return false;
     }
 
-    const sourceChanges = ActiveEffectTransferContextService.#getChangeSignature(sourceEffect.changes ?? []);
-    const targetChanges = ActiveEffectTransferContextService.#getChangeSignature(effectData?.changes ?? []);
+    const sourceChanges = ActiveEffectContextBuilder.getChangeSignature(sourceEffect.changes ?? []);
+    const targetChanges = ActiveEffectContextBuilder.getChangeSignature(effectData?.changes ?? []);
     if (sourceChanges.length !== targetChanges.length) {
       return false;
     }
@@ -93,16 +95,5 @@ export class ActiveEffectTransferContextService {
       change.key === targetChanges[index]?.key
       && change.mode === targetChanges[index]?.mode
     ));
-  }
-
-  static #getChangeSignature(changes) {
-    if (!Array.isArray(changes)) {
-      return [];
-    }
-
-    return changes.map(change => ({
-      key: String(change?.key ?? "").trim(),
-      mode: Number(change?.mode ?? 0)
-    }));
   }
 }

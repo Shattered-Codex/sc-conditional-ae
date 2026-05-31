@@ -1,3 +1,5 @@
+import { Constants } from "../constants/Constants.js";
+
 export class ActiveEffectContextBuilder {
   static getAffectedActor(effect) {
     const parent = effect?.parent;
@@ -61,5 +63,52 @@ export class ActiveEffectContextBuilder {
     }
 
     return null;
+  }
+
+  static normalizeApplyBehavior(value) {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (["duplicate", "stack"].includes(normalized)) {
+      return "duplicate";
+    }
+
+    if (["dae", "same-as-dae", "sameasdae"].includes(normalized)) {
+      return "dae";
+    }
+
+    return "update";
+  }
+
+  static getChangeSignature(changes) {
+    if (!Array.isArray(changes)) {
+      return [];
+    }
+
+    return changes.map(change => ({
+      key: String(change?.key ?? "").trim(),
+      mode: Number(change?.mode ?? 0)
+    }));
+  }
+
+  static extractEffectId(reference) {
+    const match = String(reference ?? "").trim().match(/(?:^|\.)ActiveEffect\.([A-Za-z0-9]+)$/);
+    return match?.[1] ?? null;
+  }
+
+  static isCustomChange(change) {
+    return Number(change.mode) === CONST.ACTIVE_EFFECT_MODES.CUSTOM
+      || String(change.mode ?? "").toLowerCase() === "custom"
+      || String(change.type ?? "").toLowerCase() === "custom";
+  }
+
+  static isFormulaEligibleChange(change) {
+    if (!change?.key || ActiveEffectContextBuilder.isCustomChange(change)) {
+      return false;
+    }
+
+    return ![
+      Constants.MACRO_EXECUTE_CHANGE_KEY,
+      Constants.LEGACY_MACRO_EXECUTE_CHANGE_KEY,
+      Constants.DAE_MACRO_EXECUTE_CHANGE_KEY
+    ].includes(change.key);
   }
 }
