@@ -202,6 +202,25 @@
   font-weight: 700;
 }
 
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section header,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section ol {
+  grid-template-columns: 400px 110px minmax(250px, 1fr) minmax(160px, 0.9fr) 60px 1rem;
+}
+
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section .mode select,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section .value input,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section .value textarea,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section .value select {
+  min-width: 0;
+  width: 100%;
+}
+
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section .sc-cae-formula-header,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section .sc-cae-formula-column,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section .sc-cae-formula-input {
+  min-width: 160px;
+}
+
 .sc-cae-badge-label-group .form-fields {
   display: flex;
   align-items: center;

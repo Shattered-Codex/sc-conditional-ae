@@ -5,7 +5,8 @@ import { FormulaColumnRenderer } from "./FormulaColumnRenderer.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 const TEMPLATE_PATH = `modules/${Constants.MODULE_ID}/templates/active-effect-condition-tab.hbs`;
-const MINIMUM_SHEET_WIDTH = 650;
+const MINIMUM_SHEET_WIDTH = 1080;
+const DAE_MINIMUM_SHEET_WIDTH = 1080;
 
 export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
   return class ConditionalActiveEffectSheet extends ActiveEffectSheet {
@@ -69,10 +70,11 @@ function getExtendedDefaultOptions(options) {
     return options;
   }
 
+  const minimumWidth = getMinimumSheetWidth({ options });
   const configuredWidth = Number(options.position?.width);
   const width = Number.isFinite(configuredWidth)
-    ? Math.max(configuredWidth, MINIMUM_SHEET_WIDTH)
-    : MINIMUM_SHEET_WIDTH;
+    ? Math.max(configuredWidth, minimumWidth)
+    : minimumWidth;
 
   return {
     ...options,
@@ -89,19 +91,51 @@ function ensureMinimumSheetWidth(sheet) {
   }
 
   const root = FormulaColumnRenderer.getSheetRoot(sheet);
+  const minimumWidth = getMinimumSheetWidth({ sheet, root });
   const currentWidth = root?.getBoundingClientRect?.().width ?? 0;
-  if (currentWidth >= MINIMUM_SHEET_WIDTH) {
+  if (currentWidth >= minimumWidth) {
     return;
   }
 
   if (typeof sheet.setPosition === "function") {
-    sheet.setPosition({ width: MINIMUM_SHEET_WIDTH });
+    sheet.setPosition({ width: minimumWidth });
     return;
   }
 
   if (root) {
-    root.style.width = `${MINIMUM_SHEET_WIDTH}px`;
+    root.style.width = `${minimumWidth}px`;
   }
+}
+
+function getMinimumSheetWidth({ sheet, root, options } = {}) {
+  return hasDaeSheetClass(root, sheet, options)
+    ? DAE_MINIMUM_SHEET_WIDTH
+    : MINIMUM_SHEET_WIDTH;
+}
+
+function hasDaeSheetClass(root, sheet, options) {
+  if (root?.classList?.contains("dae")) {
+    return true;
+  }
+
+  const classes = getConfiguredSheetClasses(sheet, options);
+  return classes.includes("dae");
+}
+
+function getConfiguredSheetClasses(sheet, options) {
+  const candidates = [
+    options?.classes,
+    sheet?.options?.classes,
+    sheet?.constructor?.DEFAULT_OPTIONS?.classes
+  ];
+
+  for (const value of candidates) {
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return [];
 }
 
 function getExtendedParts(parts) {
