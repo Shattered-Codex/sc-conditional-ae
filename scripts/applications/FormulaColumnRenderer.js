@@ -288,6 +288,11 @@ export class FormulaColumnRenderer {
   }
 
   static #findListValueCell(input, row) {
+    const directChild = Array.from(row?.children ?? []).find(child => child.contains(input));
+    if (directChild) {
+      return directChild;
+    }
+
     const cell = input.closest(".value");
     if (cell && cell !== row) {
       return cell;
@@ -301,7 +306,9 @@ export class FormulaColumnRenderer {
   }
 
   static #isChangeValueInput(input) {
-    return input instanceof HTMLInputElement
+    return (input instanceof HTMLInputElement
+      || input instanceof HTMLTextAreaElement
+      || input instanceof HTMLSelectElement)
       && /^changes(?:\.|\[)\d+(?:\.|\])/.test(input.name ?? "")
       && (String(input.name).endsWith(".value") || String(input.name).endsWith("[value]"));
   }
