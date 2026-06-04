@@ -207,6 +207,11 @@ function activateBadgeLabelCounter(sheet) {
 
   const maxLength = Constants.CONDITION_BADGE_LABEL_MAX_LENGTH;
   counter.textContent = `${input.value.length}/${maxLength}`;
+  if (input.dataset.scCaeBadgeCounterBound === "true") {
+    return;
+  }
+
+  input.dataset.scCaeBadgeCounterBound = "true";
   input.addEventListener("input", () => {
     counter.textContent = `${input.value.length}/${maxLength}`;
   });
@@ -229,5 +234,10 @@ function activateApplyBehaviorHint(sheet) {
   };
 
   syncHint();
+  if (select.dataset.scCaeApplyBehaviorHintBound === "true") {
+    return;
+  }
+
+  select.dataset.scCaeApplyBehaviorHintBound = "true";
   select.addEventListener("change", syncHint);
 }

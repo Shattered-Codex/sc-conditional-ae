@@ -196,9 +196,11 @@ export class DaeCompatibility {
   }
 
   static #evaluateExpression(expression, context) {
+    const dae = DaeCompatibility.#buildDaeHelper(context);
     const evaluator = new Function("sandbox", `with (sandbox) { return ${expression}; }`);
     const sandbox = new Proxy({
       ...context,
+      dae,
       Roll,
       fromUuidSync: globalThis.fromUuidSync,
       game
@@ -209,6 +211,32 @@ export class DaeCompatibility {
     });
 
     return evaluator(sandbox);
+  }
+
+  static #buildDaeHelper(context) {
+    return {
+      eval: expression => {
+        const source = String(expression ?? "").trim();
+        if (!source.length) {
+          return 0;
+        }
+
+        return DaeCompatibility.#evaluateExpression(source, context);
+      },
+      roll: expression => {
+        const formula = String(expression ?? "").trim();
+        if (!formula.length) {
+          return 0;
+        }
+
+        const roll = new Roll(formula, context);
+        if (typeof roll.evaluateSync === "function") {
+          return roll.evaluateSync().total ?? 0;
+        }
+
+        return roll.evaluate({ async: false }).total ?? 0;
+      }
+    };
   }
 
   static #buildEvaluationContext(effect, options) {

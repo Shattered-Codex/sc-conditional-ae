@@ -23,6 +23,7 @@ export class ActiveEffectTransferHooks {
     Hooks.on("createActiveEffect", ActiveEffectTransferHooks.#onActiveEffectChanged);
     Hooks.on("updateActiveEffect", ActiveEffectTransferHooks.#onActiveEffectChanged);
     Hooks.on("deleteActiveEffect", ActiveEffectTransferHooks.#onActiveEffectChanged);
+    Hooks.on("updateActor", ActiveEffectTransferHooks.#onActorChanged);
     Hooks.on("createItem", ActiveEffectTransferHooks.#onItemChanged);
     Hooks.on("updateItem", ActiveEffectTransferHooks.#onItemChanged);
     Hooks.on("deleteItem", ActiveEffectTransferHooks.#onItemChanged);
@@ -117,10 +118,7 @@ export class ActiveEffectTransferHooks {
       return;
     }
 
-    const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
-      foundry.utils.getProperty(data ?? effect, Constants.APPLY_BEHAVIOR_FLAG_PATH)
-    );
-    if (applyBehavior !== "duplicate") {
+    if (!ActiveEffectContextBuilder.shouldDuplicateApplication(data ?? effect)) {
       return;
     }
 
@@ -140,15 +138,18 @@ export class ActiveEffectTransferHooks {
       return;
     }
 
-    const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
-      foundry.utils.getProperty(data ?? effect, Constants.APPLY_BEHAVIOR_FLAG_PATH)
-    );
-    if (applyBehavior !== "duplicate") {
+    const source = data ?? effect;
+    if (!ActiveEffectContextBuilder.shouldDuplicateApplication(source)) {
       return;
     }
 
-    effect.updateSource({ flags: { dae: { stackable: "multi" } } });
-    foundry.utils.setProperty(data, "flags.dae.stackable", "multi");
+    const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
+      foundry.utils.getProperty(source, Constants.APPLY_BEHAVIOR_FLAG_PATH)
+    );
+    if (applyBehavior === "duplicate") {
+      effect.updateSource({ flags: { dae: { stackable: "multi" } } });
+      foundry.utils.setProperty(data, "flags.dae.stackable", "multi");
+    }
     ActiveEffectTransferHooks.#debug("enforced dae multi stacking for duplicate applyBehavior", {
       actor: effect.parent.uuid,
       effect: effect?.uuid ?? effect?.id ?? null,
@@ -201,6 +202,22 @@ export class ActiveEffectTransferHooks {
     ActiveEffectTransferHooks.#scheduleActorSync(actor);
   }
 
+  static #onActorChanged(actor, ...args) {
+    const options = ActiveEffectTransferHooks.#getHookOptions(args);
+    if (options?.[Constants.MODULE_ID]?.[ActiveEffectTransferHooks.#MIRROR_SYNC_OPTION] === true) {
+      return;
+    }
+
+    if (!(actor instanceof CONFIG.Actor.documentClass) || !ActiveEffectTransferHooks.#actorNeedsTransferSync(actor)) {
+      return;
+    }
+
+    ActiveEffectTransferHooks.#debug("actor changed; scheduling transfer mirror sync", {
+      actor: actor.uuid
+    });
+    ActiveEffectTransferHooks.#scheduleActorSync(actor);
+  }
+
   static #onItemChanged(item, ...args) {
     const options = ActiveEffectTransferHooks.#getHookOptions(args);
     if (options?.[Constants.MODULE_ID]?.[ActiveEffectTransferHooks.#MIRROR_SYNC_OPTION] === true) {
@@ -213,7 +230,7 @@ export class ActiveEffectTransferHooks {
     }
 
     if (
-      !(item.effects ?? []).some(effect => ActiveEffectTransferHooks.#isTransferSourceEffect(effect))
+      !(item.effects ?? []).some(effect => ActiveEffectTransferHooks.#isPotentialStackedTransferSource(effect))
       && !ActiveEffectTransferHooks.#actorHasMirroredTransferEffects(actor)
     ) {
       return;
@@ -241,7 +258,7 @@ export class ActiveEffectTransferHooks {
 
     return ActiveEffectTransferHooks.#actorHasMirroredTransferEffects(actor)
       || (actor.items ?? []).some(item => (
-        (item.effects ?? []).some(effect => ActiveEffectTransferHooks.#isTransferSourceEffect(effect))
+        (item.effects ?? []).some(effect => ActiveEffectTransferHooks.#isPotentialStackedTransferSource(effect))
       ));
   }
 
@@ -388,12 +405,14 @@ export class ActiveEffectTransferHooks {
   }
 
   static #isStackedTransferSource(effect) {
-    return ActiveEffectTransferHooks.#isTransferSourceEffect(effect)
-      && ActiveEffectContextBuilder.normalizeApplyBehavior(
-        foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
-      ) === "duplicate"
-      && effect.disabled !== true
+    return ActiveEffectTransferHooks.#isPotentialStackedTransferSource(effect)
       && effect.isSuppressed !== true;
+  }
+
+  static #isPotentialStackedTransferSource(effect) {
+    return ActiveEffectTransferHooks.#isTransferSourceEffect(effect)
+      && ActiveEffectContextBuilder.shouldDuplicateApplication(effect)
+      && effect.disabled !== true;
   }
 
   static #shouldMirrorTransferredEffect(effect, actor = null) {
@@ -405,9 +424,7 @@ export class ActiveEffectTransferHooks {
       return false;
     }
 
-    return ActiveEffectContextBuilder.normalizeApplyBehavior(
-      foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
-    ) === "duplicate";
+    return ActiveEffectContextBuilder.shouldDuplicateApplication(effect);
   }
 
   static #isMirroredTransferEffect(effect) {

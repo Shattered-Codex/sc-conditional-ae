@@ -231,9 +231,21 @@ export class EffectListFormulaRollButtonRenderer {
   static #createButton(effect) {
     const button = document.createElement("a");
     button.className = "effect-control item-control active-effect-control inline-icon-button sc-cae-formula-roll-control";
+    button.href = "#";
+    button.role = "button";
+    button.tabIndex = 0;
     button.dataset.tooltip = "true";
     button.innerHTML = `<i class="fa-solid fa-dice-d20"></i>`;
     button.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      void EffectListFormulaRollButtonRenderer.#onClick(button);
+    });
+    button.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       void EffectListFormulaRollButtonRenderer.#onClick(button);

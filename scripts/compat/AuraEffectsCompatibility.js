@@ -19,8 +19,26 @@ export class AuraEffectsCompatibility {
       return;
     }
 
-    const BaseActiveEffectTypeDataModel = dataModels.base ?? foundry.data.ActiveEffectTypeDataModel;
-    dataModels["auraeffects.aura"] = class SCLegacyAuraEffectData extends BaseActiveEffectTypeDataModel {};
+    const BaseActiveEffectTypeDataModel = dataModels.base
+      ?? foundry.data.ActiveEffectTypeDataModel
+      ?? foundry.abstract?.TypeDataModel;
+    if (typeof BaseActiveEffectTypeDataModel !== "function") {
+      Constants.debug("could not register Aura Effects fallback type: no compatible base Active Effect data model found", {
+        configuredBase: dataModels.base?.name,
+        activeEffectTypeDataModel: foundry.data.ActiveEffectTypeDataModel?.name,
+        typeDataModel: foundry.abstract?.TypeDataModel?.name
+      });
+      return;
+    }
+
+    const hasNativeActiveEffectTypeDataModel = typeof foundry.data.ActiveEffectTypeDataModel === "function";
+    dataModels["auraeffects.aura"] = class SCLegacyAuraEffectData extends BaseActiveEffectTypeDataModel {
+      static defineSchema() {
+        return hasNativeActiveEffectTypeDataModel && typeof super.defineSchema === "function"
+          ? super.defineSchema()
+          : {};
+      }
+    };
     if (CONFIG.ActiveEffect.typeLabels) {
       CONFIG.ActiveEffect.typeLabels["auraeffects.aura"] = "Aura Effects Aura";
     }

@@ -78,6 +78,24 @@ export class ActiveEffectContextBuilder {
     return "update";
   }
 
+  static shouldDuplicateApplication(source) {
+    const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
+      foundry.utils.getProperty(source ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
+    );
+    if (applyBehavior === "duplicate") {
+      return true;
+    }
+
+    if (applyBehavior !== "dae" || !Constants.isDaeActive()) {
+      return false;
+    }
+
+    const stackable = String(foundry.utils.getProperty(source ?? {}, "flags.dae.stackable") ?? "")
+      .trim()
+      .toLowerCase();
+    return stackable === "multi";
+  }
+
   static getChangeSignature(changes) {
     if (!Array.isArray(changes)) {
       return [];

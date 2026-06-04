@@ -73,7 +73,7 @@ export class EffectApplicationHooks {
         }
       };
 
-      const existingEffect = actor.effects.find(candidate => candidate.origin === origin.uuid);
+      const existingEffect = EffectApplicationHooks.#findExistingEffect(actor, origin, sourceEffect ?? effect);
       const shouldCreateDuplicate = EffectApplicationHooks.#shouldCreateDuplicateEffect(
         sourceEffect,
         effect,
@@ -265,22 +265,42 @@ export class EffectApplicationHooks {
     ));
   }
 
+  static #findExistingEffect(actor, origin, sourceEffect) {
+    if (!(actor instanceof CONFIG.Actor.documentClass) || !origin?.uuid) {
+      return null;
+    }
+
+    const candidates = actor.effects.filter(candidate => candidate.origin === origin.uuid);
+    if (candidates.length <= 1) {
+      return candidates[0] ?? null;
+    }
+
+    const signatureMatches = candidates.filter(candidate => (
+      EffectApplicationHooks.#hasMatchingSignature(candidate, sourceEffect)
+    ));
+    if (signatureMatches.length === 1) {
+      return signatureMatches[0];
+    }
+
+    EffectApplicationHooks.#debug("could not uniquely resolve existing target effect by origin; leaving unmatched", {
+      actor: actor.uuid,
+      origin: origin.uuid,
+      sourceEffect: sourceEffect?.uuid ?? sourceEffect?.id ?? null,
+      candidateEffects: candidates.map(candidate => candidate.uuid ?? candidate.id)
+    });
+    return null;
+  }
+
   static #shouldCreateDuplicateEffect(...effects) {
     const candidates = effects.filter(effect => effect instanceof CONFIG.ActiveEffect.documentClass);
     for (const effect of candidates) {
-      const applyBehavior = ActiveEffectContextBuilder.normalizeApplyBehavior(
-        foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
-      );
-
-      if (applyBehavior === "duplicate") {
+      if (ActiveEffectContextBuilder.shouldDuplicateApplication(effect)) {
         return true;
       }
 
-      if (applyBehavior === "dae") {
-        return Constants.isDaeActive();
-      }
-
-      if (applyBehavior === "update") {
+      if (ActiveEffectContextBuilder.normalizeApplyBehavior(
+        foundry.utils.getProperty(effect ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH)
+      ) === "update") {
         return false;
       }
     }

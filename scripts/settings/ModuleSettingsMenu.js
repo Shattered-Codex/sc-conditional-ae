@@ -7,6 +7,8 @@ if (!ApplicationV2) {
 }
 
 export class ModuleSettingsMenu extends ApplicationV2 {
+  static #app = null;
+
   static DEFAULT_OPTIONS = foundry.utils.mergeObject(super.DEFAULT_OPTIONS, {
     id: `${Constants.MODULE_ID}-settings-menu`,
     window: {
@@ -21,7 +23,20 @@ export class ModuleSettingsMenu extends ApplicationV2 {
   }, { inplace: false });
 
   render(..._args) {
-    new ModuleSettingsApp().render(true);
+    const existing = ModuleSettingsMenu.#app;
+    if (existing?.rendered) {
+      existing.render(true, { focus: true });
+      return this;
+    }
+
+    const app = new ModuleSettingsApp();
+    ModuleSettingsMenu.#app = app;
+    const originalClose = app.close.bind(app);
+    app.close = async (...args) => {
+      ModuleSettingsMenu.#app = null;
+      return originalClose(...args);
+    };
+    app.render(true);
     return this;
   }
 }

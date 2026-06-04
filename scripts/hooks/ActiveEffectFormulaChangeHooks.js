@@ -2,6 +2,7 @@ import { Constants } from "../constants/Constants.js";
 import { ActiveEffectFormulaChatCardService } from "../services/ActiveEffectFormulaChatCardService.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { ActiveEffectTransferHooks } from "./ActiveEffectTransferHooks.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectFormulaChangeHooks {
@@ -95,9 +96,14 @@ export class ActiveEffectFormulaChangeHooks {
         continue;
       }
 
+      const actor = item.actor ?? item.parent ?? null;
       const wasActive = ActiveEffectFormulaChangeHooks.#itemTransferActiveStates.get(effect.uuid) === true;
       const isActive = ActiveEffectFormulaChangeHooks.#isActive(effect);
       ActiveEffectFormulaChangeHooks.#itemTransferActiveStates.set(effect.uuid, isActive);
+
+      if (ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, actor)) {
+        continue;
+      }
 
       if (!wasActive && isActive && ActiveEffectFormulaChangeHooks.#shouldRoll(effect)) {
         ActiveEffectFormulaChangeHooks.#roll(effect);

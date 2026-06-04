@@ -5,6 +5,7 @@ import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormul
 import { ActiveEffectMacroChangeService } from "../services/ActiveEffectMacroChangeService.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 import { ActiveEffectTransferHooks } from "./ActiveEffectTransferHooks.js";
+import { ActiveEffectMacroChangeHooks } from "./ActiveEffectMacroChangeHooks.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectConditionHooks {
@@ -146,7 +147,7 @@ export class ActiveEffectConditionHooks {
     ActiveEffectConditionHooks.#readyRefreshScheduled = true;
     Hooks.once("ready", () => {
       window.setTimeout(() => {
-        void ActiveEffectConditionHooks.#refreshConditionedActors();
+        void ActiveEffectConditionHooks.#primeConditionState();
       }, 0);
     });
   }
@@ -204,7 +205,17 @@ export class ActiveEffectConditionHooks {
     ActiveEffectConditionHooks.#scheduleActorRefresh(actor);
   }
 
-  static async #refreshConditionedActors() {
+  static async #primeConditionState() {
+    for (const actor of ActiveEffectConditionHooks.#collectConditionedActors().values()) {
+      await ActiveEffectConditionHooks.#refreshActor(actor, {
+        triggerConditionalActivation: false,
+        handleTransitions: false,
+        renderApplications: false
+      });
+    }
+  }
+
+  static #collectConditionedActors() {
     const actors = new Map();
 
     for (const actor of game.actors?.contents ?? []) {
@@ -224,9 +235,7 @@ export class ActiveEffectConditionHooks {
       }
     }
 
-    for (const actor of actors.values()) {
-      await ActiveEffectConditionHooks.#refreshActor(actor, { triggerConditionalActivation: false });
-    }
+    return actors;
   }
 
   static #scheduleActorRefresh(actor) {
@@ -254,14 +263,16 @@ export class ActiveEffectConditionHooks {
     }, 0);
   }
 
-  static async #refreshActor(actor, { triggerConditionalActivation = false } = {}) {
+  static async #refreshActor(actor, {
+    triggerConditionalActivation = false,
+    handleTransitions = true,
+    renderApplications = true
+  } = {}) {
     if (!(actor instanceof CONFIG.Actor.documentClass)) {
       return;
     }
 
-    const previousConditionState = triggerConditionalActivation
-      ? ActiveEffectConditionHooks.#getCachedConditionalEffectState(actor)
-      : null;
+    const previousConditionState = ActiveEffectConditionHooks.#getCachedConditionalEffectState(actor);
     let refreshed = false;
     try {
       actor.reset();
@@ -283,11 +294,21 @@ export class ActiveEffectConditionHooks {
 
     if (refreshed) {
       const conditionalEffects = ActiveEffectConditionHooks.#getConditionalEffects(actor);
-      if (previousConditionState) {
-        ActiveEffectConditionHooks.#handleConditionalActivations(actor, previousConditionState, conditionalEffects);
+      if (handleTransitions && previousConditionState) {
+        ActiveEffectConditionHooks.#handleConditionalTransitions(actor, previousConditionState, conditionalEffects, {
+          triggerConditionalActivation
+        });
       }
       ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects);
-      ActiveEffectConditionHooks.#renderActorApplications(actor);
+      if (
+        renderApplications
+        && (
+          !previousConditionState
+          || ActiveEffectConditionHooks.#didConditionStateChange(actor, previousConditionState, conditionalEffects)
+        )
+      ) {
+        ActiveEffectConditionHooks.#renderActorApplications(actor);
+      }
     }
   }
 
@@ -346,11 +367,11 @@ export class ActiveEffectConditionHooks {
     // v14 changed the render signature: named options object with parts for targeted re-renders.
     // render(true) still works in v14 but re-renders all parts; parts:["effects"] avoids that.
     if (game.release?.generation > 13) {
-      application.render({ force: true, parts: ["effects"] });
+      application.render({ force: true, focus: false, parts: ["effects"] });
       return;
     }
 
-    application.render(true);
+    application.render(true, { focus: false });
   }
 
   static #getCachedConditionalEffectState(actor) {
@@ -373,42 +394,44 @@ export class ActiveEffectConditionHooks {
     ActiveEffectConditionHooks.#cachedConditionAvailability.set(actor.uuid, state);
   }
 
-  static #handleConditionalActivations(actor, previousState, conditionalEffects = null) {
+  static #handleConditionalTransitions(actor, previousState, conditionalEffects = null, { triggerConditionalActivation = false } = {}) {
     for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
       const wasAvailable = previousState.get(effect.uuid);
       const isAvailable = ActiveEffectConditionHooks.#isConditionAvailable(effect, actor);
-      if (wasAvailable !== false || !isAvailable) {
-        continue;
-      }
-
       if (!ActiveEffectConditionHooks.#isEffectDocumentEnabled(effect)) {
         continue;
       }
 
-      ActiveEffectConditionHooks.#debug("conditional effect became active", {
-        actor: actor.uuid,
-        effect: effect.uuid,
-        hasFormulaChanges: ModuleSettings.isFormulaChangesEnabled()
-          && ActiveEffectFormulaChangeService.hasFormulaChanges(effect),
-        hasExecutableMacro: ActiveEffectMacroChangeService.hasExecutableMacro(effect)
-      });
-      if (ActiveEffectMacroChangeService.hasExecutableMacro(effect)) {
-        ActiveEffectConditionHooks.#executeActivatedEffectMacro(effect);
+      if (wasAvailable === false && isAvailable) {
+        ActiveEffectConditionHooks.#debug("conditional effect became active", {
+          actor: actor.uuid,
+          effect: effect.uuid,
+          hasFormulaChanges: ModuleSettings.isFormulaChangesEnabled()
+            && ActiveEffectFormulaChangeService.hasFormulaChanges(effect),
+          hasExecutableMacro: ActiveEffectMacroChangeService.hasExecutableMacro(effect)
+        });
+        if (ActiveEffectMacroChangeService.hasExecutableMacro(effect)) {
+          ActiveEffectMacroChangeHooks.syncEvaluatedState(effect, true);
+        }
+
+        if (
+          triggerConditionalActivation
+          && ModuleSettings.isFormulaChangesEnabled()
+          && ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
+        ) {
+          ActiveEffectConditionHooks.#rollActivatedEffectFormula(effect);
+        }
+        continue;
       }
 
-      if (ModuleSettings.isFormulaChangesEnabled() && ActiveEffectFormulaChangeService.hasFormulaChanges(effect)) {
-        ActiveEffectConditionHooks.#rollActivatedEffectFormula(effect);
+      if (wasAvailable === true && !isAvailable && ActiveEffectMacroChangeService.hasExecutableMacro(effect)) {
+        ActiveEffectConditionHooks.#debug("conditional effect became inactive", {
+          actor: actor.uuid,
+          effect: effect.uuid
+        });
+        ActiveEffectMacroChangeHooks.syncEvaluatedState(effect, false);
       }
     }
-  }
-
-  static #executeActivatedEffectMacro(effect) {
-    if (!ActiveEffectMacroChangeService.hasExecutableMacro(effect)) {
-      return;
-    }
-
-    ActiveEffectMacroChangeService.execute(effect, "on")
-      .catch(error => console.warn(`[${Constants.MODULE_ID}] active effect condition macro activation failed`, error));
   }
 
   static #rollActivatedEffectFormula(effect) {
@@ -478,9 +501,29 @@ export class ActiveEffectConditionHooks {
 
   static #isConditionAvailable(effect, actor = null) {
     const evaluation = ActiveEffectConditionService.evaluate(effect, {
-      actor: ActiveEffectContextBuilder.getAffectedActor(effect) ?? actor
+      actor: actor ?? ActiveEffectContextBuilder.getAffectedActor(effect)
     });
     return !evaluation.error && evaluation.available;
+  }
+
+  static #didConditionStateChange(actor, previousState, conditionalEffects = null) {
+    const currentState = new Map();
+
+    for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
+      currentState.set(effect.uuid, ActiveEffectConditionHooks.#isConditionAvailable(effect, actor));
+    }
+
+    if (previousState.size !== currentState.size) {
+      return true;
+    }
+
+    for (const [effectUuid, available] of currentState.entries()) {
+      if (previousState.get(effectUuid) !== available) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   static #isEffectDocumentEnabled(effect) {
