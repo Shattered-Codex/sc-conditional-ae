@@ -10,6 +10,8 @@ const DAE_MINIMUM_SHEET_WIDTH = 1080;
 
 export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
   return class ConditionalActiveEffectSheet extends ActiveEffectSheet {
+    static SC_CONDITIONAL_AE_MIXED_SHEET = true;
+
     static DEFAULT_OPTIONS = getExtendedDefaultOptions(super.DEFAULT_OPTIONS ?? {});
 
     static PARTS = getExtendedParts(super.PARTS ?? {});

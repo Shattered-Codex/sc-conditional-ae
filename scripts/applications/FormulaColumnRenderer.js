@@ -6,6 +6,7 @@ const CHANGE_SECTION_SELECTOR = "section.changes, section[data-tab='changes'], s
 const CHANGE_KEY_INPUT_SELECTOR = `[name*="changes"][name$=".key"], [name*="changes"][name$="[key]"]`;
 const CHANGE_PRIORITY_INPUT_SELECTOR = `[name*="changes"][name$=".priority"], [name*="changes"][name$="[priority]"]`;
 const CHANGE_VALUE_INPUT_SELECTOR = `[name*="changes"][name$=".value"], [name*="changes"][name$="[value]"]`;
+const FORMULA_NODE_SELECTOR = ".sc-cae-formula-header, .sc-cae-formula-cell, .sc-cae-formula-column, .sc-cae-formula-input";
 
 export class FormulaColumnRenderer {
   static #observers = new WeakMap();
@@ -18,6 +19,10 @@ export class FormulaColumnRenderer {
 
     FormulaColumnRenderer.#renderHookRegistered = true;
     Hooks.on("renderActiveEffectConfig", (app, html) => {
+      if (app?.constructor?.SC_CONDITIONAL_AE_MIXED_SHEET) {
+        return;
+      }
+
       FormulaColumnRenderer.scheduleRender(app, html);
       FormulaColumnRenderer.activateObserver(app, html);
     });
@@ -34,16 +39,22 @@ export class FormulaColumnRenderer {
       return;
     }
 
+    const targets = FormulaColumnRenderer.#findObservedTargets(root);
+    if (!targets.length) {
+      FormulaColumnRenderer.deactivateObserver(sheet);
+      return;
+    }
+
     const current = FormulaColumnRenderer.#observers.get(sheet);
-    if (current?.root === root) {
+    if (
+      current?.root === root
+      && current.targets?.length === targets.length
+      && current.targets.every((target, index) => target === targets[index])
+    ) {
       return;
     }
 
     current?.observer?.disconnect();
-    if (current?.root && current?.onInput) {
-      current.root.removeEventListener("input", current.onInput, true);
-      current.root.removeEventListener("change", current.onInput, true);
-    }
 
     let queued = false;
     const queueRender = () => {
@@ -57,26 +68,23 @@ export class FormulaColumnRenderer {
         FormulaColumnRenderer.#render(sheet, root);
       });
     };
-    const observer = new MutationObserver(queueRender);
-    const onInput = event => {
-      if (FormulaColumnRenderer.#isChangeValueInput(event.target)) {
+
+    const observer = new MutationObserver(mutations => {
+      if (FormulaColumnRenderer.#shouldQueueRenderForMutations(mutations)) {
         queueRender();
       }
-    };
+    });
 
-    observer.observe(root, { childList: true, subtree: true });
-    root.addEventListener("input", onInput, true);
-    root.addEventListener("change", onInput, true);
-    FormulaColumnRenderer.#observers.set(sheet, { observer, root, onInput });
+    for (const target of targets) {
+      observer.observe(target, { childList: true, subtree: true });
+    }
+
+    FormulaColumnRenderer.#observers.set(sheet, { observer, root, targets });
   }
 
   static deactivateObserver(sheet) {
     const controls = FormulaColumnRenderer.#observers.get(sheet);
     controls?.observer?.disconnect();
-    if (controls?.root && controls?.onInput) {
-      controls.root.removeEventListener("input", controls.onInput, true);
-      controls.root.removeEventListener("change", controls.onInput, true);
-    }
     FormulaColumnRenderer.#observers.delete(sheet);
   }
 
@@ -303,6 +311,33 @@ export class FormulaColumnRenderer {
 
   static #getChangeValueInputs(root) {
     return Array.from(root?.querySelectorAll?.(CHANGE_VALUE_INPUT_SELECTOR) ?? []);
+  }
+
+  static #findObservedTargets(root) {
+    return Array.from(root?.querySelectorAll?.(CHANGE_SECTION_SELECTOR) ?? [])
+      .filter(section => (
+        section instanceof HTMLElement
+        && (section.querySelector("header .value") || section.querySelector("thead tr"))
+      ));
+  }
+
+  static #shouldQueueRenderForMutations(mutations) {
+    return mutations.some(mutation => {
+      if (mutation.type !== "childList") {
+        return false;
+      }
+
+      return [...mutation.addedNodes, ...mutation.removedNodes]
+        .some(node => FormulaColumnRenderer.#isRelevantMutationNode(node));
+    });
+  }
+
+  static #isRelevantMutationNode(node) {
+    if (!(node instanceof Element)) {
+      return false;
+    }
+
+    return !node.matches(FORMULA_NODE_SELECTOR);
   }
 
   static #isChangeValueInput(input) {
