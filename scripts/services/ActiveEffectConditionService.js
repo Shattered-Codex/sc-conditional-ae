@@ -55,9 +55,11 @@ export class ActiveEffectConditionService {
       return { available: true, error: null, result: true };
     }
 
+    const effectSummary = ActiveEffectConditionService.#describeEffect(effect);
+
     if (ActiveEffectConditionService.#isEvaluating(effect)) {
       ActiveEffectConditionService.#debug("skipping recursive condition evaluation", {
-        effect: ActiveEffectConditionService.#describeEffect(effect)
+        effect: effectSummary
       });
       return { available: true, error: null, result: true };
     }
@@ -66,32 +68,57 @@ export class ActiveEffectConditionService {
       return ActiveEffectConditionService.#evaluateWithRecursionGuard(
         effect,
         () => {
-          const evaluation = DaeCompatibility.evaluateCondition(rawCode, effect, options);
-          ActiveEffectConditionService.#debug("evaluated DAE compatibility condition", {
-            effect: ActiveEffectConditionService.#describeEffect(effect),
-            available: evaluation.available,
-            result: evaluation.result
+          ActiveEffectConditionService.#debug("evaluating DAE compatibility condition", {
+            effect: effectSummary,
+            conditionLength: rawCode.length
           });
-          return evaluation;
+
+          try {
+            const evaluation = DaeCompatibility.evaluateCondition(rawCode, effect, options);
+            ActiveEffectConditionService.#debug("evaluated DAE compatibility condition", {
+              effect: effectSummary,
+              available: evaluation.available,
+              result: evaluation.result
+            });
+            return evaluation;
+          } catch (error) {
+            ActiveEffectConditionService.#debug("DAE compatibility condition evaluation failed", {
+              effect: effectSummary,
+              error: ActiveEffectConditionService.#describeError(error)
+            });
+            throw error;
+          }
         }
       );
     }
 
     return ActiveEffectConditionService.#evaluateWithRecursionGuard(effect, () => {
+      let context = null;
+
       try {
         const runner = ActiveEffectConditionService.#compileCondition(rawCode);
-        const result = runner(ActiveEffectConditionService.#buildContext(effect, options));
+        context = ActiveEffectConditionService.#buildContext(effect, options);
+        ActiveEffectConditionService.#debug("evaluating active effect condition", {
+          effect: effectSummary,
+          conditionLength: rawCode.length
+        });
+        const result = runner(context);
         if (result && typeof result.then === "function") {
           throw new Error("Active Effect conditions must be synchronous.");
         }
         const evaluation = { available: Boolean(result), error: null, result };
         ActiveEffectConditionService.#debug("evaluated active effect condition", {
-          effect: ActiveEffectConditionService.#describeEffect(effect),
+          effect: effectSummary,
           available: evaluation.available,
           result: evaluation.result
         });
         return evaluation;
       } catch (error) {
+        ActiveEffectConditionService.#debug("active effect condition evaluation failed", {
+          effect: effectSummary,
+          context: ActiveEffectConditionService.#summarizeContext(context),
+          error: ActiveEffectConditionService.#describeError(error)
+        });
         console.warn(`[${Constants.MODULE_ID}] active effect condition evaluation failed`, error);
         return { available: false, error, result: null };
       }
@@ -169,6 +196,11 @@ ${body}`
       }
     });
 
+    ActiveEffectConditionService.#debug("built active effect condition context", {
+      effect: ActiveEffectConditionService.#describeEffect(effect),
+      context: ActiveEffectConditionService.#summarizeContext(context)
+    });
+
     return context;
   }
 
@@ -206,7 +238,7 @@ ${body}`
   }
 
   static #debug(message, data = undefined) {
-    if (!ModuleSettings.isDebugLoggingEnabled()) {
+    if (!ModuleSettings.isDebugLoggingEnabled() && !globalThis[Constants.DEBUG_GLOBAL]) {
       return;
     }
 
@@ -225,6 +257,37 @@ ${body}`
       id: effect?.id ?? effect?._id ?? null,
       name: effect?.name ?? effect?.label ?? null,
       parent: effect?.parent?.uuid ?? effect?.parent?.name ?? null
+    };
+  }
+
+  static #summarizeContext(context) {
+    if (!context) {
+      return null;
+    }
+
+    return {
+      actor: ActiveEffectConditionService.#getDocumentIdentity(context.actor),
+      item: ActiveEffectConditionService.#getDocumentIdentity(context.item),
+      origin: ActiveEffectConditionService.#getDocumentIdentity(context.origin),
+      originActor: ActiveEffectConditionService.#getDocumentIdentity(context.originActor)
+    };
+  }
+
+  static #getDocumentIdentity(document) {
+    return document?.uuid
+      ?? document?.id
+      ?? document?._id
+      ?? null;
+  }
+
+  static #describeError(error) {
+    if (!(error instanceof Error)) {
+      return error;
+    }
+
+    return {
+      name: error.name,
+      message: error.message
     };
   }
 }
