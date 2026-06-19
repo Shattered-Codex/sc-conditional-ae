@@ -637,7 +637,11 @@ export class ActiveEffectConditionHooks {
           hasExecutableMacro: ActiveEffectMacroChangeService.hasExecutableMacro(effect)
         });
         if (ActiveEffectMacroChangeService.hasExecutableMacro(effect)) {
-          ActiveEffectMacroChangeHooks.syncEvaluatedState(effect, true);
+          // Every client tracks the new state, but only the responsible user executes the
+          // macro — this handler runs on all clients via the actor/effect update hooks.
+          ActiveEffectMacroChangeHooks.syncEvaluatedState(effect, true, {
+            execute: ActiveEffectMacroChangeService.isResponsibleForExecution(effect)
+          });
         }
 
         if (
@@ -655,7 +659,9 @@ export class ActiveEffectConditionHooks {
           actor: actor.uuid,
           effect: effect.uuid
         });
-        ActiveEffectMacroChangeHooks.syncEvaluatedState(effect, false);
+        ActiveEffectMacroChangeHooks.syncEvaluatedState(effect, false, {
+          execute: ActiveEffectMacroChangeService.isResponsibleForExecution(effect)
+        });
       }
     }
   }

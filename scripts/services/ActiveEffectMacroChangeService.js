@@ -193,6 +193,15 @@ export class ActiveEffectMacroChangeService {
     };
   }
 
+  static isResponsibleForExecution(effect) {
+    const actor = ActiveEffectMacroChangeService.#getActor(effect);
+    if (!actor) {
+      return false;
+    }
+
+    return ActiveEffectMacroChangeService.#getResponsibleUser(actor)?.id === game.user?.id;
+  }
+
   static #getActor(effect) {
     const parent = effect?.parent;
     if (parent instanceof CONFIG.Actor.documentClass) {
@@ -207,6 +216,21 @@ export class ActiveEffectMacroChangeService {
     }
 
     return null;
+  }
+
+  // Mirrors ActiveEffectFormulaChangeService#getResponsibleUser so condition-driven macros
+  // execute on a single client (the active owner, else the active GM) instead of every client.
+  static #getResponsibleUser(actor) {
+    const activeUsers = game.users?.filter(user => user.active) ?? [];
+    const owner = activeUsers.find(user => (
+      !user.isGM && actor.testUserPermission(user, "OWNER")
+    ));
+
+    if (owner) {
+      return owner;
+    }
+
+    return game.users?.activeGM ?? activeUsers.find(user => user.isGM) ?? null;
   }
 
   static #getToken(actor) {
