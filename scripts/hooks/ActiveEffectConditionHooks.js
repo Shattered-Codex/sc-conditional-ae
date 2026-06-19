@@ -10,20 +10,131 @@ import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectConditionHooks {
   static #effectApplicationPatched = false;
+  static #effectSuppressionPatched = false;
   static #effectRefreshHooksRegistered = false;
   static #pendingActorRefreshes = new Map();
   static #cachedConditionAvailability = new Map();
+  static #actorsInTransitionForceRefresh = new Set();
   static #refreshFlushScheduled = false;
   static #readyRefreshScheduled = false;
+  static #SUPPRESSION_GETTER_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.isSuppressedPatched`);
+  static #SUPPRESSION_METHOD_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.determineSuppressionPatched`);
 
   static activate() {
     if (!Constants.isDnd5eActive()) {
       return;
     }
 
+    ActiveEffectConditionHooks.#patchEffectSuppression();
     ActiveEffectConditionHooks.#patchEffectApplication();
     ActiveEffectConditionHooks.#registerEffectRefreshHooks();
     ActiveEffectConditionHooks.#scheduleReadyRefresh();
+  }
+
+  static #patchEffectSuppression() {
+    if (ActiveEffectConditionHooks.#effectSuppressionPatched) {
+      return;
+    }
+
+    ActiveEffectConditionHooks.#effectSuppressionPatched = true;
+
+    if (ActiveEffectConditionHooks.#registerEffectSuppressionLibWrapper()) {
+      return;
+    }
+
+    if (game.modules?.get("lib-wrapper")?.active) {
+      Hooks.once("libWrapper.Ready", () => {
+        if (!ActiveEffectConditionHooks.#registerEffectSuppressionLibWrapper()) {
+          ActiveEffectConditionHooks.#patchEffectSuppressionFallback();
+        }
+      });
+      return;
+    }
+
+    ActiveEffectConditionHooks.#patchEffectSuppressionFallback();
+  }
+
+  static #registerEffectSuppressionLibWrapper() {
+    const libWrapper = globalThis.libWrapper;
+    if (typeof libWrapper?.register !== "function") {
+      return false;
+    }
+
+    let registered = false;
+
+    if (ActiveEffectConditionHooks.#hasTargetMethod("CONFIG.ActiveEffect.documentClass.prototype.determineSuppression")) {
+      libWrapper.register(
+        Constants.MODULE_ID,
+        "CONFIG.ActiveEffect.documentClass.prototype.determineSuppression",
+        function(wrapped, ...args) {
+          const result = wrapped.call(this, ...args);
+          ActiveEffectConditionHooks.#applyConditionSuppression(this);
+          return result;
+        },
+        "WRAPPER"
+      );
+      registered = true;
+    }
+
+    const suppressionDescriptor = Object.getOwnPropertyDescriptor(
+      CONFIG.ActiveEffect.documentClass.prototype,
+      "isSuppressed"
+    );
+    if (typeof suppressionDescriptor?.get === "function") {
+      libWrapper.register(
+        Constants.MODULE_ID,
+        "CONFIG.ActiveEffect.documentClass.prototype.isSuppressed",
+        function(wrapped, ...args) {
+          const suppressed = wrapped.call(this, ...args);
+          return suppressed || ActiveEffectConditionHooks.#isConditionSuppressed(this);
+        },
+        "WRAPPER"
+      );
+      registered = true;
+    }
+
+    if (registered) {
+      ActiveEffectConditionHooks.#debug("registered Active Effect suppression wrappers with libWrapper");
+    }
+
+    return registered;
+  }
+
+  static #patchEffectSuppressionFallback() {
+    const prototype = CONFIG.ActiveEffect.documentClass.prototype;
+
+    if (
+      typeof prototype.determineSuppression === "function"
+      && prototype.determineSuppression[ActiveEffectConditionHooks.#SUPPRESSION_METHOD_PATCH_MARKER] !== true
+    ) {
+      const originalDetermineSuppression = prototype.determineSuppression;
+      const patchedDetermineSuppression = function(...args) {
+        const result = originalDetermineSuppression.call(this, ...args);
+        ActiveEffectConditionHooks.#applyConditionSuppression(this);
+        return result;
+      };
+      patchedDetermineSuppression[ActiveEffectConditionHooks.#SUPPRESSION_METHOD_PATCH_MARKER] = true;
+      prototype.determineSuppression = patchedDetermineSuppression;
+    }
+
+    const suppressionDescriptor = Object.getOwnPropertyDescriptor(prototype, "isSuppressed");
+    if (
+      typeof suppressionDescriptor?.get === "function"
+      && suppressionDescriptor.get[ActiveEffectConditionHooks.#SUPPRESSION_GETTER_PATCH_MARKER] !== true
+    ) {
+      const originalGetter = suppressionDescriptor.get;
+      const patchedGetter = function() {
+        return originalGetter.call(this) || ActiveEffectConditionHooks.#isConditionSuppressed(this);
+      };
+      patchedGetter[ActiveEffectConditionHooks.#SUPPRESSION_GETTER_PATCH_MARKER] = true;
+      Object.defineProperty(prototype, "isSuppressed", {
+        configurable: suppressionDescriptor.configurable ?? true,
+        enumerable: suppressionDescriptor.enumerable ?? false,
+        get: patchedGetter
+      });
+    }
+
+    ActiveEffectConditionHooks.#debug("registered Active Effect suppression wrappers with fallback patching");
   }
 
   static #patchEffectApplication() {
@@ -273,8 +384,10 @@ export class ActiveEffectConditionHooks {
     }
 
     const previousConditionState = ActiveEffectConditionHooks.#getCachedConditionalEffectState(actor);
+    const conditionalEffects = ActiveEffectConditionHooks.#getConditionalEffects(actor);
     let refreshed = false;
     try {
+      ActiveEffectConditionHooks.#refreshEffectSuppressionState(actor, conditionalEffects, { phase: "pre-reset" });
       actor.reset();
       refreshed = true;
       ActiveEffectConditionHooks.#debug("refreshed actor condition state", {
@@ -293,18 +406,49 @@ export class ActiveEffectConditionHooks {
     }
 
     if (refreshed) {
-      const conditionalEffects = ActiveEffectConditionHooks.#getConditionalEffects(actor);
-      if (handleTransitions && previousConditionState) {
-        ActiveEffectConditionHooks.#handleConditionalTransitions(actor, previousConditionState, conditionalEffects, {
-          triggerConditionalActivation
-        });
+      let currentConditionState = ActiveEffectConditionHooks.#getConditionalEffectState(actor, conditionalEffects);
+
+      // The gate consults the cached availability (see #resolveConditionAvailability), so the
+      // reset above gated changes using the state cached from the previous pass. Update the
+      // cache to the freshly derived truth before doing anything else.
+      const transitionSummary = previousConditionState
+        ? ActiveEffectConditionHooks.#summarizeConditionalTransitions(
+          previousConditionState,
+          currentConditionState,
+          conditionalEffects
+        )
+        : null;
+      const gateStateChanged = !previousConditionState
+        || ActiveEffectConditionHooks.#didConditionStateChange(previousConditionState, currentConditionState);
+      ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects, currentConditionState);
+
+      // Re-prepare once with the corrected cache so the gate applies/suppresses changes using
+      // the derived-data availability instead of the stale value it saw mid-preparation.
+      if (gateStateChanged) {
+        const forced = ActiveEffectConditionHooks.#forceTransitionReprepare(actor, conditionalEffects, transitionSummary);
+        if (forced) {
+          currentConditionState = ActiveEffectConditionHooks.#getConditionalEffectState(actor, conditionalEffects);
+          ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects, currentConditionState);
+        }
       }
-      ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects);
+
+      if (handleTransitions && previousConditionState) {
+        ActiveEffectConditionHooks.#handleConditionalTransitions(
+          actor,
+          previousConditionState,
+          conditionalEffects,
+          {
+            currentState: currentConditionState,
+            triggerConditionalActivation
+          }
+        );
+      }
+
       if (
         renderApplications
         && (
           !previousConditionState
-          || ActiveEffectConditionHooks.#didConditionStateChange(actor, previousConditionState, conditionalEffects)
+          || ActiveEffectConditionHooks.#didConditionStateChange(previousConditionState, currentConditionState)
         )
       ) {
         ActiveEffectConditionHooks.#renderActorApplications(actor);
@@ -379,25 +523,107 @@ export class ActiveEffectConditionHooks {
     return cachedState ? new Map(cachedState) : null;
   }
 
-  static #cacheConditionalEffectState(actor, conditionalEffects = null) {
+  static #getConditionalEffectState(actor, conditionalEffects = null) {
     const state = new Map();
 
     for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
       state.set(effect.uuid, ActiveEffectConditionHooks.#isConditionAvailable(effect, actor));
     }
 
-    if (!state.size) {
+    return state;
+  }
+
+  static #cacheConditionalEffectState(actor, conditionalEffects = null, state = null) {
+    const nextState = state ?? ActiveEffectConditionHooks.#getConditionalEffectState(actor, conditionalEffects);
+
+    if (!nextState.size) {
       ActiveEffectConditionHooks.#cachedConditionAvailability.delete(actor.uuid);
       return;
     }
 
-    ActiveEffectConditionHooks.#cachedConditionAvailability.set(actor.uuid, state);
+    ActiveEffectConditionHooks.#cachedConditionAvailability.set(actor.uuid, new Map(nextState));
   }
 
-  static #handleConditionalTransitions(actor, previousState, conditionalEffects = null, { triggerConditionalActivation = false } = {}) {
+  static #summarizeConditionalTransitions(previousState, currentState, conditionalEffects = null) {
+    const summary = {
+      activated: [],
+      deactivated: [],
+      hasTransitions: false
+    };
+
+    for (const effect of conditionalEffects ?? []) {
+      if (!ActiveEffectConditionHooks.#isEffectDocumentEnabled(effect)) {
+        continue;
+      }
+
+      const wasAvailable = previousState.get(effect.uuid);
+      const isAvailable = currentState.get(effect.uuid);
+
+      if (wasAvailable === false && isAvailable) {
+        summary.activated.push(effect);
+        continue;
+      }
+
+      if (wasAvailable === true && !isAvailable) {
+        summary.deactivated.push(effect);
+      }
+    }
+
+    summary.hasTransitions = summary.activated.length > 0 || summary.deactivated.length > 0;
+    return summary;
+  }
+
+  static #forceTransitionReprepare(actor, conditionalEffects = null, transitionSummary = null) {
+    if (!(actor instanceof CONFIG.Actor.documentClass)) {
+      return false;
+    }
+
+    if (ActiveEffectConditionHooks.#actorsInTransitionForceRefresh.has(actor.uuid)) {
+      ActiveEffectConditionHooks.#debug("skipping recursive transition force refresh", {
+        actor: actor.uuid
+      });
+      return false;
+    }
+
+    ActiveEffectConditionHooks.#actorsInTransitionForceRefresh.add(actor.uuid);
+
+    try {
+      ActiveEffectConditionHooks.#debug("forcing actor reprepare after conditional transition", {
+        actor: actor.uuid,
+        activatedEffects: transitionSummary?.activated?.map(effect => effect.uuid) ?? [],
+        deactivatedEffects: transitionSummary?.deactivated?.map(effect => effect.uuid) ?? []
+      });
+
+      // One extra reset gives newly unsuppressed/suppressed changes an immediate runtime pass
+      // without risking an unbounded loop on self-referential or oscillating conditions.
+      ActiveEffectConditionHooks.#refreshEffectSuppressionState(actor, conditionalEffects, { phase: "transition-force" });
+      actor.reset();
+      return true;
+    } catch (error) {
+      try {
+        console.warn(`[${Constants.MODULE_ID}] could not force actor refresh after condition transition`, {
+          actor: actor?.uuid ?? actor?.name ?? actor,
+          error
+        });
+      } catch {
+        // Ignore logging failures caused by stale document state while the world is updating.
+      }
+    } finally {
+      ActiveEffectConditionHooks.#actorsInTransitionForceRefresh.delete(actor.uuid);
+    }
+
+    return false;
+  }
+
+  static #handleConditionalTransitions(actor, previousState, conditionalEffects = null, {
+    currentState = null,
+    triggerConditionalActivation = false
+  } = {}) {
+    const nextState = currentState ?? ActiveEffectConditionHooks.#getConditionalEffectState(actor, conditionalEffects);
+
     for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
       const wasAvailable = previousState.get(effect.uuid);
-      const isAvailable = ActiveEffectConditionHooks.#isConditionAvailable(effect, actor);
+      const isAvailable = nextState.get(effect.uuid);
       if (!ActiveEffectConditionHooks.#isEffectDocumentEnabled(effect)) {
         continue;
       }
@@ -486,7 +712,16 @@ export class ActiveEffectConditionHooks {
     const actor = model instanceof CONFIG.Actor.documentClass
       ? model
       : ActiveEffectContextBuilder.getAffectedActor(effect);
-    const available = ActiveEffectConditionHooks.#isConditionAvailable(effect, actor);
+    const available = ActiveEffectConditionHooks.#resolveConditionAvailability(effect, actor);
+
+    ActiveEffectConditionHooks.#debug("evaluated change application gate", {
+      effect: effect?.uuid ?? effect?.id ?? null,
+      model: model?.uuid ?? model?.id ?? null,
+      actor: actor?.uuid ?? actor?.id ?? null,
+      actorBonuses: ActiveEffectConditionHooks.#describeActorBonuses(actor),
+      available,
+      effectDisabled: effect?.disabled ?? null
+    });
 
     if (!available) {
       ActiveEffectConditionHooks.#debug("skipping change application for conditional effect", {
@@ -499,20 +734,76 @@ export class ActiveEffectConditionHooks {
     return !available;
   }
 
+  static #applyConditionSuppression(effect) {
+    if (!effect || !ActiveEffectConditionHooks.#hasConditionSuppressionState(effect)) {
+      return;
+    }
+
+    const conditionSuppressed = ActiveEffectConditionHooks.#isConditionSuppressed(effect);
+    ActiveEffectConditionHooks.#debug("determineSuppression wrapper evaluated conditional state", {
+      effect: effect?.uuid ?? effect?.id ?? null,
+      parent: effect?.parent?.uuid ?? effect?.parent?.id ?? null,
+      disabled: effect?.disabled ?? null,
+      conditionSuppressed
+    });
+  }
+
+  static #isConditionSuppressed(effect, actor = null) {
+    if (!ActiveEffectConditionHooks.#hasConditionSuppressionState(effect)) {
+      return false;
+    }
+
+    return !ActiveEffectConditionHooks.#resolveConditionAvailability(
+      effect,
+      actor ?? ActiveEffectContextBuilder.getAffectedActor(effect)
+    );
+  }
+
+  static #hasConditionSuppressionState(effect) {
+    return ActiveEffectConditionService.hasCondition(effect)
+      && ActiveEffectConditionHooks.#isEffectDocumentEnabled(effect);
+  }
+
+  static #resolveConditionAvailability(effect, actor) {
+    // The change-application gate runs during applyActiveEffects, before dnd5e computes
+    // derived data such as hp.max or ac. Conditions that read those fields would evaluate
+    // against half-prepared data here, so prefer the availability cached from the last
+    // fully prepared pass and only evaluate live when no cached value exists yet.
+    const cached = ActiveEffectConditionHooks.#getCachedConditionAvailability(actor, effect);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    return ActiveEffectConditionHooks.#isConditionAvailable(effect, actor);
+  }
+
+  static #getCachedConditionAvailability(actor, effect) {
+    const actorUuid = actor?.uuid;
+    const effectUuid = effect?.uuid;
+    if (!actorUuid || !effectUuid) {
+      return undefined;
+    }
+
+    return ActiveEffectConditionHooks.#cachedConditionAvailability.get(actorUuid)?.get(effectUuid);
+  }
+
   static #isConditionAvailable(effect, actor = null) {
     const evaluation = ActiveEffectConditionService.evaluate(effect, {
       actor: actor ?? ActiveEffectContextBuilder.getAffectedActor(effect)
     });
+    ActiveEffectConditionHooks.#debug("evaluated condition availability", {
+      effect: effect?.uuid ?? effect?.id ?? null,
+      actor: actor?.uuid ?? actor?.id ?? null,
+      actorBonuses: ActiveEffectConditionHooks.#describeActorBonuses(actor),
+      result: evaluation.result,
+      available: evaluation.available,
+      error: evaluation.error?.message ?? null,
+      effectDisabled: effect?.disabled ?? null
+    });
     return !evaluation.error && evaluation.available;
   }
 
-  static #didConditionStateChange(actor, previousState, conditionalEffects = null) {
-    const currentState = new Map();
-
-    for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
-      currentState.set(effect.uuid, ActiveEffectConditionHooks.#isConditionAvailable(effect, actor));
-    }
-
+  static #didConditionStateChange(previousState, currentState) {
     if (previousState.size !== currentState.size) {
       return true;
     }
@@ -527,7 +818,45 @@ export class ActiveEffectConditionHooks {
   }
 
   static #isEffectDocumentEnabled(effect) {
-    return effect?.active !== false && effect?.disabled !== true;
+    return effect?.disabled !== true;
+  }
+
+  static #refreshEffectSuppressionState(actor, conditionalEffects = null, { phase = "unknown" } = {}) {
+    for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
+      if (!ActiveEffectConditionHooks.#hasConditionSuppressionState(effect)) {
+        continue;
+      }
+
+      if (typeof effect?.determineSuppression === "function") {
+        try {
+          effect.determineSuppression();
+        } catch (error) {
+          ActiveEffectConditionHooks.#debug("determineSuppression threw during refresh", {
+            phase,
+            actor: actor?.uuid ?? actor?.id ?? null,
+            effect: effect?.uuid ?? effect?.id ?? null,
+            error: error?.message ?? String(error)
+          });
+        }
+      }
+
+      ActiveEffectConditionHooks.#debug("refreshed conditional effect suppression state", {
+        phase,
+        actor: actor?.uuid ?? actor?.id ?? null,
+        effect: effect?.uuid ?? effect?.id ?? null,
+        disabled: effect?.disabled ?? null,
+        actorBonuses: ActiveEffectConditionHooks.#describeActorBonuses(actor)
+      });
+    }
+  }
+
+  static #describeActorBonuses(actor) {
+    return {
+      mwak: foundry.utils.getProperty(actor ?? {}, "system.bonuses.mwak.damage") ?? null,
+      rwak: foundry.utils.getProperty(actor ?? {}, "system.bonuses.rwak.damage") ?? null,
+      msak: foundry.utils.getProperty(actor ?? {}, "system.bonuses.msak.damage") ?? null,
+      rsak: foundry.utils.getProperty(actor ?? {}, "system.bonuses.rsak.damage") ?? null
+    };
   }
 
   static #hasTargetMethod(path) {
@@ -544,7 +873,7 @@ export class ActiveEffectConditionHooks {
   }
 
   static #debug(message, data = undefined) {
-    if (!ModuleSettings.isDebugLoggingEnabled()) {
+    if (!ModuleSettings.isDebugLoggingEnabled() && !globalThis[Constants.DEBUG_GLOBAL]) {
       return;
     }
 
