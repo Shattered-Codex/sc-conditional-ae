@@ -4,6 +4,12 @@ import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 
 export class ConditionTabContextBuilder {
+  static normalizeConditionBehavior(conditionBehavior) {
+    return conditionBehavior === Constants.CONDITION_BEHAVIOR_DISABLE
+      ? Constants.CONDITION_BEHAVIOR_DISABLE
+      : Constants.CONDITION_BEHAVIOR_SUPPRESS;
+  }
+
   static normalizeDisplayedApplyBehavior(applyBehavior) {
     const normalized = ActiveEffectContextBuilder.normalizeApplyBehavior(applyBehavior);
     if (normalized === "dae" && !Constants.isDaeActive()) {
@@ -61,6 +67,9 @@ export class ConditionTabContextBuilder {
     const conditionBadgeLabel = String(
       foundry.utils.getProperty(sheet.document ?? {}, Constants.CONDITION_BADGE_LABEL_FLAG_PATH) ?? ""
     );
+    const conditionBehavior = ConditionTabContextBuilder.normalizeConditionBehavior(
+      foundry.utils.getProperty(sheet.document ?? {}, Constants.CONDITION_BEHAVIOR_FLAG_PATH)
+    );
     const applyBehavior = String(
       foundry.utils.getProperty(sheet.document ?? {}, Constants.APPLY_BEHAVIOR_FLAG_PATH) ?? "auto"
     );
@@ -75,6 +84,9 @@ export class ConditionTabContextBuilder {
       conditionBadgeLabel,
       conditionBadgeLabelLength: conditionBadgeLabel.length,
       conditionBadgeLabelFlagPath: Constants.CONDITION_BADGE_LABEL_FLAG_PATH,
+      conditionBehaviorIsSuppress: conditionBehavior === Constants.CONDITION_BEHAVIOR_SUPPRESS,
+      conditionBehaviorIsDisable: conditionBehavior === Constants.CONDITION_BEHAVIOR_DISABLE,
+      conditionBehaviorFlagPath: Constants.CONDITION_BEHAVIOR_FLAG_PATH,
       applyBehavior: ConditionTabContextBuilder.getApplyBehaviorLabel(normalizedApplyBehavior),
       applyBehaviorDescription: ConditionTabContextBuilder.getApplyBehaviorDescription(normalizedApplyBehavior),
       applyBehaviorIsDefault: normalizedApplyBehavior === "default",
@@ -135,11 +147,27 @@ export class ConditionTabContextBuilder {
         badgeLabel: Constants.localize("SCConditionalAE.ConditionTab.BadgeLabel", "Condition badge label"),
         badgeLabelHint: Constants.localize(
           "SCConditionalAE.ConditionTab.BadgeLabelHint",
-          "Single-line label shown on inactive effects. Leave blank to hide."
+          "Optional custom label for the condition status badge. Leave blank to use the default label."
         ),
         badgeLabelPlaceholder: Constants.localize(
           "SCConditionalAE.ConditionTab.BadgeLabelPlaceholder",
           "e.g. Condition not met"
+        ),
+        conditionBehavior: Constants.localize(
+          "SCConditionalAE.ConditionTab.ConditionBehavior",
+          "When the condition is not met"
+        ),
+        conditionBehaviorSuppress: Constants.localize(
+          "SCConditionalAE.ConditionTab.ConditionBehaviorSuppress",
+          "Suppress changes (default)"
+        ),
+        conditionBehaviorDisable: Constants.localize(
+          "SCConditionalAE.ConditionTab.ConditionBehaviorDisable",
+          "Disable Active Effect"
+        ),
+        conditionBehaviorHint: Constants.localize(
+          "SCConditionalAE.ConditionTab.ConditionBehaviorHint",
+          "Choose whether to keep the Active Effect enabled while suppressing its changes, or synchronize its disabled state with the condition."
         ),
         applyBehavior: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehavior", "When applied to a target"),
         applyBehaviorUpdate: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorUpdate", "Default"),

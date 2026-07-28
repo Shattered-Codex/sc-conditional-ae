@@ -70,6 +70,13 @@ export class ActiveEffectTransferHooks {
   }
 
   static #onPreCreateActiveEffect(effect, data, _options, userId) {
+    if (effect?.parent instanceof CONFIG.Actor.documentClass) {
+      foundry.utils.unsetProperty(data, Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH);
+      effect.updateSource({
+        [`flags.${Constants.MODULE_ID}.-=${Constants.FLAG_CONDITION_MANAGED_DISABLED}`]: null
+      });
+    }
+
     const handledTidyTransfer = ActiveEffectTransferHooks.#syncModuleFlagsFromTidyTransfer(effect, data, userId);
     if (!handledTidyTransfer) {
       ActiveEffectTransferMetadataService.syncModuleFlagsFromOrigin(effect, data);
@@ -380,6 +387,10 @@ export class ActiveEffectTransferHooks {
   static #buildMirrorEffectData(sourceEffect) {
     const mirrorData = sourceEffect.toObject();
     delete mirrorData._id;
+    foundry.utils.unsetProperty(
+      mirrorData,
+      Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH
+    );
 
     foundry.utils.mergeObject(mirrorData, {
       disabled: false,

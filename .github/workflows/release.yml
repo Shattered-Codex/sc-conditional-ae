@@ -202,7 +202,7 @@ jobs:
             COMMIT_BODY=$(printf '%s\n\n[truncated]' "${COMMIT_BODY}")
           fi
 
-          DESCRIPTION=$(printf '%s\n\n**Version:** `%s`\n\n```text\n%s\n```' \
+          DESCRIPTION=$(printf '%s\n\n**Version:** `%s`\n\n%s' \
             '**A new release has been published.**' \
             "${VERSION}" \
             "${COMMIT_BODY}")
@@ -221,7 +221,7 @@ jobs:
                   title: $title,
                   url: $url,
                   description: $description,
-                  color: 3447003,
+                  color: 16705372,
                   image: { url: $imageUrl }
                 }
               ]

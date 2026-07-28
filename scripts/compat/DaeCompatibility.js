@@ -95,9 +95,10 @@ export class DaeCompatibility {
   }
 
   static applyConditionSubmitData(submitData, condition, fallbackMode = null) {
+    const explicitMode = DaeCompatibility.getCompatibilityMode(condition);
     const normalizedCondition = DaeCompatibility.normalizeSubmittedCondition(condition, fallbackMode);
     if (!normalizedCondition.length) {
-      DaeCompatibility.#clearConditionSubmitData(submitData);
+      DaeCompatibility.#clearConditionSubmitData(submitData, fallbackMode);
       return normalizedCondition;
     }
 
@@ -108,14 +109,23 @@ export class DaeCompatibility {
       foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, null);
       foundry.utils.setProperty(
         submitData,
-        Constants.DAE_CONDITION_FLAG_PATH,
-        mode === "enable" ? trimmedExpression : null
+        DaeCompatibility.#getConditionFlagPathForMode(mode),
+        trimmedExpression
       );
-      foundry.utils.setProperty(
-        submitData,
-        Constants.DAE_DISABLE_CONDITION_FLAG_PATH,
-        mode === "disable" ? trimmedExpression : null
-      );
+      // The SC input only edits the DAE condition it displayed. Clear the
+      // opposite field only when this edit explicitly moved the condition to
+      // the other mode or migrated a native condition into DAE. Same-mode DAE
+      // edits keep an independent enable/disable pair intact.
+      if (
+        (fallbackMode && fallbackMode !== mode)
+        || (explicitMode && !fallbackMode)
+      ) {
+        foundry.utils.setProperty(
+          submitData,
+          DaeCompatibility.#getConditionFlagPathForMode(mode === "enable" ? "disable" : "enable"),
+          null
+        );
+      }
       return normalizedCondition;
     }
 
@@ -264,8 +274,22 @@ export class DaeCompatibility {
     }, { inplace: false });
   }
 
-  static #clearConditionSubmitData(submitData) {
+  static #getConditionFlagPathForMode(mode) {
+    return mode === "disable"
+      ? Constants.DAE_DISABLE_CONDITION_FLAG_PATH
+      : Constants.DAE_CONDITION_FLAG_PATH;
+  }
+
+  static #clearConditionSubmitData(submitData, mode = null) {
     foundry.utils.setProperty(submitData, Constants.CONDITION_FLAG_PATH, null);
+
+    // When the cleared SC input displayed one specific DAE condition, clear
+    // only that condition and leave the independent opposite field alone.
+    if (mode) {
+      foundry.utils.setProperty(submitData, DaeCompatibility.#getConditionFlagPathForMode(mode), null);
+      return;
+    }
+
     foundry.utils.setProperty(submitData, Constants.DAE_CONDITION_FLAG_PATH, null);
     foundry.utils.setProperty(submitData, Constants.DAE_DISABLE_CONDITION_FLAG_PATH, null);
   }

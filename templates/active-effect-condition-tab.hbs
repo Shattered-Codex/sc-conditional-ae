@@ -54,6 +54,24 @@
       </div>
     </details>
 
+    <div class="form-group">
+      <label>{{ strings.conditionBehavior }}</label>
+      <div class="form-fields">
+        {{#if editable}}
+        <select name="{{ conditionBehaviorFlagPath }}">
+          <option value="suppress" {{#if conditionBehaviorIsSuppress}}selected{{/if}}>{{ strings.conditionBehaviorSuppress }}</option>
+          <option value="disable" {{#if conditionBehaviorIsDisable}}selected{{/if}}>{{ strings.conditionBehaviorDisable }}</option>
+        </select>
+        {{else}}
+        <select disabled>
+          <option value="suppress" {{#if conditionBehaviorIsSuppress}}selected{{/if}}>{{ strings.conditionBehaviorSuppress }}</option>
+          <option value="disable" {{#if conditionBehaviorIsDisable}}selected{{/if}}>{{ strings.conditionBehaviorDisable }}</option>
+        </select>
+        {{/if}}
+      </div>
+      <p class="hint">{{ strings.conditionBehaviorHint }}</p>
+    </div>
+
     <div class="form-group sc-cae-badge-label-group">
       <label>{{ strings.badgeLabel }}</label>
       <div class="form-fields">

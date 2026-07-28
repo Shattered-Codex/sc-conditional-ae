@@ -15,8 +15,10 @@ export class ActiveEffectConditionHooks {
   static #pendingActorRefreshes = new Map();
   static #cachedConditionAvailability = new Map();
   static #actorsInTransitionForceRefresh = new Set();
+  static #conditionDisableSyncsInFlight = new Set();
   static #refreshFlushScheduled = false;
   static #readyRefreshScheduled = false;
+  static #CONDITION_DISABLE_SYNC_OPTION = "conditionDisableSync";
   static #SUPPRESSION_GETTER_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.isSuppressedPatched`);
   static #SUPPRESSION_METHOD_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.determineSuppressionPatched`);
 
@@ -263,7 +265,18 @@ export class ActiveEffectConditionHooks {
     });
   }
 
-  static #onActiveEffectChanged(effect) {
+  static #onActiveEffectChanged(effect, ...args) {
+    const isConditionDisableSync = args.some(value => (
+      value?.[Constants.MODULE_ID]?.[ActiveEffectConditionHooks.#CONDITION_DISABLE_SYNC_OPTION] === true
+    ));
+    if (isConditionDisableSync) {
+      ActiveEffectConditionHooks.#debug("ignoring condition-managed disabled state update", {
+        effect: effect?.uuid ?? effect?.id ?? null,
+        disabled: effect?.disabled ?? null
+      });
+      return;
+    }
+
     const actor = ActiveEffectContextBuilder.getAffectedActor(effect);
     if (!(actor instanceof CONFIG.Actor.documentClass)) {
       return;
@@ -271,6 +284,7 @@ export class ActiveEffectConditionHooks {
 
     if (
       !ActiveEffectConditionService.hasCondition(effect)
+      && !ActiveEffectConditionService.isConditionManagedDisabled(effect)
       && !ActiveEffectConditionHooks.#actorHasConditionedEffects(actor)
     ) {
       return;
@@ -432,6 +446,12 @@ export class ActiveEffectConditionHooks {
         }
       }
 
+      const disableSync = await ActiveEffectConditionHooks.#syncConditionDisabledStates(
+        actor,
+        conditionalEffects,
+        currentConditionState
+      );
+
       if (handleTransitions && previousConditionState) {
         ActiveEffectConditionHooks.#handleConditionalTransitions(
           actor,
@@ -439,16 +459,20 @@ export class ActiveEffectConditionHooks {
           conditionalEffects,
           {
             currentState: currentConditionState,
-            triggerConditionalActivation
+            triggerConditionalActivation,
+            autoReactivatedEffectUuids: disableSync.reactivatedEffectUuids
           }
         );
       }
+
+      ActiveEffectConditionHooks.#pruneCachedConditionState(actor);
 
       if (
         renderApplications
         && (
           !previousConditionState
           || ActiveEffectConditionHooks.#didConditionStateChange(previousConditionState, currentConditionState)
+          || disableSync.changed
         )
       ) {
         ActiveEffectConditionHooks.#renderActorApplications(actor);
@@ -471,7 +495,10 @@ export class ActiveEffectConditionHooks {
 
     const actor = item.actor ?? item.parent ?? null;
     return (item.effects ?? []).some(effect => (
-      ActiveEffectConditionService.hasCondition(effect)
+      (
+        ActiveEffectConditionService.hasCondition(effect)
+        || ActiveEffectConditionService.isConditionManagedDisabled(effect)
+      )
       && !ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, actor)
     ));
   }
@@ -544,6 +571,26 @@ export class ActiveEffectConditionHooks {
     ActiveEffectConditionHooks.#cachedConditionAvailability.set(actor.uuid, new Map(nextState));
   }
 
+  static #pruneCachedConditionState(actor) {
+    const cachedState = ActiveEffectConditionHooks.#cachedConditionAvailability.get(actor.uuid);
+    if (!cachedState) {
+      return;
+    }
+
+    const currentEffectUuids = new Set(
+      ActiveEffectConditionHooks.#getConditionalEffects(actor).map(effect => effect.uuid)
+    );
+    for (const effectUuid of cachedState.keys()) {
+      if (!currentEffectUuids.has(effectUuid)) {
+        cachedState.delete(effectUuid);
+      }
+    }
+
+    if (!cachedState.size) {
+      ActiveEffectConditionHooks.#cachedConditionAvailability.delete(actor.uuid);
+    }
+  }
+
   static #summarizeConditionalTransitions(previousState, currentState, conditionalEffects = null) {
     const summary = {
       activated: [],
@@ -552,7 +599,7 @@ export class ActiveEffectConditionHooks {
     };
 
     for (const effect of conditionalEffects ?? []) {
-      if (!ActiveEffectConditionHooks.#isEffectDocumentEnabled(effect)) {
+      if (!ActiveEffectConditionHooks.#isEligibleForConditionTransition(effect)) {
         continue;
       }
 
@@ -617,14 +664,15 @@ export class ActiveEffectConditionHooks {
 
   static #handleConditionalTransitions(actor, previousState, conditionalEffects = null, {
     currentState = null,
-    triggerConditionalActivation = false
+    triggerConditionalActivation = false,
+    autoReactivatedEffectUuids = new Set()
   } = {}) {
     const nextState = currentState ?? ActiveEffectConditionHooks.#getConditionalEffectState(actor, conditionalEffects);
 
     for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
       const wasAvailable = previousState.get(effect.uuid);
       const isAvailable = nextState.get(effect.uuid);
-      if (!ActiveEffectConditionHooks.#isEffectDocumentEnabled(effect)) {
+      if (!ActiveEffectConditionHooks.#isEligibleForConditionTransition(effect)) {
         continue;
       }
 
@@ -646,6 +694,7 @@ export class ActiveEffectConditionHooks {
 
         if (
           triggerConditionalActivation
+          && !autoReactivatedEffectUuids.has(effect.uuid)
           && ModuleSettings.isFormulaChangesEnabled()
           && ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
         ) {
@@ -683,7 +732,10 @@ export class ActiveEffectConditionHooks {
     const effects = [];
 
     for (const effect of actor.effects ?? []) {
-      if (ActiveEffectConditionService.hasCondition(effect)) {
+      if (
+        ActiveEffectConditionService.hasCondition(effect)
+        || ActiveEffectConditionService.isConditionManagedDisabled(effect)
+      ) {
         effects.push(effect);
       }
     }
@@ -691,7 +743,10 @@ export class ActiveEffectConditionHooks {
     for (const item of actor.items ?? []) {
       for (const effect of item.effects ?? []) {
         if (
-          ActiveEffectConditionService.hasCondition(effect)
+          (
+            ActiveEffectConditionService.hasCondition(effect)
+            || ActiveEffectConditionService.isConditionManagedDisabled(effect)
+          )
           && !ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, actor)
         ) {
           effects.push(effect);
@@ -825,6 +880,111 @@ export class ActiveEffectConditionHooks {
 
   static #isEffectDocumentEnabled(effect) {
     return effect?.disabled !== true;
+  }
+
+  static #isEligibleForConditionTransition(effect) {
+    return ActiveEffectConditionHooks.#isEffectDocumentEnabled(effect)
+      || ActiveEffectConditionService.isConditionManagedDisabled(effect);
+  }
+
+  static async #syncConditionDisabledStates(actor, conditionalEffects, currentConditionState) {
+    const result = {
+      changed: false,
+      reactivatedEffectUuids: new Set()
+    };
+
+    if (!ActiveEffectConditionHooks.#isResponsibleForConditionDisableSync(actor)) {
+      return result;
+    }
+
+    for (const effect of conditionalEffects ?? []) {
+      const effectUuid = effect?.uuid;
+      if (!effectUuid || ActiveEffectConditionHooks.#conditionDisableSyncsInFlight.has(effectUuid)) {
+        continue;
+      }
+
+      const hasCondition = ActiveEffectConditionService.hasCondition(effect);
+      const usesDisableBehavior = ActiveEffectConditionService.usesDisableBehavior(effect);
+      const managedDisabled = ActiveEffectConditionService.isConditionManagedDisabled(effect);
+      const available = currentConditionState.get(effectUuid) ?? true;
+      let updateData = null;
+      let action = null;
+
+      if (managedDisabled && (!hasCondition || !usesDisableBehavior || available)) {
+        updateData = {
+          disabled: false,
+          [`flags.${Constants.MODULE_ID}.-=${Constants.FLAG_CONDITION_MANAGED_DISABLED}`]: null
+        };
+        action = "reenable";
+      } else if (
+        hasCondition
+        && usesDisableBehavior
+        && !available
+        && effect.disabled !== true
+      ) {
+        updateData = {
+          disabled: true,
+          [Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH]: true
+        };
+        action = "disable";
+      }
+
+      // A disabled effect without our marker is user-managed. Never claim it,
+      // and therefore never re-enable it when the condition later changes.
+      if (!updateData || (effect.disabled === true && !managedDisabled)) {
+        continue;
+      }
+
+      ActiveEffectConditionHooks.#conditionDisableSyncsInFlight.add(effectUuid);
+      try {
+        ActiveEffectConditionHooks.#debug("synchronizing condition-managed disabled state", {
+          actor: actor?.uuid ?? actor?.id ?? null,
+          effect: effectUuid,
+          action,
+          available,
+          hasCondition,
+          usesDisableBehavior
+        });
+        await effect.update(updateData, {
+          [Constants.MODULE_ID]: {
+            [ActiveEffectConditionHooks.#CONDITION_DISABLE_SYNC_OPTION]: true
+          }
+        });
+        result.changed = true;
+        if (action === "reenable") {
+          result.reactivatedEffectUuids.add(effectUuid);
+        }
+      } catch (error) {
+        console.warn(`[${Constants.MODULE_ID}] could not synchronize condition-managed disabled state`, {
+          actor: actor?.uuid ?? actor?.id ?? null,
+          effect: effectUuid,
+          action,
+          error
+        });
+      } finally {
+        ActiveEffectConditionHooks.#conditionDisableSyncsInFlight.delete(effectUuid);
+      }
+    }
+
+    return result;
+  }
+
+  static #isResponsibleForConditionDisableSync(actor) {
+    if (!(actor instanceof CONFIG.Actor.documentClass)) {
+      return false;
+    }
+
+    const activeUsers = game.users?.filter(user => user.active) ?? [];
+    const owner = activeUsers.find(user => (
+      !user.isGM
+      && actor.testUserPermission?.(user, "OWNER")
+    ));
+    const responsibleUser = owner
+      ?? game.users?.activeGM
+      ?? activeUsers.find(user => user.isGM)
+      ?? null;
+
+    return responsibleUser?.id === game.user?.id;
   }
 
   static #refreshEffectSuppressionState(actor, conditionalEffects = null, { phase = "unknown" } = {}) {

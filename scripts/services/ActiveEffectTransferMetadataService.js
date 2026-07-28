@@ -7,7 +7,9 @@ export class ActiveEffectTransferMetadataService {
       return false;
     }
 
-    const sourceFlags = ActiveEffectTransferMetadataService.#getModuleFlags(sourceEffect);
+    const sourceFlags = ActiveEffectTransferMetadataService.#getModuleFlags(sourceEffect, {
+      excludeConditionManagedDisabled: true
+    });
     const targetFlags = ActiveEffectTransferMetadataService.#getModuleFlags(targetData);
     const activityFlags = ActiveEffectTransferMetadataService.#buildContextualFormulaFlags(sourceEffect, targetData, options);
     const baseFlags = foundry.utils.mergeObject(sourceFlags, activityFlags, {
@@ -100,12 +102,20 @@ export class ActiveEffectTransferMetadataService {
     ));
   }
 
-  static #getModuleFlags(source) {
-    return foundry.utils.deepClone(
+  static #getModuleFlags(source, { excludeConditionManagedDisabled = false } = {}) {
+    const flags = foundry.utils.deepClone(
       foundry.utils.getProperty(source ?? {}, `flags.${Constants.MODULE_ID}`)
       ?? source?.flags?.[Constants.MODULE_ID]
       ?? {}
     );
+
+    if (excludeConditionManagedDisabled) {
+      // Runtime ownership state belongs only to the concrete embedded document.
+      // Copying it would make a newly transferred effect look managed by another
+      // document's condition lifecycle.
+      delete flags[Constants.FLAG_CONDITION_MANAGED_DISABLED];
+    }
+    return flags;
   }
 
   static #buildContextualFormulaFlags(sourceEffect, targetData, options) {
