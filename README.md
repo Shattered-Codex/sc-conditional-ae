@@ -33,13 +33,14 @@ Additional current module behavior:
 
 | Area | Current behavior |
 |---|---|
-| Condition UX | Includes live validation, current evaluation feedback, a wiki shortcut, and a configurable inactive badge label |
+| Condition UX | Includes live validation, current evaluation feedback, a wiki shortcut, and a suppressed-status badge with an optional custom label |
+| Condition behavior | Lets each effect choose whether an unmet condition suppresses its changes (default) or disables the Active Effect itself |
 | Target application | Lets you choose whether reapplying an effect to a target updates the existing effect or stacks a duplicate |
 | Formula UX | Supports immediate rolling or optional chat cards, plus roll buttons on effect lists |
 | Transfer handling | Preserves module flags on transferred effects so condition, formula, and apply-behavior metadata survive target application |
 | Compatibility | Supports Foundry VTT `v13` and `v14`, `dnd5e` `4.0.0+`, DAE condition content, and Aura Effects fallback typing |
 
-If a condition resolves to `false`, or throws an error, the effect is suppressed and its changes do not apply.
+If a condition resolves to `false`, or throws an error, the effect's changes do not apply. By default the effect stays enabled and is only suppressed; the **When the condition is not met** selector can instead disable the Active Effect itself and re-enable it automatically once the condition becomes true again.
 
 ---
 
@@ -94,7 +95,8 @@ return actor?.system?.attributes?.hp?.value > 0;
 |---|---|
 | Condition editor | Stores the effect condition as JavaScript or adapted DAE-compatible content |
 | Current evaluation | Shows whether the effect is currently available, suppressed, empty, or throwing an error |
-| Condition badge label | Defines a short label shown on inactive effects when the condition is not met |
+| When the condition is not met | Chooses between suppressing the effect's changes (default) or disabling the Active Effect while the condition is false |
+| Condition badge label | Optional custom label for the condition-status badge shown on effect lists whenever the condition is not met or cannot be evaluated; leave blank to use the default label |
 | When applied to a target | Controls whether target application updates an existing effect or creates a new stack |
 | Wiki link | Opens the module wiki directly from the sheet |
 
@@ -122,8 +124,8 @@ return actor?.system?.attributes?.hp?.value > 0;
 |---|---|
 | Empty condition | The effect remains available |
 | `true` result | The effect applies normally |
-| `false` result | The effect is suppressed |
-| Error thrown | The effect is suppressed and the error is shown in the evaluation panel |
+| `false` result | The effect's changes stop applying (suppressed by default, or disabled when the disable behavior is selected) |
+| Error thrown | The effect's changes stop applying and the error is shown in the evaluation panel |
 | Promise or async result | Treated as invalid; conditions must be synchronous |
 
 ### Apply behavior on targets
@@ -179,6 +181,7 @@ What this means in practice:
 
 - Older DAE-driven conditions can be opened in the new UI.
 - The module adapts them automatically instead of forcing a full rewrite.
+- DAE fields edited directly in DAE's own inputs are preserved when the SC condition input was not changed. When the Condition tab is displaying a DAE-backed condition, editing or clearing it updates only that displayed enable/disable field, so an independent opposite field is preserved.
 - If DAE is active, a `libWrapper` warning may appear in the browser console. That warning is expected and does not necessarily indicate broken behavior.
 
 ---
@@ -356,7 +359,8 @@ game.modules.get("sc-conditional-ae").api
 | Problem | What to check |
 |---|---|
 | The effect never applies | Confirm the condition returns `true`, contains valid synchronous code, and still matches current actor/item data |
-| The effect shows as inactive with a badge | The configured condition badge label is appearing because the condition currently evaluates to `false` |
+| The effect shows a "Suppressed", "Condition not met", or "Condition error" badge | The condition currently evaluates to `false` (or throws); the badge tooltip explains the state, and the label can be customized in the Condition tab |
+| The effect toggles itself on or off | The effect uses the **Disable Active Effect** condition behavior, which synchronizes its disabled state with the condition |
 | The Formula column is missing | Make sure **Enable formula column** is on, then reload the world |
 | The formula did not roll | Confirm the effect actually became active, the change is eligible, and the responsible user is the one viewing the prompt or chat card |
 | The macro did not run | Check the key, confirm the mode is `Custom`, verify the world macro exists, and confirm the effect is not suppressed |

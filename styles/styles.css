@@ -240,7 +240,9 @@
 }
 
 .sc-cae-condition-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 1px 6px;
   border-radius: 3px;
   font-size: var(--font-size-10, 10px);
@@ -255,6 +257,38 @@
   vertical-align: middle;
   margin-left: 4px;
   flex-shrink: 0;
+  cursor: help;
+}
+
+.sc-cae-condition-badge i {
+  font-size: 0.9em;
+}
+
+.sc-cae-condition-suppressed .effect-name > img,
+.sc-cae-condition-suppressed [data-tidy-effect-name-container] img,
+.sc-cae-condition-suppressed .tidy-table-cell.primary img,
+.sc-cae-condition-suppressed .item-table-cell.primary img {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.sc-cae-condition-suppressed .effect-name > a:not(.sc-cae-condition-badge),
+.sc-cae-condition-suppressed [data-tidy-effect-name],
+.sc-cae-condition-suppressed .tidy-table-cell.primary > a,
+.sc-cae-condition-suppressed .item-table-cell.primary > a {
+  color: var(--color-text-secondary, currentColor);
+}
+
+.sc-cae-condition-suppressed {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dnd5e-color-crimson, #9e2b1b) 70%, transparent);
+}
+
+.sc-cae-condition-error {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-level-warning, #b36b00) 75%, transparent);
+}
+
+.sc-cae-condition-error .sc-cae-condition-badge {
+  background: var(--color-level-warning, #b36b00);
 }
 
 [data-tidy-effect-name-container] > a.sc-cae-condition-badge-host,
@@ -289,25 +323,73 @@
   min-width: 0;
 }
 
+/* ============================================================
+   Module settings window — Shattered Codex design system
+   Archetype A (Module Settings) · theme: verdant
+   Token values copied verbatim from the design guide styles.css,
+   scoped to this window so they cannot leak into other apps.
+   ============================================================ */
 .sc-cae-settings-app {
-  --sc-cae-bg-panel: #161923;
-  --sc-cae-bg-card-soft: #1a1c28;
-  --sc-cae-border: #3f4457;
-  --sc-cae-border-soft: #323749;
-  --sc-cae-accent: #39f08c;
-  --sc-cae-text: #ddd8cd;
-  --sc-cae-text-dim: #aba494;
-  --sc-cae-text-strong: #f0ecde;
-  color: var(--sc-cae-text);
+  --sc-accent: #1fa971;
+  --sc-accent-soft: #1fa97122;
+  --sc-accent-dim: #14573e;
+  --sc-bg: #15181a;
+  --sc-bg-1: #1b1f22;
+  --sc-bg-2: #232830;
+  --sc-bg-3: #2c333b;
+  --sc-bg-hover: #2f3741;
+  --sc-border: #2e353d;
+  --sc-border-soft: #232a32;
+  --sc-border-strong: #4a5560;
+  --sc-text: #e6e8ea;
+  --sc-text-dim: #9aa3ad;
+  --sc-text-mute: #6b7480;
+  --sc-text-on-acc: #06231a;
+  --sc-warn: #d09b3c;
+  --sc-warn-soft: #d09b3c22;
+  --sc-radius-sm: 4px;
+  --sc-radius: 6px;
+  --sc-radius-lg: 10px;
+  --sc-density: 1;
+  --sc-font-display: "Cinzel", "IM Fell English SC", "Trajan Pro", serif;
+  --sc-font-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --sc-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.55);
+  --sc-glow-accent: 0 0 0 1px var(--sc-accent), 0 0 16px var(--sc-accent-soft);
+
+  color: var(--sc-text);
+  font-family: var(--sc-font-body);
+}
+
+.sc-cae-settings-app.application {
+  background: var(--sc-bg);
+  border: 1px solid var(--sc-border-strong);
+  border-radius: var(--sc-radius-lg);
+  box-shadow: var(--sc-shadow-lg);
+  overflow: hidden;
+}
+
+.sc-cae-settings-app .window-header {
+  border-top: 2px solid var(--sc-accent);
+  border-bottom: 1px solid var(--sc-border);
+  background: var(--sc-bg-2);
+  color: var(--sc-text);
+}
+
+.sc-cae-settings-app .window-header .window-title {
+  font-family: var(--sc-font-display);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--sc-text);
 }
 
 .sc-cae-settings-app .window-content {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding: 0;
   overflow: hidden;
-  background: #0d1115;
-  color: var(--sc-cae-text);
+  background: var(--sc-bg);
+  color: var(--sc-text);
 }
 
 .sc-cae-settings-app .window-header button,
@@ -319,9 +401,9 @@
   height: 1.8rem;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--sc-radius-sm);
   background: transparent;
-  color: var(--sc-cae-text-dim);
+  color: var(--sc-text-dim);
   box-shadow: none;
 }
 
@@ -334,8 +416,8 @@
 .sc-cae-settings-app .window-header .window-control:hover,
 .sc-cae-settings-app .window-header .window-control:focus-visible {
   border: 0;
-  background: color-mix(in srgb, var(--sc-cae-bg-card-soft) 86%, black 14%);
-  color: var(--sc-cae-text-strong);
+  background: var(--sc-bg-hover);
+  color: var(--sc-text);
   box-shadow: none;
 }
 
@@ -343,12 +425,31 @@
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  gap: 0.85rem;
   min-height: 0;
-  padding: 0.9rem;
   overflow: hidden;
 }
 
+.sc-cae-settings-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: calc(18px * var(--sc-density));
+  min-height: 0;
+  padding: calc(16px * var(--sc-density)) calc(18px * var(--sc-density));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sc-bg-3) transparent;
+}
+
+.sc-cae-settings-intro {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sc-text-dim);
+}
+
+/* Rendered inside Foundry's own settings window, outside this
+   app's token scope — values are self-contained on purpose. */
 .sc-cae-settings-menu-notice {
   display: flex;
   align-items: flex-start;
@@ -358,132 +459,93 @@
   box-sizing: border-box;
   margin: 10px 0 0;
   padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, #d7a21d 54%, var(--sc-cae-border) 46%);
+  border: 1px solid #d09b3c;
+  border-left: 3px solid #d09b3c;
   border-radius: 6px;
-  background: color-mix(in srgb, #d7a21d 10%, var(--sc-cae-bg-panel) 90%);
+  background: #d09b3c22;
   font-size: var(--font-size-12, 12px);
   line-height: 1.45;
-  color: var(--sc-cae-text);
 }
 
 .sc-cae-settings-menu-notice i {
-  color: #d7a21d;
+  color: #d09b3c;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .sc-cae-settings-menu-notice strong {
-  color: var(--sc-cae-text-strong);
+  color: #d09b3c;
 }
 
-.sc-cae-settings-hero,
-.sc-cae-settings-card {
-  border: 1px solid var(--sc-cae-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--sc-cae-bg-panel) 88%, black 12%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.sc-cae-settings-hero {
-  padding: 1rem 1rem 0.95rem;
-  background:
-    radial-gradient(circle at top right, rgba(57, 240, 140, 0.08), transparent 36%),
-    color-mix(in srgb, var(--sc-cae-bg-panel) 90%, black 10%);
-}
-
-.sc-cae-settings-hero h3 {
-  margin: 0 0 6px;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--sc-cae-text-strong);
-}
-
-.sc-cae-settings-hero p {
-  margin: 0;
-  color: var(--sc-cae-text-dim);
-  line-height: 1.35;
-}
-
-.sc-cae-settings-disclaimer {
+.sc-cae-settings-note {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, #d7a21d 54%, var(--sc-cae-border) 46%);
-  border-radius: 8px;
-  background: color-mix(in srgb, #d7a21d 10%, var(--sc-cae-bg-panel) 90%);
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sc-warn);
+  border-left: 3px solid var(--sc-warn);
+  border-radius: var(--sc-radius);
+  background: var(--sc-warn-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sc-text);
 }
 
-.sc-cae-settings-disclaimer header {
+.sc-cae-settings-note i {
+  color: var(--sc-warn);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.sc-cae-settings-note strong {
+  color: var(--sc-warn);
+}
+
+.sc-cae-settings-note p {
+  margin: 2px 0 0;
+  color: var(--sc-text-dim);
+}
+
+.sc-cae-settings-section__title {
+  margin: 0;
+  font-family: var(--sc-font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sc-accent);
+}
+
+.sc-cae-settings-section__hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--sc-text-mute);
+}
+
+.sc-cae-settings-section__lock {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--sc-text-mute);
 }
 
-.sc-cae-settings-disclaimer h4,
-.sc-cae-settings-disclaimer p {
-  margin: 0;
-  color: var(--sc-cae-text);
-}
-
-.sc-cae-settings-disclaimer h4 {
-  color: var(--sc-cae-text-strong);
-}
-
-.sc-cae-settings-disclaimer i {
-  color: #d7a21d;
-}
-
-.sc-cae-settings-sections {
-  display: grid;
-  flex: 1 1 auto;
-  gap: 0.8rem;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 0.2rem;
-}
-
-.sc-cae-settings-card__header {
-  padding: 0.85rem 1rem 0.3rem;
-}
-
-.sc-cae-settings-card__header h4,
-.sc-cae-settings-card__header p {
-  margin: 0;
-}
-
-.sc-cae-settings-card__header h4 {
-  color: var(--sc-cae-text-strong);
-}
-
-.sc-cae-settings-card__header p + p,
-.sc-cae-settings-card__header .notes {
-  margin-top: 0.3rem;
-  color: var(--sc-cae-text-dim);
-  line-height: 1.35;
-}
-
-.sc-cae-settings-card__permission-note {
-  color: var(--sc-cae-text-dim);
-}
-
-.sc-cae-settings-field-list {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.2rem 1rem 1rem;
+.sc-cae-settings-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
 }
 
 .sc-cae-settings-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  align-items: start;
-  padding: 0.7rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--sc-cae-border-soft) 80%, transparent 20%);
-}
-
-.sc-cae-settings-row:first-child {
-  padding-top: 0.7rem;
+  gap: 12px;
+  align-items: center;
+  padding: calc(10px * var(--sc-density)) 0;
+  border-bottom: 1px solid var(--sc-border-soft);
+  cursor: pointer;
 }
 
 .sc-cae-settings-row:last-child {
@@ -491,72 +553,140 @@
 }
 
 .sc-cae-settings-row.is-disabled {
-  opacity: 0.72;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .sc-cae-settings-row__copy {
   min-width: 0;
 }
 
-.sc-cae-settings-row__name {
+.sc-cae-settings-row__label {
   display: block;
-  margin-bottom: 0;
-  font-weight: 700;
-  color: var(--sc-cae-text-strong);
+  font-size: 12px;
+  color: var(--sc-text);
 }
 
-.sc-cae-settings-row__copy p {
-  margin: 0.28rem 0 0;
-  color: var(--sc-cae-text-dim);
+.sc-cae-settings-row__hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
   line-height: 1.4;
+  color: var(--sc-text-mute);
 }
 
-.sc-cae-settings-row__checkbox {
-  width: 1.05rem;
-  height: 1.05rem;
-  flex-shrink: 0;
-  margin-top: 0.2rem;
-  accent-color: var(--sc-cae-accent);
+.sc-cae-settings-row input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sc-cae-settings-check {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sc-bg-3);
+  border: 1px solid var(--sc-border);
+  border-radius: 3px;
+  transition: background 120ms ease-out, border-color 120ms ease-out;
+}
+
+.sc-cae-settings-check::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  margin-top: -2px;
+  border-left: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transform: rotate(-45deg);
+  transition: border-color 120ms ease-out;
+}
+
+.sc-cae-settings-row input:checked + .sc-cae-settings-check {
+  background: var(--sc-accent);
+  border-color: var(--sc-accent);
+}
+
+.sc-cae-settings-row input:checked + .sc-cae-settings-check::after {
+  border-color: var(--sc-text-on-acc);
+}
+
+.sc-cae-settings-row input:focus-visible + .sc-cae-settings-check {
+  box-shadow: var(--sc-glow-accent);
 }
 
 .sc-cae-settings-footer {
   display: flex;
+  align-items: center;
   flex: 0 0 auto;
-  justify-content: flex-end;
-  gap: 0.6rem;
-  margin-top: auto;
-  padding-top: 0.1rem;
+  gap: 8px;
+  padding: calc(12px * var(--sc-density)) calc(18px * var(--sc-density));
+  border-top: 1px solid var(--sc-border-strong);
+  background: var(--sc-bg-1);
+}
+
+.sc-cae-settings-footer__spacer {
+  flex: 1;
 }
 
 .sc-cae-settings-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   width: auto;
-  min-width: 9rem;
-  min-height: 2.35rem;
+  height: calc(32px * var(--sc-density));
   padding: 0 14px;
-  border: 1px solid color-mix(in srgb, var(--sc-cae-border-soft) 86%, #7e8db1 14%);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--sc-cae-bg-card-soft) 90%, #0d1220 10%);
-  color: var(--sc-cae-text);
+  border: 1px solid var(--sc-border);
+  border-radius: var(--sc-radius);
+  background: var(--sc-bg-2);
+  color: var(--sc-text);
+  font: 600 12px/1 var(--sc-font-body);
+  cursor: pointer;
   box-shadow: none;
+  transition: background 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
 }
 
 .sc-cae-settings-button:hover,
 .sc-cae-settings-button:focus-visible {
-  border-color: color-mix(in srgb, var(--sc-cae-accent) 48%, #c8ffd8 52%);
-  color: var(--sc-cae-text-strong);
-  background: color-mix(in srgb, var(--sc-cae-accent) 12%, var(--sc-cae-bg-card-soft) 88%);
+  background: var(--sc-bg-hover);
+  border-color: var(--sc-border-strong);
+  color: var(--sc-text);
+  box-shadow: none;
 }
 
 .sc-cae-settings-button--primary {
-  color: var(--sc-cae-text-strong);
+  background: var(--sc-accent);
+  border-color: var(--sc-accent);
+  color: var(--sc-text-on-acc);
+}
+
+.sc-cae-settings-button--primary:hover,
+.sc-cae-settings-button--primary:focus-visible {
+  background: var(--sc-accent-dim);
+  border-color: var(--sc-accent-dim);
+  color: var(--sc-text);
 }
 
 .sc-cae-settings-button--ghost {
-  opacity: 0.92;
+  background: transparent;
+  border-color: transparent;
+  color: var(--sc-text-dim);
+}
+
+.sc-cae-settings-button--ghost:hover,
+.sc-cae-settings-button--ghost:focus-visible {
+  background: var(--sc-bg-hover);
+  color: var(--sc-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-cae-settings-app *,
+  .sc-cae-settings-shell * {
+    transition: none !important;
+  }
 }
 
 .sc-cae-docs-button i.fa-hat-wizard,

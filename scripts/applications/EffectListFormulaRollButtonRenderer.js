@@ -4,6 +4,7 @@ import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormul
 
 export class EffectListFormulaRollButtonRenderer {
   static #registered = false;
+  static #formulaControlsEnabled = false;
   static #observers = new WeakMap();
   static #scheduledRoots = new WeakSet();
 
@@ -25,7 +26,9 @@ export class EffectListFormulaRollButtonRenderer {
     "renderTidy5eVehicleSheetQuadrone"
   ];
 
-  static activate() {
+  static activate({ formulaControlsEnabled = false } = {}) {
+    EffectListFormulaRollButtonRenderer.#formulaControlsEnabled = formulaControlsEnabled === true;
+
     if (EffectListFormulaRollButtonRenderer.#registered) {
       return;
     }
@@ -140,7 +143,11 @@ export class EffectListFormulaRollButtonRenderer {
 
       EffectListFormulaRollButtonRenderer.#updateConditionBadge(row, effect);
 
-      if (!effect || !ActiveEffectFormulaChangeService.hasFormulaChanges(effect)) {
+      if (
+        !EffectListFormulaRollButtonRenderer.#formulaControlsEnabled
+        || !effect
+        || !ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
+      ) {
         row.querySelector(".sc-cae-formula-roll-control")?.remove();
         continue;
       }
@@ -170,24 +177,12 @@ export class EffectListFormulaRollButtonRenderer {
   static #updateConditionBadge(row, effect) {
     EffectListFormulaRollButtonRenderer.#clearConditionBadge(row);
 
-    if (!effect) {
-      return;
-    }
-
-    const rawLabel = String(
-      foundry.utils.getProperty(effect, Constants.CONDITION_BADGE_LABEL_FLAG_PATH) ?? ""
-    ).trim();
-
-    if (!rawLabel) {
-      return;
-    }
-
-    if (!ActiveEffectConditionService.hasCondition(effect)) {
+    if (!effect || !ActiveEffectConditionService.hasCondition(effect)) {
       return;
     }
 
     const evaluation = ActiveEffectConditionService.evaluate(effect);
-    if (evaluation.error || evaluation.available) {
+    if (evaluation.available) {
       return;
     }
 
@@ -196,20 +191,88 @@ export class EffectListFormulaRollButtonRenderer {
       return;
     }
 
-    if (badgeTarget.type === "tidy") {
-      badgeTarget.element.dataset.scCaeConditionBadge = rawLabel.slice(0, Constants.CONDITION_BADGE_LABEL_MAX_LENGTH);
-      badgeTarget.element.classList.add("sc-cae-condition-badge-host");
-      return;
-    }
+    const isDisabled = effect.disabled === true;
+    const state = evaluation.error ? "error" : (isDisabled ? "disabled" : "suppressed");
+    const { defaultLabel, tooltip, iconClass } =
+      EffectListFormulaRollButtonRenderer.#getConditionBadgeText(effect, state);
+    const customLabel = String(
+      foundry.utils.getProperty(effect, Constants.CONDITION_BADGE_LABEL_FLAG_PATH) ?? ""
+    ).trim();
+    const badgeLabel = (customLabel || defaultLabel).slice(0, Constants.CONDITION_BADGE_LABEL_MAX_LENGTH);
 
+    // The row-level fade only applies to enabled rows; the sheet already
+    // renders disabled rows as inactive.
+    row.classList.toggle("sc-cae-condition-suppressed", !isDisabled);
+    row.classList.toggle("sc-cae-condition-error", state === "error");
+    row.dataset.scCaeConditionState = state;
     const badge = document.createElement("span");
     badge.className = "sc-cae-condition-badge";
-    badge.textContent = rawLabel.slice(0, Constants.CONDITION_BADGE_LABEL_MAX_LENGTH);
+    badge.dataset.tooltip = tooltip;
+    badge.dataset.tooltipDirection = "UP";
+    badge.setAttribute("role", "img");
+    badge.setAttribute("aria-label", tooltip);
+
+    const icon = document.createElement("i");
+    icon.className = iconClass;
+    icon.setAttribute("aria-hidden", "true");
+    badge.append(icon);
+
+    const label = document.createElement("span");
+    label.textContent = badgeLabel;
+    badge.append(label);
+
     badgeTarget.element.append(badge);
   }
 
+  static #getConditionBadgeText(effect, state) {
+    if (state === "error") {
+      return {
+        defaultLabel: Constants.localize("SCConditionalAE.ConditionTab.SuppressedErrorBadge", "Condition error"),
+        tooltip: Constants.localize(
+          "SCConditionalAE.ConditionTab.SuppressedErrorTooltip",
+          "Condition evaluation failed. This effect's changes are suppressed to prevent an unsafe application."
+        ),
+        iconClass: "fa-solid fa-triangle-exclamation"
+      };
+    }
+
+    if (state === "disabled") {
+      const managed = ActiveEffectConditionService.isConditionManagedDisabled(effect);
+      return {
+        defaultLabel: Constants.localize("SCConditionalAE.ConditionTab.DisabledBadge", "Condition not met"),
+        tooltip: managed
+          ? Constants.localize(
+            "SCConditionalAE.ConditionTab.DisabledManagedTooltip",
+            "Condition not met. This effect was disabled by its condition and will re-enable automatically once the condition is met."
+          )
+          : Constants.localize(
+            "SCConditionalAE.ConditionTab.DisabledTooltip",
+            "Condition not met. This effect is disabled; even if enabled, its changes would stay suppressed until the condition is met."
+          ),
+        iconClass: "fa-solid fa-circle-minus"
+      };
+    }
+
+    return {
+      defaultLabel: Constants.localize("SCConditionalAE.ConditionTab.SuppressedBadge", "Suppressed"),
+      tooltip: Constants.localize(
+        "SCConditionalAE.ConditionTab.SuppressedTooltip",
+        "Condition not met. This effect is enabled, but its changes are currently suppressed."
+      ),
+      iconClass: "fa-solid fa-circle-pause"
+    };
+  }
+
   static #clearConditionBadge(row) {
-    row.querySelector(".sc-cae-condition-badge")?.remove();
+    row.classList.remove("sc-cae-condition-suppressed");
+    row.classList.remove("sc-cae-condition-error");
+    delete row.dataset.scCaeConditionState;
+    for (const badge of row.querySelectorAll(".sc-cae-condition-badge")) {
+      badge.remove();
+    }
+
+    // Remove the pre-0.0.16 pseudo-element badge state from sheets that
+    // survived a partial re-render.
     for (const tidyHost of row.querySelectorAll("[data-sc-cae-condition-badge]")) {
       delete tidyHost.dataset.scCaeConditionBadge;
       tidyHost.classList.remove("sc-cae-condition-badge-host");

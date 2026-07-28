@@ -26,6 +26,29 @@ export class ActiveEffectConditionService {
     return ActiveEffectConditionService.getCondition(effect).trim().length > 0;
   }
 
+  static getBehavior(effect) {
+    const behavior = String(
+      effect?.getFlag?.(Constants.MODULE_ID, Constants.FLAG_CONDITION_BEHAVIOR)
+      ?? foundry.utils.getProperty(effect ?? {}, Constants.CONDITION_BEHAVIOR_FLAG_PATH)
+      ?? ""
+    ).trim();
+
+    return behavior === Constants.CONDITION_BEHAVIOR_DISABLE
+      ? Constants.CONDITION_BEHAVIOR_DISABLE
+      : Constants.CONDITION_BEHAVIOR_SUPPRESS;
+  }
+
+  static usesDisableBehavior(effect) {
+    return ActiveEffectConditionService.getBehavior(effect) === Constants.CONDITION_BEHAVIOR_DISABLE;
+  }
+
+  static isConditionManagedDisabled(effect) {
+    return (
+      effect?.getFlag?.(Constants.MODULE_ID, Constants.FLAG_CONDITION_MANAGED_DISABLED)
+      ?? foundry.utils.getProperty(effect ?? {}, Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH)
+    ) === true;
+  }
+
   static validateCondition(code) {
     const source = String(code ?? "");
     if (!source.trim().length) {

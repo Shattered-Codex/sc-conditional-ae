@@ -112,6 +112,10 @@ export class EffectApplicationHooks {
 
       const effectData = (sourceEffect ?? effect).toObject();
       delete effectData._id;
+      foundry.utils.unsetProperty(
+        effectData,
+        Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH
+      );
 
       foundry.utils.mergeObject(effectData, {
         disabled: false,

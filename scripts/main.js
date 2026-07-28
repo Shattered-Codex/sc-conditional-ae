@@ -40,11 +40,12 @@ Hooks.once("setup", () => {
   ActiveEffectTransferContextHooks.activate();
   EffectApplicationHooks.activate();
   ActiveEffectTransferHooks.activate();
-  if (ModuleSettings.isFormulaChangesEnabled()) {
+  const formulaChangesEnabled = ModuleSettings.isFormulaChangesEnabled();
+  EffectListFormulaRollButtonRenderer.activate({ formulaControlsEnabled: formulaChangesEnabled });
+  if (formulaChangesEnabled) {
     ActiveEffectFormulaChatCardService.activate();
     ActiveEffectFormulaChangeHooks.activate();
     FormulaColumnRenderer.activateRenderHook();
-    EffectListFormulaRollButtonRenderer.activate();
   }
   ActiveEffectMacroChangeHooks.activate();
 });
