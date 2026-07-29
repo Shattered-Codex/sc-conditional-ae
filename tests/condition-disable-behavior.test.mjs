@@ -208,7 +208,7 @@ globalThis.foundry = {
     isEmpty: value => !value || Object.keys(value).length === 0,
     mergeObject,
     setProperty,
-    unsetProperty: deleteProperty
+    deleteProperty
   }
 };
 globalThis.game = {
