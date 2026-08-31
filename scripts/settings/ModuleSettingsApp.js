@@ -78,6 +78,22 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
           ]
         },
         {
+          title: Constants.localize("SCConditionalAE.Settings.App.InterfaceSection.Title", "Interface"),
+          description: Constants.localize(
+            "SCConditionalAE.Settings.App.InterfaceSection.Description",
+            "Personal display preferences for the Active Effect sheet. These apply only to you."
+          ),
+          permissionNote: null,
+          fields: [
+            ModuleSettingsApp.#createSelectField(
+              ModuleSettings.SETTING_FORMULA_FIELD_STYLE,
+              ModuleSettings.getFormulaFieldStyle(),
+              ModuleSettings.FORMULA_FIELD_STYLES,
+              false
+            )
+          ]
+        },
+        {
           title: Constants.localize("SCConditionalAE.Settings.App.ClientSection.Title", "Diagnostics"),
           description: Constants.localize(
             "SCConditionalAE.Settings.App.ClientSection.Description",
@@ -125,14 +141,40 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       key,
       checked,
       disabled,
+      isSelect: false,
       name: Constants.localize(ModuleSettingsApp.#getSettingNameKey(key), key),
       hint: Constants.localize(ModuleSettingsApp.#getSettingHintKey(key), "")
     };
   }
 
+  static #createSelectField(key, value, choices, disabled) {
+    return {
+      key,
+      disabled,
+      isSelect: true,
+      name: Constants.localize(ModuleSettingsApp.#getSettingNameKey(key), key),
+      hint: Constants.localize(ModuleSettingsApp.#getSettingHintKey(key), ""),
+      options: choices.map(choice => ({
+        value: choice,
+        selected: choice === value,
+        label: Constants.localize(ModuleSettingsApp.#getSettingChoiceKey(key, choice), choice)
+      }))
+    };
+  }
+
+  static #getSettingChoiceKey(key, choice) {
+    const capitalized = `${choice.charAt(0).toUpperCase()}${choice.slice(1)}`;
+    const prefixes = {
+      [ModuleSettings.SETTING_FORMULA_FIELD_STYLE]: "SCConditionalAE.Settings.FormulaFieldStyle"
+    };
+
+    return prefixes[key] ? `${prefixes[key]}.${capitalized}` : choice;
+  }
+
   static #getSettingNameKey(key) {
     const names = {
       [ModuleSettings.SETTING_ENABLE_FORMULA_CHANGES]: "SCConditionalAE.Settings.EnableFormulaChanges.Name",
+      [ModuleSettings.SETTING_FORMULA_FIELD_STYLE]: "SCConditionalAE.Settings.FormulaFieldStyle.Name",
       [ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD]: "SCConditionalAE.Settings.UseFormulaChatCard.Name",
       [ModuleSettings.SETTING_SHOW_CONDITION_TAB]: "SCConditionalAE.Settings.ShowConditionTab.Name",
       [ModuleSettings.SETTING_DEBUG_LOGGING]: "SCConditionalAE.Settings.DebugLogging.Name"
@@ -144,6 +186,7 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
   static #getSettingHintKey(key) {
     const hints = {
       [ModuleSettings.SETTING_ENABLE_FORMULA_CHANGES]: "SCConditionalAE.Settings.EnableFormulaChanges.Hint",
+      [ModuleSettings.SETTING_FORMULA_FIELD_STYLE]: "SCConditionalAE.Settings.FormulaFieldStyle.Hint",
       [ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD]: "SCConditionalAE.Settings.UseFormulaChatCard.Hint",
       [ModuleSettings.SETTING_SHOW_CONDITION_TAB]: "SCConditionalAE.Settings.ShowConditionTab.Hint",
       [ModuleSettings.SETTING_DEBUG_LOGGING]: "SCConditionalAE.Settings.DebugLogging.Hint"
@@ -183,6 +226,13 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
 
     this.#queueUpdate(
       updates,
+      ModuleSettings.SETTING_FORMULA_FIELD_STYLE,
+      current.formulaFieldStyle,
+      submitted.formulaFieldStyle
+    );
+
+    this.#queueUpdate(
+      updates,
       ModuleSettings.SETTING_DEBUG_LOGGING,
       current.debugLogging,
       submitted.debugLogging
@@ -214,6 +264,7 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
   #getCurrentValues() {
     return {
       enableFormulaChanges: ModuleSettings.isFormulaChangesEnabled(),
+      formulaFieldStyle: ModuleSettings.getFormulaFieldStyle(),
       useFormulaChatCard: ModuleSettings.isFormulaChatCardEnabled(),
       showConditionTab: ModuleSettings.isConditionTabEnabled(),
       debugLogging: ModuleSettings.isDebugLoggingEnabled()
@@ -225,6 +276,7 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
 
     return {
       enableFormulaChanges: formData.has(ModuleSettings.SETTING_ENABLE_FORMULA_CHANGES),
+      formulaFieldStyle: String(formData.get(ModuleSettings.SETTING_FORMULA_FIELD_STYLE) ?? "expand"),
       useFormulaChatCard: formData.has(ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD),
       showConditionTab: formData.has(ModuleSettings.SETTING_SHOW_CONDITION_TAB),
       debugLogging: formData.has(ModuleSettings.SETTING_DEBUG_LOGGING)

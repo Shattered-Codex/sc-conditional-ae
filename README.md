@@ -94,6 +94,7 @@ return actor?.system?.attributes?.hp?.value > 0;
 | UI element | What it does |
 |---|---|
 | Condition editor | Stores the effect condition as JavaScript or adapted DAE-compatible content |
+| Variable buttons | Insert an available condition variable at the current editor cursor position |
 | Current evaluation | Shows whether the effect is currently available, suppressed, empty, or throwing an error |
 | When the condition is not met | Chooses between suppressing the effect's changes (default) or disabling the Active Effect while the condition is false |
 | Condition badge label | Optional custom label for the condition-status badge shown on effect lists whenever the condition is not met or cannot be evaluated; leave blank to use the default label |
@@ -107,6 +108,8 @@ return actor?.system?.attributes?.hp?.value > 0;
 | `effect` | The Active Effect being evaluated |
 | `actor` | The affected actor |
 | `targetActor` | Alias of the affected actor |
+| `token` | The affected actor's synthetic token, or its first active token on the current canvas |
+| `lightLevel` | The token's current illumination: `"bright"`, `"dim"`, `"dark"`, or `null` when no canvas token can be resolved |
 | `item` | The owning item, when applicable |
 | `origin` | The effect origin document, when available |
 | `originActor` | The actor tied to the origin document, when available |
@@ -164,6 +167,28 @@ Apply only for a specific item type:
 return item?.system?.type?.value === "martialM";
 ```
 
+Apply only in bright light:
+
+```js
+return lightLevel === "bright";
+```
+
+Apply in bright or dim light:
+
+```js
+return ["bright", "dim"].includes(lightLevel);
+```
+
+Apply only in darkness:
+
+```js
+return lightLevel === "dark";
+```
+
+Conditions that reference `token` are refreshed when that token moves. Conditions that reference `lightLevel` are checked after Foundry refreshes canvas lighting; the Actor is only reset when the condition's availability actually changes. Conditions that do not use either variable do not incur this lighting work.
+
+Spatial conditions are evaluated locally against the rendered canvas. If a linked Actor has multiple tokens, the first active token is used. Because persisting `disabled` would make one client's scene state affect every client and linked token, spatial conditions always use change suppression even when **Disable Active Effect** is selected.
+
 ---
 
 ## DAE Compatibility
@@ -188,9 +213,21 @@ What this means in practice:
 
 ## Formula-Backed Changes
 
-When **Enable formula column** is enabled, the Active Effect changes table gains a **Formula** column.
+When **Enable formula fields** is enabled, every change row in the Active Effect Changes tab gains a formula field.
 
 Use it on normal non-custom changes when you want the effect value to be rolled at activation time.
+
+### Formula field style
+
+**Formula field style** is a per-user setting that picks how that field is presented. Only the last of
+the four keeps a labelled Formula column; the other three give that width back to Attribute Key.
+
+| Style | Behavior |
+|---|---|
+| Expanding row (default) | A `</>` icon in the row toggles a full-width formula field underneath it. The icon lights up while a formula is set, and the row starts expanded when the change already has one |
+| Popup | An `fx` button opens the dedicated editor: the actor's roll-data variables as click-to-insert chips, a searchable list of all of them, and a live preview of what the formula resolves to on that actor |
+| Single field | The change's own **Value** field switches between a fixed number and a formula. Leaving formula mode clears the formula, so the change goes back to its own value |
+| Formula column | A labelled **Formula** column with an always-visible field in every row. Nothing is hidden behind a click, at the cost of a permanent column |
 
 Example:
 
@@ -221,7 +258,8 @@ Formula: -2d6
 
 | Feature | Behavior |
 |---|---|
-| Sheet column | Adds a formula input beside each eligible change value |
+| Sheet field | Adds a formula field to each eligible change row, in the chosen style |
+| Editor preview | The popup editor reports the formula's result on the owning actor, or its range when it rolls dice, and flags invalid formulas before they are saved |
 | Immediate rolling | Default behavior when a formula-backed effect becomes active |
 | Chat card mode | Optional setting that posts a chat card with one-click roll buttons instead of rolling immediately |
 | Effect list roll button | Adds a d20 control to supported actor and item effect lists when formulas are available |
@@ -313,7 +351,8 @@ The module uses an Application V2 settings window and also exposes documentation
 
 | Setting | Scope | Default | Reload required | What it does |
 |---|---|---|---|---|
-| Enable formula column | World | On | Yes | Adds the Formula column and enables formula-backed Active Effect rolling |
+| Enable formula fields | World | On | Yes | Adds the formula field to change rows and enables formula-backed Active Effect rolling |
+| Formula field style | Client | Expanding row | No | Chooses how a change's formula is edited: expanding row, popup editor, the Value field itself, or a dedicated column |
 | Post formula roll chat card | World | Off | No | Posts a chat card when formulas become available instead of rolling immediately |
 | Show condition tab | World | On | Yes | Adds the Condition tab to Active Effect configuration sheets |
 | Enable debug logging | Client | Off | No | Logs condition evaluation, refreshes, and activation transitions to the browser console |
@@ -337,6 +376,9 @@ game.modules.get("sc-conditional-ae").api
 | `validateCondition(code)` | Validates condition code and returns `{ valid, error }` |
 | `evaluate(effect, options?)` | Evaluates the condition and returns `{ available, error, result }` |
 | `shouldSuppress(effect)` | Returns whether the effect should be suppressed |
+| `getToken(actor)` | Returns the actor's synthetic token or first active token on the current canvas |
+| `getLightLevel(token)` | Returns `"bright"`, `"dim"`, `"dark"`, or `null` for the token's current illumination |
+| `lightLevels` | Exposes the canonical `BRIGHT`, `DIM`, and `DARK` values |
 
 ---
 
@@ -361,7 +403,7 @@ game.modules.get("sc-conditional-ae").api
 | The effect never applies | Confirm the condition returns `true`, contains valid synchronous code, and still matches current actor/item data |
 | The effect shows a "Suppressed", "Condition not met", or "Condition error" badge | The condition currently evaluates to `false` (or throws); the badge tooltip explains the state, and the label can be customized in the Condition tab |
 | The effect toggles itself on or off | The effect uses the **Disable Active Effect** condition behavior, which synchronizes its disabled state with the condition |
-| The Formula column is missing | Make sure **Enable formula column** is on, then reload the world |
+| The formula field is missing | Make sure **Enable formula fields** is on, then reload the world |
 | The formula did not roll | Confirm the effect actually became active, the change is eligible, and the responsible user is the one viewing the prompt or chat card |
 | The macro did not run | Check the key, confirm the mode is `Custom`, verify the world macro exists, and confirm the effect is not suppressed |
 | I see a `libWrapper` warning with DAE active | This is an expected compatibility warning when both modules touch the Active Effect pipeline |

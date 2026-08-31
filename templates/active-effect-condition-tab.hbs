@@ -70,6 +70,12 @@
         {{/if}}
       </div>
       <p class="hint">{{ strings.conditionBehaviorHint }}</p>
+      {{#if conditionUsesTokenContext}}
+      <p class="hint sc-cae-compatibility-hint">
+        <i class="fas fa-location-dot"></i>
+        {{ strings.spatialConditionBehaviorHint }}
+      </p>
+      {{/if}}
     </div>
 
     <div class="form-group sc-cae-badge-label-group">
@@ -135,6 +141,63 @@
     </div>
 
     {{#if editable}}
+    <div class="sc-cae-variable-popover" data-sc-cae-variable-popover>
+      <button
+        type="button"
+        class="sc-cae-variable-trigger"
+        data-sc-cae-variable-trigger
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        data-tooltip="{{ strings.variableToolbarHint }}"
+      >
+        <i class="fa-solid fa-brackets-curly"></i>
+        <span>{{ strings.insertVariable }}</span>
+        <i class="fa-solid fa-chevron-down sc-cae-variable-trigger__caret"></i>
+      </button>
+
+      <div
+        class="sc-cae-variable-panel"
+        data-sc-cae-variable-panel
+        role="dialog"
+        aria-label="{{ strings.variableToolbarLabel }}"
+      >
+        <div class="sc-cae-variable-panel__search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input
+            type="text"
+            class="sc-cae-variable-search"
+            data-sc-cae-variable-search
+            placeholder="{{ strings.variableSearchPlaceholder }}"
+            aria-label="{{ strings.variableSearchPlaceholder }}"
+            spellcheck="false"
+            autocomplete="off"
+          />
+        </div>
+
+        <ul class="sc-cae-variable-list" data-sc-cae-variable-list>
+          {{#each conditionVariables}}
+          <li>
+            <button
+              type="button"
+              class="sc-cae-variable-option"
+              data-sc-cae-insert-variable="{{ this.name }}"
+              data-sc-cae-variable-search="{{ this.searchText }}"
+            >
+              <span class="sc-cae-variable-option__head">
+                <code>{{ this.name }}</code>
+                <span class="sc-cae-variable-option__kind">{{ this.kindLabel }}</span>
+              </span>
+              <span class="sc-cae-variable-option__description">{{ this.description }}</span>
+            </button>
+          </li>
+          {{/each}}
+        </ul>
+
+        <p class="hint sc-cae-variable-empty sc-cae-variable-option--hidden" data-sc-cae-variable-empty>
+          {{ strings.variableSearchEmpty }}
+        </p>
+      </div>
+    </div>
     <code-mirror
       name="{{ conditionFlagPath }}"
       language="javascript"

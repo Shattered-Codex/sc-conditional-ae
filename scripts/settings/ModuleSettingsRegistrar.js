@@ -15,6 +15,7 @@ export class ModuleSettingsRegistrar {
     ModuleSettingsRegistrar.#registered = true;
 
     ModuleSettingsRegistrar.#registerFormulaSetting();
+    ModuleSettingsRegistrar.#registerFormulaFieldStyleSetting();
     ModuleSettingsRegistrar.#registerFormulaChatCardSetting();
     ModuleSettingsRegistrar.#registerConditionTabSetting();
     ModuleSettingsRegistrar.#registerDebugSetting();
@@ -45,16 +46,48 @@ export class ModuleSettingsRegistrar {
 
   static #registerFormulaSetting() {
     game.settings.register(Constants.MODULE_ID, ModuleSettings.SETTING_ENABLE_FORMULA_CHANGES, {
-      name: Constants.localize("SCConditionalAE.Settings.EnableFormulaChanges.Name", "Enable formula column"),
+      name: Constants.localize("SCConditionalAE.Settings.EnableFormulaChanges.Name", "Enable formula fields"),
       hint: Constants.localize(
         "SCConditionalAE.Settings.EnableFormulaChanges.Hint",
-        "Adds the Formula column to Active Effect changes and rolls formulas when effects are activated."
+        "Adds formula fields to Active Effect changes and rolls formulas when effects are activated."
       ),
       scope: "world",
       config: false,
       type: Boolean,
       default: true,
       requiresReload: true
+    });
+  }
+
+  static #registerFormulaFieldStyleSetting() {
+    game.settings.register(Constants.MODULE_ID, ModuleSettings.SETTING_FORMULA_FIELD_STYLE, {
+      name: Constants.localize("SCConditionalAE.Settings.FormulaFieldStyle.Name", "Formula field style"),
+      hint: Constants.localize(
+        "SCConditionalAE.Settings.FormulaFieldStyle.Hint",
+        "How a change's formula is edited in the Changes tab."
+      ),
+      scope: "client",
+      config: false,
+      type: String,
+      choices: {
+        expand: Constants.localize(
+          "SCConditionalAE.Settings.FormulaFieldStyle.Expand",
+          "Expanding row — full-width field under the change"
+        ),
+        popup: Constants.localize(
+          "SCConditionalAE.Settings.FormulaFieldStyle.Popup",
+          "Popup — dedicated editor with variables and preview"
+        ),
+        single: Constants.localize(
+          "SCConditionalAE.Settings.FormulaFieldStyle.Single",
+          "Single field — the Value field switches to a formula"
+        ),
+        column: Constants.localize(
+          "SCConditionalAE.Settings.FormulaFieldStyle.Column",
+          "Formula column — a labelled column always in view"
+        )
+      },
+      default: "expand"
     });
   }
 

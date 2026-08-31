@@ -171,7 +171,7 @@ export class ActiveEffectFormulaChangeService {
   }
 
   static shouldPromptForCurrentUser(effect) {
-    const actor = ActiveEffectFormulaChangeService.#getActor(effect);
+    const actor = ActiveEffectFormulaChangeService.getActor(effect);
     if (!actor) {
       return false;
     }
@@ -539,7 +539,7 @@ export class ActiveEffectFormulaChangeService {
       return false;
     }
 
-    const actor = ActiveEffectFormulaChangeService.#getActor(effect);
+    const actor = ActiveEffectFormulaChangeService.getActor(effect);
     if (!actor) {
       return false;
     }
@@ -593,7 +593,7 @@ export class ActiveEffectFormulaChangeService {
   }
 
   static async #rollWithNativeDialog({ actor, change, effect, formula }) {
-    const normalizedFormula = ActiveEffectFormulaChangeService.#normalizeRollFormula(formula);
+    const normalizedFormula = ActiveEffectFormulaChangeService.normalizeRollFormula(formula);
     if (!normalizedFormula) {
       return null;
     }
@@ -667,7 +667,7 @@ export class ActiveEffectFormulaChangeService {
       return null;
     }
 
-    const roll = new Roll(ActiveEffectFormulaChangeService.#normalizeRollFormula(proposedFormula), actor.getRollData?.() ?? {});
+    const roll = new Roll(ActiveEffectFormulaChangeService.normalizeRollFormula(proposedFormula), actor.getRollData?.() ?? {});
     await roll.evaluate();
     await roll.toMessage({
       content: await FormulaRollCardRenderer.build({
@@ -683,7 +683,7 @@ export class ActiveEffectFormulaChangeService {
     };
   }
 
-  static #normalizeRollFormula(formula) {
+  static normalizeRollFormula(formula) {
     const value = String(formula ?? "").trim();
     return value.startsWith("-") ? value.replace(/^-\s*/, "0 - ") : value;
   }
@@ -747,7 +747,7 @@ export class ActiveEffectFormulaChangeService {
     return game.users?.activeGM ?? activeUsers.find(user => user.isGM) ?? null;
   }
 
-  static #getActor(effect) {
+  static getActor(effect) {
     const parent = effect?.parent;
     if (parent instanceof CONFIG.Actor.documentClass) {
       return parent;

@@ -2,6 +2,7 @@ import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { ConditionVariableRegistry } from "../helpers/ConditionVariableRegistry.js";
 
 export class ConditionTabContextBuilder {
   static normalizeConditionBehavior(conditionBehavior) {
@@ -75,6 +76,7 @@ export class ConditionTabContextBuilder {
     );
     const normalizedApplyBehavior = ConditionTabContextBuilder.normalizeDisplayedApplyBehavior(applyBehavior);
     const showDaeApplyBehavior = Constants.isDaeActive();
+    const conditionUsesTokenContext = ActiveEffectConditionService.usesTokenContext(sheet.document);
 
     return {
       tab: ConditionTabContextBuilder.#getConditionTab(sheet, context),
@@ -87,6 +89,7 @@ export class ConditionTabContextBuilder {
       conditionBehaviorIsSuppress: conditionBehavior === Constants.CONDITION_BEHAVIOR_SUPPRESS,
       conditionBehaviorIsDisable: conditionBehavior === Constants.CONDITION_BEHAVIOR_DISABLE,
       conditionBehaviorFlagPath: Constants.CONDITION_BEHAVIOR_FLAG_PATH,
+      conditionUsesTokenContext,
       applyBehavior: ConditionTabContextBuilder.getApplyBehaviorLabel(normalizedApplyBehavior),
       applyBehaviorDescription: ConditionTabContextBuilder.getApplyBehaviorDescription(normalizedApplyBehavior),
       applyBehaviorIsDefault: normalizedApplyBehavior === "default",
@@ -99,6 +102,7 @@ export class ConditionTabContextBuilder {
       conditionInvalid: !validation.valid,
       validationMessage: validation.error?.message ?? "",
       evaluation,
+      conditionVariables: ConditionTabContextBuilder.#buildConditionVariables(),
       codeHelpTooltip: ConditionTabContextBuilder.#buildCodeHelpTooltip(sheet, usesDaeCompatibility),
       strings: {
         label: Constants.localize("SCConditionalAE.ConditionTab.Label", "Condition"),
@@ -113,13 +117,30 @@ export class ConditionTabContextBuilder {
             "This condition came from DAE. SC Conditional AE is adapting it automatically."
           )
           : "",
-        variables: Constants.localize(
-          "SCConditionalAE.ConditionTab.Variables",
-          "Available variables: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
+        variables: ConditionTabContextBuilder.#getAvailableVariablesText(),
+        variableToolbarLabel: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableToolbarLabel",
+          "Available variables"
+        ),
+        variableToolbarHint: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableToolbarHint",
+          "Select a variable to insert it at the current cursor position."
+        ),
+        insertVariable: Constants.localize(
+          "SCConditionalAE.ConditionTab.InsertVariable",
+          "Insert variable"
+        ),
+        variableSearchPlaceholder: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableSearchPlaceholder",
+          "Search variables..."
+        ),
+        variableSearchEmpty: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableSearchEmpty",
+          "No variable matches this search."
         ),
         placeholder: Constants.localize(
           "SCConditionalAE.ConditionTab.Placeholder",
-          "Example: return actor?.system?.attributes?.hp?.value > 0;"
+          "Example: return lightLevel === \"bright\";"
         ),
         evaluationHeading: Constants.localize("SCConditionalAE.ConditionTab.Evaluation.Heading", "Current evaluation"),
         evaluationEmpty: Constants.localize(
@@ -168,6 +189,10 @@ export class ConditionTabContextBuilder {
         conditionBehaviorHint: Constants.localize(
           "SCConditionalAE.ConditionTab.ConditionBehaviorHint",
           "Choose whether to keep the Active Effect enabled while suppressing its changes, or synchronize its disabled state with the condition."
+        ),
+        spatialConditionBehaviorHint: Constants.localize(
+          "SCConditionalAE.ConditionTab.SpatialConditionBehaviorHint",
+          "Conditions that use token or lightLevel always suppress changes locally. They never persist the Active Effect's disabled state."
         ),
         applyBehavior: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehavior", "When applied to a target"),
         applyBehaviorUpdate: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorUpdate", "Default"),
@@ -244,10 +269,7 @@ export class ConditionTabContextBuilder {
         "SCConditionalAE.ConditionTab.Hint",
         "Use JavaScript. This Active Effect is applied only when the script returns true."
       ),
-      Constants.localize(
-        "SCConditionalAE.ConditionTab.Variables",
-        "Available variables: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
-      )
+      ConditionTabContextBuilder.#getAvailableVariablesText()
     ];
 
     if (usesDaeCompatibility) {
@@ -260,6 +282,31 @@ export class ConditionTabContextBuilder {
     }
 
     return lines.join("\n");
+  }
+
+  static #buildConditionVariables() {
+    return ConditionVariableRegistry.variables.map(variable => {
+      const description = Constants.localize(variable.descriptionKey, variable.description);
+      const kindLabel = Constants.localize(variable.kindKey, variable.kind);
+      return {
+        name: variable.name,
+        description,
+        kindLabel,
+        searchText: `${variable.name} ${kindLabel} ${description}`
+      };
+    });
+  }
+
+  static #getAvailableVariablesText() {
+    const variables = ConditionVariableRegistry.names.join(", ");
+    const key = "SCConditionalAE.ConditionTab.Variables";
+    const fallback = `Available variables: ${variables}.`;
+    if (typeof game?.i18n?.format !== "function") {
+      return fallback;
+    }
+
+    const localized = game.i18n.format(key, { variables });
+    return localized && localized !== key ? localized : fallback;
   }
 
   static #formatConditionResult(value) {

@@ -1,5 +1,7 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
+import { ConditionSourceInspector } from "../helpers/ConditionSourceInspector.js";
+import { TokenLightingService } from "../services/TokenLightingService.js";
 
 export class DaeCompatibility {
   static #registered = false;
@@ -190,7 +192,7 @@ export class DaeCompatibility {
     }
 
     try {
-      const context = DaeCompatibility.#buildEvaluationContext(effect, options);
+      const context = DaeCompatibility.#buildEvaluationContext(effect, options, trimmedExpression);
       const preparedExpression = Roll.replaceFormulaData(trimmedExpression, context, { missing: "0", warn: false });
       const rawResult = DaeCompatibility.#evaluateExpression(preparedExpression, context);
       const result = Boolean(rawResult);
@@ -249,11 +251,19 @@ export class DaeCompatibility {
     };
   }
 
-  static #buildEvaluationContext(effect, options) {
+  static #buildEvaluationContext(effect, options, expression = "") {
     const actor = options.actor ?? ActiveEffectContextBuilder.getAffectedActor(effect);
     const origin = options.origin ?? ActiveEffectContextBuilder.getOrigin(effect);
     const item = options.item ?? ActiveEffectContextBuilder.getItem(effect, origin);
     const rollData = actor?.getRollData?.() ?? {};
+    const usesLightLevel = ConditionSourceInspector.usesIdentifier(expression, "lightLevel");
+    const usesToken = ConditionSourceInspector.usesIdentifier(expression, "token") || usesLightLevel;
+    const token = usesToken
+      ? (options.token ?? TokenLightingService.getToken(actor))
+      : null;
+    const lightLevel = usesLightLevel
+      ? (options.lightLevel ?? TokenLightingService.getLightLevel(token))
+      : null;
 
     return foundry.utils.mergeObject(rollData, {
       actor,
@@ -264,12 +274,14 @@ export class DaeCompatibility {
       getProperty: foundry.utils.getProperty.bind(foundry.utils),
       hasProperty: foundry.utils.hasProperty.bind(foundry.utils),
       item,
+      lightLevel,
       origin,
       originActor: ActiveEffectContextBuilder.getOriginActor(origin),
       rollData: foundry.utils.deepClone(rollData),
       source: typeof effect?.toObject === "function" ? foundry.utils.deepClone(effect.toObject(false)) : foundry.utils.deepClone(effect ?? null),
       targetActor: actor,
       time: game.time ?? null,
+      token,
       user: game.user ?? null
     }, { inplace: false });
   }

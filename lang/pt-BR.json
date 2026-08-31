@@ -8,8 +8,11 @@
       "Heading": "Condição do Active Effect",
       "Hint": "Use JavaScript. Este Active Effect só é aplicado quando o script retornar true.",
       "CompatibilityHint": "Esta condição veio do DAE. O SC Conditional AE está adaptando isso automaticamente.",
-      "Variables": "Variáveis disponíveis: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game.",
-      "Placeholder": "Exemplo: return actor?.system?.attributes?.hp?.value > 0;",
+      "Variables": "Variáveis disponíveis: {variables}.",
+      "VariableToolbarLabel": "Variáveis disponíveis",
+      "VariableToolbarHint": "Busque uma variável e insira-a na posição atual do cursor.",
+      "InsertVariable": "Inserir variável",
+      "Placeholder": "Exemplo: return lightLevel === \"bright\";",
       "Evaluation": {
         "Heading": "Avaliação atual",
         "Empty": "Nenhuma condição configurada. O efeito está disponível.",
@@ -36,13 +39,38 @@
       "ConditionBehaviorSuppress": "Suprimir alterações (padrão)",
       "ConditionBehaviorDisable": "Desabilitar Active Effect",
       "ConditionBehaviorHint": "Escolha entre manter o Active Effect habilitado enquanto suas alterações são suprimidas ou sincronizar seu estado desabilitado com a condição.",
+      "SpatialConditionBehaviorHint": "Condições que usam token ou lightLevel sempre suprimem alterações localmente. Elas nunca persistem o estado desabilitado do Active Effect.",
       "ApplyBehavior": "Quando aplicado a um alvo",
       "ApplyBehaviorUpdate": "Default",
       "ApplyBehaviorDuplicate": "Stack",
       "ApplyBehaviorDae": "Igual ao DAE",
       "ApplyBehaviorUpdateHint": "Reaplica o Active Effect atual no alvo em vez de criar um novo.",
       "ApplyBehaviorDuplicateHint": "Adiciona um novo Active Effect em vez de atualizar o existente.",
-      "ApplyBehaviorDaeHint": "Usa a configuracao Stackable do DAE para decidir se o efeito acumula."
+      "ApplyBehaviorDaeHint": "Usa a configuracao Stackable do DAE para decidir se o efeito acumula.",
+      "VariableSearchPlaceholder": "Buscar variáveis...",
+      "VariableSearchEmpty": "Nenhuma variável corresponde a esta busca.",
+      "VariableDescription": {
+        "effect": "O Active Effect sendo avaliado.",
+        "actor": "O ator dono do Active Effect.",
+        "targetActor": "Alias do ator afetado.",
+        "token": "O token no canvas do ator afetado, ou null quando indisponível.",
+        "lightLevel": "Luz sob o token: bright, dim, dark ou null quando indisponível.",
+        "item": "O item dono do Active Effect, quando existe um.",
+        "origin": "O documento de onde o Active Effect se originou.",
+        "originActor": "O ator que originou o Active Effect.",
+        "user": "O usuário que está avaliando a condição.",
+        "rollData": "Dados de rolagem resolvidos a partir do ator dono.",
+        "source": "Os dados de origem do Active Effect.",
+        "getProperty": "Lê uma propriedade aninhada de um objeto por caminho.",
+        "hasProperty": "Verifica se um caminho de propriedade existe.",
+        "deepClone": "Retorna uma cópia profunda de um valor.",
+        "game": "A instância game do Foundry."
+      },
+      "VariableKind": {
+        "object": "objeto",
+        "function": "função",
+        "string": "texto"
+      }
     },
     "MacroChange": {
       "Name": "Macro para executar",
@@ -71,12 +99,26 @@
       "InvalidFormula": "Fórmula inválida no Active Effect.",
       "Column": "Fórmula",
       "ColumnHint": "Fórmula rolada quando este Active Effect é ativado.",
-      "Placeholder": "Fórmula opcional"
+      "Placeholder": "Fórmula opcional",
+      "EditorTitle": "Editor de fórmula",
+      "EditorOpen": "Editar fórmula",
+      "EditorSave": "Salvar fórmula",
+      "EditorHint": "Fórmula rolada quando este Active Effect é ativado. Deixe em branco para remover a fórmula.",
+      "ColumnShort": "fx",
+      "EditorShowAllVariables": "ver todas",
+      "EditorFilterVariables": "Filtrar...",
+      "EditorNoVariable": "Nenhuma variável corresponde a esta busca.",
+      "PreviewEmpty": "Sem fórmula. Esta mudança mantém o próprio valor.",
+      "PreviewInvalid": "Esta fórmula é inválida.",
+      "PreviewResult": "Resultado neste ator: {value}",
+      "PreviewRange": "Resultado neste ator: {minimum} a {maximum}",
+      "PreviewNoActor": "Este Active Effect ainda não tem ator, então os dados de rolagem não estão disponíveis aqui.",
+      "ToggleValueMode": "Alterna entre um valor fixo e uma fórmula."
     },
     "Settings": {
       "EnableFormulaChanges": {
-        "Name": "Habilitar coluna de fórmula",
-        "Hint": "Adiciona a coluna Fórmula aos changes do Active Effect e rola fórmulas quando os efeitos são ativados."
+        "Name": "Habilitar campos de fórmula",
+        "Hint": "Adiciona campos de fórmula aos changes do Active Effect e rola fórmulas quando os efeitos são ativados."
       },
       "UseFormulaChatCard": {
         "Name": "Enviar card de rolagem da fórmula",
@@ -114,6 +156,10 @@
           "Description": "Configurações de mundo que controlam a aba de condição, as fórmulas e o comportamento dos cards no chat.",
           "PermissionNote": "Somente um GM pode alterar as configurações desta seção."
         },
+        "InterfaceSection": {
+          "Title": "Interface",
+          "Description": "Preferências pessoais de exibição da ficha de Active Effect. Valem só para você."
+        },
         "ClientSection": {
           "Title": "Diagnóstico",
           "Description": "Configurações locais do cliente para troubleshooting e logs no navegador."
@@ -123,6 +169,14 @@
         "Save": "Salvar",
         "Cancel": "Cancelar",
         "Saved": "Configurações do SC - Conditional AE salvas."
+      },
+      "FormulaFieldStyle": {
+        "Name": "Estilo do campo de fórmula",
+        "Hint": "Como a fórmula de uma mudança é editada na aba Changes.",
+        "Popup": "Popup — editor dedicado com variáveis e preview",
+        "Expand": "Linha expansível — campo em largura total sob a mudança",
+        "Single": "Campo único — o campo Value alterna para fórmula",
+        "Column": "Coluna Fórmula — coluna rotulada sempre visível"
       }
     }
   }

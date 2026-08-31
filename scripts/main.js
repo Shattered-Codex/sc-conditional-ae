@@ -12,6 +12,7 @@ import { ActiveEffectMacroChangeHooks } from "./hooks/ActiveEffectMacroChangeHoo
 import { ActiveEffectTransferHooks } from "./hooks/ActiveEffectTransferHooks.js";
 import { ActiveEffectConditionService } from "./services/ActiveEffectConditionService.js";
 import { ActiveEffectFormulaChatCardService } from "./services/ActiveEffectFormulaChatCardService.js";
+import { TokenLightingService } from "./services/TokenLightingService.js";
 import { ModuleSettings } from "./settings/ModuleSettings.js";
 import { ModuleSettingsRegistrar } from "./settings/ModuleSettingsRegistrar.js";
 
@@ -60,7 +61,10 @@ Hooks.once("ready", () => {
       hasCondition: ActiveEffectConditionService.hasCondition.bind(ActiveEffectConditionService),
       validateCondition: ActiveEffectConditionService.validateCondition.bind(ActiveEffectConditionService),
       evaluate: ActiveEffectConditionService.evaluate.bind(ActiveEffectConditionService),
-      shouldSuppress: ActiveEffectConditionService.shouldSuppress.bind(ActiveEffectConditionService)
+      shouldSuppress: ActiveEffectConditionService.shouldSuppress.bind(ActiveEffectConditionService),
+      getToken: TokenLightingService.getToken.bind(TokenLightingService),
+      getLightLevel: TokenLightingService.getLightLevel.bind(TokenLightingService),
+      lightLevels: TokenLightingService.LEVELS
     };
   }
 

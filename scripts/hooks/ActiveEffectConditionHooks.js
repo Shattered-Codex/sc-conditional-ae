@@ -4,6 +4,7 @@ import { ActiveEffectFormulaChatCardService } from "../services/ActiveEffectForm
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectMacroChangeService } from "../services/ActiveEffectMacroChangeService.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { TokenLightingService } from "../services/TokenLightingService.js";
 import { ActiveEffectTransferHooks } from "./ActiveEffectTransferHooks.js";
 import { ActiveEffectMacroChangeHooks } from "./ActiveEffectMacroChangeHooks.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -14,10 +15,14 @@ export class ActiveEffectConditionHooks {
   static #effectRefreshHooksRegistered = false;
   static #pendingActorRefreshes = new Map();
   static #cachedConditionAvailability = new Map();
+  static #cachedActorLightLevels = new Map();
   static #actorsInTransitionForceRefresh = new Set();
   static #conditionDisableSyncsInFlight = new Set();
   static #refreshFlushScheduled = false;
+  static #lightingDependencyRefreshScheduled = false;
+  static #lightingDependencyRefreshForce = false;
   static #readyRefreshScheduled = false;
+  static #LIGHTING_REFRESH_THROTTLE_MS = 50;
   static #CONDITION_DISABLE_SYNC_OPTION = "conditionDisableSync";
   static #SUPPRESSION_GETTER_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.isSuppressedPatched`);
   static #SUPPRESSION_METHOD_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.determineSuppressionPatched`);
@@ -250,6 +255,13 @@ export class ActiveEffectConditionHooks {
     Hooks.on("createItem", ActiveEffectConditionHooks.#onItemChanged);
     Hooks.on("updateItem", ActiveEffectConditionHooks.#onItemChanged);
     Hooks.on("deleteItem", ActiveEffectConditionHooks.#onItemChanged);
+    Hooks.on("createToken", ActiveEffectConditionHooks.#onTokenCreatedOrDeleted);
+    Hooks.on("moveToken", ActiveEffectConditionHooks.#onTokenMoved);
+    Hooks.on("updateToken", ActiveEffectConditionHooks.#onTokenUpdated);
+    Hooks.on("deleteToken", ActiveEffectConditionHooks.#onTokenCreatedOrDeleted);
+    Hooks.on("lightingRefresh", ActiveEffectConditionHooks.#onLightingRefresh);
+    Hooks.on("canvasReady", ActiveEffectConditionHooks.#onCanvasReady);
+    Hooks.on("canvasTearDown", ActiveEffectConditionHooks.#onCanvasTearDown);
   }
 
   static #scheduleReadyRefresh() {
@@ -330,6 +342,183 @@ export class ActiveEffectConditionHooks {
     ActiveEffectConditionHooks.#scheduleActorRefresh(actor);
   }
 
+  static #onTokenMoved(tokenDocument) {
+    if (!ActiveEffectConditionHooks.#isTokenOnCurrentCanvasScene(tokenDocument)) {
+      return;
+    }
+
+    const actor = tokenDocument?.actor ?? tokenDocument?.object?.actor ?? null;
+    const isSelectedToken = actor instanceof CONFIG.Actor.documentClass
+      && ActiveEffectConditionHooks.#isSelectedActorToken(actor, tokenDocument);
+    if (
+      isSelectedToken
+      && ActiveEffectConditionHooks.#actorHasDirectTokenConditionedEffects(actor)
+    ) {
+      ActiveEffectConditionHooks.#debug("token changed; scheduling token-dependent condition refresh", {
+        actor: actor.uuid,
+        token: tokenDocument?.uuid ?? tokenDocument?.id ?? null
+      });
+      ActiveEffectConditionHooks.#scheduleActorRefresh(actor);
+    }
+
+    if (
+      (
+        isSelectedToken
+        && ActiveEffectConditionHooks.#actorHasLightingConditionedEffects(actor)
+      )
+      || ActiveEffectConditionHooks.#tokenEmitsLight(tokenDocument)
+    ) {
+      ActiveEffectConditionHooks.#scheduleLightingDependencyRefresh();
+    }
+  }
+
+  static #onTokenUpdated(tokenDocument, changes = {}) {
+    if (!ActiveEffectConditionHooks.#isTokenOnCurrentCanvasScene(tokenDocument)) {
+      return;
+    }
+
+    const changedKeys = Object.keys(changes ?? {});
+    const isMovementOnly = changedKeys.length > 0
+      && changedKeys.every(key => ["x", "y", "elevation"].includes(key));
+    if (isMovementOnly) {
+      return;
+    }
+
+    const actor = tokenDocument?.actor ?? tokenDocument?.object?.actor ?? null;
+    if (
+      actor instanceof CONFIG.Actor.documentClass
+      && ActiveEffectConditionHooks.#isSelectedActorToken(actor, tokenDocument)
+      && ActiveEffectConditionHooks.#actorHasDirectTokenConditionedEffects(actor)
+    ) {
+      ActiveEffectConditionHooks.#scheduleActorRefresh(actor);
+    }
+
+    if (changedKeys.some(key => ["width", "height", "rotation", "hidden", "light"].includes(key))) {
+      TokenLightingService.invalidateCache();
+      ActiveEffectConditionHooks.#scheduleLightingDependencyRefresh();
+    }
+  }
+
+  static #onTokenCreatedOrDeleted(tokenDocument) {
+    if (!ActiveEffectConditionHooks.#isTokenOnCurrentCanvasScene(tokenDocument)) {
+      return;
+    }
+
+    const actor = tokenDocument?.actor ?? tokenDocument?.object?.actor ?? null;
+    if (
+      actor instanceof CONFIG.Actor.documentClass
+      && ActiveEffectConditionHooks.#actorHasTokenConditionedEffects(actor)
+    ) {
+      ActiveEffectConditionHooks.#scheduleActorRefresh(actor);
+    }
+    TokenLightingService.invalidateCache();
+    ActiveEffectConditionHooks.#scheduleLightingDependencyRefresh();
+  }
+
+  static #onLightingRefresh() {
+    TokenLightingService.invalidateCache();
+    ActiveEffectConditionHooks.#scheduleLightingDependencyRefresh();
+  }
+
+  static #onCanvasReady() {
+    TokenLightingService.clearCache();
+    ActiveEffectConditionHooks.#cachedActorLightLevels.clear();
+    ActiveEffectConditionHooks.#scheduleLightingDependencyRefresh({ force: true });
+  }
+
+  static #onCanvasTearDown() {
+    TokenLightingService.clearCache();
+    ActiveEffectConditionHooks.#cachedActorLightLevels.clear();
+  }
+
+  static #scheduleLightingDependencyRefresh({ force = false } = {}) {
+    ActiveEffectConditionHooks.#lightingDependencyRefreshForce ||= force;
+    if (ActiveEffectConditionHooks.#lightingDependencyRefreshScheduled) {
+      return;
+    }
+
+    ActiveEffectConditionHooks.#lightingDependencyRefreshScheduled = true;
+    window.setTimeout(() => {
+      const shouldForce = ActiveEffectConditionHooks.#lightingDependencyRefreshForce;
+      ActiveEffectConditionHooks.#lightingDependencyRefreshScheduled = false;
+      ActiveEffectConditionHooks.#lightingDependencyRefreshForce = false;
+      ActiveEffectConditionHooks.#refreshLightingDependencies({ force: shouldForce });
+    }, ActiveEffectConditionHooks.#LIGHTING_REFRESH_THROTTLE_MS);
+  }
+
+  static #refreshLightingDependencies({ force = false } = {}) {
+    const actors = new Map();
+    for (const token of canvas?.tokens?.placeables ?? []) {
+      const actor = token?.actor;
+      if (
+        actor instanceof CONFIG.Actor.documentClass
+        && !actors.has(actor.uuid)
+        && ActiveEffectConditionHooks.#actorHasLightingConditionedEffects(actor)
+      ) {
+        actors.set(actor.uuid, actor);
+      }
+    }
+
+    const activeActorUuids = new Set(actors.keys());
+    for (const actorUuid of ActiveEffectConditionHooks.#cachedActorLightLevels.keys()) {
+      if (!activeActorUuids.has(actorUuid)) {
+        ActiveEffectConditionHooks.#cachedActorLightLevels.delete(actorUuid);
+      }
+    }
+
+    for (const actor of actors.values()) {
+      const token = TokenLightingService.getToken(actor);
+      const lightLevel = TokenLightingService.getLightLevel(token);
+      const previousLightLevel = ActiveEffectConditionHooks.#cachedActorLightLevels.get(actor.uuid);
+      ActiveEffectConditionHooks.#cachedActorLightLevels.set(actor.uuid, lightLevel);
+
+      if (!force && previousLightLevel === lightLevel) {
+        continue;
+      }
+
+      const conditionState = ActiveEffectConditionHooks.#getLightingConditionState(actor, token, lightLevel);
+      if (!force && !conditionState.changed) {
+        continue;
+      }
+
+      ActiveEffectConditionHooks.#debug("lighting changed; scheduling lighting-dependent condition refresh", {
+        actor: actor.uuid,
+        token: token?.document?.uuid ?? token?.id ?? null,
+        previousLightLevel: previousLightLevel ?? null,
+        lightLevel
+      });
+      ActiveEffectConditionHooks.#scheduleActorRefresh(actor, {
+        precomputedConditionState: conditionState.state
+      });
+    }
+  }
+
+  static #getLightingConditionState(actor, token, lightLevel) {
+    const cachedState = ActiveEffectConditionHooks.#cachedConditionAvailability.get(actor.uuid);
+    const state = new Map();
+    let changed = !cachedState;
+
+    for (const effect of ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
+      if (!ActiveEffectConditionService.usesLightingContext(effect)) {
+        continue;
+      }
+
+      const previousAvailability = cachedState?.get(effect.uuid);
+      const evaluation = ActiveEffectConditionService.evaluate(effect, {
+        actor,
+        token,
+        lightLevel
+      });
+      const currentAvailability = !evaluation.error && evaluation.available;
+      state.set(effect.uuid, currentAvailability);
+      if (previousAvailability !== currentAvailability) {
+        changed = true;
+      }
+    }
+
+    return { changed, state };
+  }
+
   static async #primeConditionState() {
     for (const actor of ActiveEffectConditionHooks.#collectConditionedActors().values()) {
       await ActiveEffectConditionHooks.#refreshActor(actor, {
@@ -363,11 +552,27 @@ export class ActiveEffectConditionHooks {
     return actors;
   }
 
-  static #scheduleActorRefresh(actor) {
+  static #scheduleActorRefresh(actor, { precomputedConditionState = null } = {}) {
     const existing = ActiveEffectConditionHooks.#pendingActorRefreshes.get(actor.uuid);
+    let mergedPrecomputedState = precomputedConditionState instanceof Map
+      ? new Map(precomputedConditionState)
+      : null;
+    if (existing) {
+      if (existing.precomputedConditionState instanceof Map && mergedPrecomputedState) {
+        mergedPrecomputedState = new Map([
+          ...existing.precomputedConditionState,
+          ...mergedPrecomputedState
+        ]);
+      } else {
+        // A general Actor/Item/Effect update may change data used alongside lightLevel,
+        // so a lighting-only preflight is not authoritative for that combined refresh.
+        mergedPrecomputedState = null;
+      }
+    }
     ActiveEffectConditionHooks.#pendingActorRefreshes.set(actor.uuid, {
       actor,
-      triggerConditionalActivation: existing?.triggerConditionalActivation ?? true
+      triggerConditionalActivation: existing?.triggerConditionalActivation ?? true,
+      precomputedConditionState: mergedPrecomputedState
     });
     if (ActiveEffectConditionHooks.#refreshFlushScheduled) {
       return;
@@ -382,7 +587,10 @@ export class ActiveEffectConditionHooks {
       for (const pendingActor of pendingActors) {
         await ActiveEffectConditionHooks.#refreshActor(
           pendingActor.actor,
-          { triggerConditionalActivation: pendingActor.triggerConditionalActivation }
+          {
+            triggerConditionalActivation: pendingActor.triggerConditionalActivation,
+            precomputedConditionState: pendingActor.precomputedConditionState
+          }
         );
       }
     }, 0);
@@ -391,7 +599,8 @@ export class ActiveEffectConditionHooks {
   static async #refreshActor(actor, {
     triggerConditionalActivation = false,
     handleTransitions = true,
-    renderApplications = true
+    renderApplications = true,
+    precomputedConditionState = null
   } = {}) {
     if (!(actor instanceof CONFIG.Actor.documentClass)) {
       return;
@@ -399,6 +608,14 @@ export class ActiveEffectConditionHooks {
 
     const previousConditionState = ActiveEffectConditionHooks.#getCachedConditionalEffectState(actor);
     const conditionalEffects = ActiveEffectConditionHooks.#getConditionalEffects(actor);
+    let stateUsedForReset = previousConditionState;
+    if (previousConditionState && precomputedConditionState instanceof Map) {
+      stateUsedForReset = new Map(previousConditionState);
+      for (const [effectUuid, available] of precomputedConditionState) {
+        stateUsedForReset.set(effectUuid, available);
+      }
+      ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects, stateUsedForReset);
+    }
     let refreshed = false;
     try {
       ActiveEffectConditionHooks.#refreshEffectSuppressionState(actor, conditionalEffects, { phase: "pre-reset" });
@@ -409,6 +626,10 @@ export class ActiveEffectConditionHooks {
         triggerConditionalActivation
       });
     } catch (error) {
+      if (previousConditionState) {
+        ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects, previousConditionState);
+      }
+      ActiveEffectConditionHooks.#cachedActorLightLevels.delete(actor.uuid);
       try {
         console.warn(`[${Constants.MODULE_ID}] could not refresh actor condition state`, {
           actor: actor?.uuid ?? actor?.name ?? actor,
@@ -432,8 +653,8 @@ export class ActiveEffectConditionHooks {
           conditionalEffects
         )
         : null;
-      const gateStateChanged = !previousConditionState
-        || ActiveEffectConditionHooks.#didConditionStateChange(previousConditionState, currentConditionState);
+      const gateStateChanged = !stateUsedForReset
+        || ActiveEffectConditionHooks.#didConditionStateChange(stateUsedForReset, currentConditionState);
       ActiveEffectConditionHooks.#cacheConditionalEffectState(actor, conditionalEffects, currentConditionState);
 
       // Re-prepare once with the corrected cache so the gate applies/suppresses changes using
@@ -486,6 +707,60 @@ export class ActiveEffectConditionHooks {
     }
 
     return ActiveEffectConditionHooks.#getConditionalEffects(actor).length > 0;
+  }
+
+  static #actorHasLightingConditionedEffects(actor) {
+    return ActiveEffectConditionHooks.#getConditionalEffects(actor).some(effect => (
+      ActiveEffectConditionService.usesLightingContext(effect)
+    ));
+  }
+
+  static #actorHasDirectTokenConditionedEffects(actor) {
+    return ActiveEffectConditionHooks.#getConditionalEffects(actor).some(effect => (
+      ActiveEffectConditionService.usesDirectTokenContext(effect)
+    ));
+  }
+
+  static #actorHasTokenConditionedEffects(actor) {
+    return ActiveEffectConditionHooks.#getConditionalEffects(actor).some(effect => (
+      ActiveEffectConditionService.usesTokenContext(effect)
+    ));
+  }
+
+  static #isSelectedActorToken(actor, tokenDocument) {
+    const selectedToken = TokenLightingService.getToken(actor);
+    const selectedDocument = selectedToken?.document ?? selectedToken;
+    return selectedDocument === tokenDocument
+      || (
+        selectedDocument?.id
+        && selectedDocument.id === tokenDocument?.id
+        && selectedDocument?.parent?.id === tokenDocument?.parent?.id
+      );
+  }
+
+  static #isTokenOnCurrentCanvasScene(tokenDocument) {
+    const currentSceneId = globalThis.canvas?.scene?.id;
+    if (!currentSceneId) {
+      return false;
+    }
+
+    let parent = tokenDocument?.parent ?? null;
+    if (parent?.id === currentSceneId) {
+      return true;
+    }
+    while (parent && parent.documentName !== "Scene" && parent.constructor?.metadata?.name !== "Scene") {
+      parent = parent.parent ?? null;
+    }
+    const sceneId = parent?.id ?? tokenDocument?.object?.scene?.id ?? null;
+    return sceneId === currentSceneId;
+  }
+
+  static #tokenEmitsLight(tokenDocument) {
+    const light = tokenDocument?.light ?? tokenDocument?.object?.document?.light ?? null;
+    return Math.max(
+      Math.abs(Number(light?.dim ?? 0)),
+      Math.abs(Number(light?.bright ?? 0))
+    ) > 0;
   }
 
   static #itemHasConditionedEffects(item) {
@@ -904,7 +1179,10 @@ export class ActiveEffectConditionHooks {
       }
 
       const hasCondition = ActiveEffectConditionService.hasCondition(effect);
-      const usesDisableBehavior = ActiveEffectConditionService.usesDisableBehavior(effect);
+      // Spatial context is local to a rendered token. Persisting disabled for it can create
+      // cross-client races or disable a linked Actor shared by tokens in different locations.
+      const usesDisableBehavior = ActiveEffectConditionService.usesDisableBehavior(effect)
+        && !ActiveEffectConditionService.usesTokenContext(effect);
       const managedDisabled = ActiveEffectConditionService.isConditionManagedDisabled(effect);
       const available = currentConditionState.get(effectUuid) ?? true;
       let updateData = null;
