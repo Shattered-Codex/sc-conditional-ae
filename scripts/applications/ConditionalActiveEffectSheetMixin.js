@@ -1,5 +1,6 @@
 import { Constants } from "../constants/Constants.js";
 import { ConditionTabContextBuilder } from "./ConditionTabContextBuilder.js";
+import { ConditionVariableInserter } from "./ConditionVariableInserter.js";
 import { EffectSheetSubmitDataHandler } from "./EffectSheetSubmitDataHandler.js";
 import { FormulaColumnRenderer } from "./FormulaColumnRenderer.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -54,6 +55,7 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
       ensureMinimumSheetWidth(this);
       activateBadgeLabelCounter(this);
       activateApplyBehaviorHint(this);
+      activateConditionVariableToolbar(this);
       if (ModuleSettings.isFormulaChangesEnabled()) {
         FormulaColumnRenderer.scheduleRender(this);
         FormulaColumnRenderer.activateObserver(this);
@@ -240,4 +242,9 @@ function activateApplyBehaviorHint(sheet) {
 
   select.dataset.scCaeApplyBehaviorHintBound = "true";
   select.addEventListener("change", syncHint);
+}
+
+function activateConditionVariableToolbar(sheet) {
+  const root = FormulaColumnRenderer.getSheetRoot(sheet) ?? sheet.element;
+  ConditionVariableInserter.activate(root, Constants.CONDITION_FLAG_PATH);
 }

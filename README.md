@@ -94,6 +94,7 @@ return actor?.system?.attributes?.hp?.value > 0;
 | UI element | What it does |
 |---|---|
 | Condition editor | Stores the effect condition as JavaScript or adapted DAE-compatible content |
+| Variable buttons | Insert an available condition variable at the current editor cursor position |
 | Current evaluation | Shows whether the effect is currently available, suppressed, empty, or throwing an error |
 | When the condition is not met | Chooses between suppressing the effect's changes (default) or disabling the Active Effect while the condition is false |
 | Condition badge label | Optional custom label for the condition-status badge shown on effect lists whenever the condition is not met or cannot be evaluated; leave blank to use the default label |

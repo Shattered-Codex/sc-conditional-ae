@@ -141,6 +141,28 @@
     </div>
 
     {{#if editable}}
+    <div
+      class="sc-cae-variable-toolbar"
+      data-sc-cae-variable-toolbar
+      role="group"
+      aria-label="{{ strings.variableToolbarLabel }}"
+    >
+      <div class="sc-cae-variable-toolbar__heading">
+        <strong>{{ strings.variableToolbarLabel }}</strong>
+        <span class="sc-cae-variable-toolbar__hint">{{ strings.variableToolbarHint }}</span>
+      </div>
+      <div class="sc-cae-variable-toolbar__buttons">
+        {{#each conditionVariables}}
+        <button
+          type="button"
+          class="sc-cae-variable-button"
+          data-sc-cae-insert-variable="{{ this }}"
+          data-tooltip="{{ ../strings.insertVariable }}: {{ this }}"
+          aria-label="{{ ../strings.insertVariable }}: {{ this }}"
+        ><code>{{ this }}</code></button>
+        {{/each}}
+      </div>
+    </div>
     <code-mirror
       name="{{ conditionFlagPath }}"
       language="javascript"

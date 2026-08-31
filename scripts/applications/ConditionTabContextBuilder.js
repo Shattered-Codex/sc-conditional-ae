@@ -2,6 +2,7 @@ import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { ConditionVariableRegistry } from "../helpers/ConditionVariableRegistry.js";
 
 export class ConditionTabContextBuilder {
   static normalizeConditionBehavior(conditionBehavior) {
@@ -101,6 +102,7 @@ export class ConditionTabContextBuilder {
       conditionInvalid: !validation.valid,
       validationMessage: validation.error?.message ?? "",
       evaluation,
+      conditionVariables: ConditionVariableRegistry.names,
       codeHelpTooltip: ConditionTabContextBuilder.#buildCodeHelpTooltip(sheet, usesDaeCompatibility),
       strings: {
         label: Constants.localize("SCConditionalAE.ConditionTab.Label", "Condition"),
@@ -115,9 +117,18 @@ export class ConditionTabContextBuilder {
             "This condition came from DAE. SC Conditional AE is adapting it automatically."
           )
           : "",
-        variables: Constants.localize(
-          "SCConditionalAE.ConditionTab.Variables",
-          "Available variables: effect, actor, targetActor, token, lightLevel, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
+        variables: ConditionTabContextBuilder.#getAvailableVariablesText(),
+        variableToolbarLabel: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableToolbarLabel",
+          "Available variables"
+        ),
+        variableToolbarHint: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableToolbarHint",
+          "Select a variable to insert it at the current cursor position."
+        ),
+        insertVariable: Constants.localize(
+          "SCConditionalAE.ConditionTab.InsertVariable",
+          "Insert variable"
         ),
         placeholder: Constants.localize(
           "SCConditionalAE.ConditionTab.Placeholder",
@@ -250,10 +261,7 @@ export class ConditionTabContextBuilder {
         "SCConditionalAE.ConditionTab.Hint",
         "Use JavaScript. This Active Effect is applied only when the script returns true."
       ),
-      Constants.localize(
-        "SCConditionalAE.ConditionTab.Variables",
-        "Available variables: effect, actor, targetActor, token, lightLevel, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
-      )
+      ConditionTabContextBuilder.#getAvailableVariablesText()
     ];
 
     if (usesDaeCompatibility) {
@@ -266,6 +274,18 @@ export class ConditionTabContextBuilder {
     }
 
     return lines.join("\n");
+  }
+
+  static #getAvailableVariablesText() {
+    const variables = ConditionVariableRegistry.names.join(", ");
+    const key = "SCConditionalAE.ConditionTab.Variables";
+    const fallback = `Available variables: ${variables}.`;
+    if (typeof game?.i18n?.format !== "function") {
+      return fallback;
+    }
+
+    const localized = game.i18n.format(key, { variables });
+    return localized && localized !== key ? localized : fallback;
   }
 
   static #formatConditionResult(value) {

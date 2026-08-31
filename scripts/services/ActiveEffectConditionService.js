@@ -3,6 +3,7 @@ import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilde
 import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 import { ConditionSourceInspector } from "../helpers/ConditionSourceInspector.js";
+import { ConditionVariableRegistry } from "../helpers/ConditionVariableRegistry.js";
 import { TokenLightingService } from "./TokenLightingService.js";
 
 export class ActiveEffectConditionService {
@@ -184,23 +185,7 @@ export class ActiveEffectConditionService {
     const compiled = new Function(
       "context",
       `"use strict";
-const {
-  actor,
-  deepClone,
-  effect,
-  game,
-  getProperty,
-  hasProperty,
-  item,
-  lightLevel,
-  origin,
-  originActor,
-  rollData,
-  source,
-  targetActor,
-  token,
-  user
-} = context;
+const { ${ConditionVariableRegistry.names.join(", ")} } = context;
 ${body}`
     );
 

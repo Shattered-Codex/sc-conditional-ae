@@ -8,7 +8,10 @@
       "Heading": "Condição do Active Effect",
       "Hint": "Use JavaScript. Este Active Effect só é aplicado quando o script retornar true.",
       "CompatibilityHint": "Esta condição veio do DAE. O SC Conditional AE está adaptando isso automaticamente.",
-      "Variables": "Variáveis disponíveis: effect, actor, targetActor, token, lightLevel, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game.",
+      "Variables": "Variáveis disponíveis: {variables}.",
+      "VariableToolbarLabel": "Variáveis disponíveis",
+      "VariableToolbarHint": "Selecione uma variável para inseri-la na posição atual do cursor.",
+      "InsertVariable": "Inserir variável",
       "Placeholder": "Exemplo: return lightLevel === \"bright\";",
       "Evaluation": {
         "Heading": "Avaliação atual",
