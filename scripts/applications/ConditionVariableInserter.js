@@ -5,25 +5,6 @@ export class ConditionVariableInserter {
     return ConditionVariableRegistry.names;
   }
 
-  static activate(root, conditionFlagPath) {
-    const toolbar = root?.querySelector?.("[data-sc-cae-variable-toolbar]");
-    if (!toolbar || toolbar.dataset.scCaeVariableToolbarBound === "true") {
-      return;
-    }
-
-    toolbar.dataset.scCaeVariableToolbarBound = "true";
-    toolbar.addEventListener("click", event => {
-      const button = event.target?.closest?.("[data-sc-cae-insert-variable]");
-      if (!button) {
-        return;
-      }
-
-      event.preventDefault();
-      const editor = root.querySelector(`code-mirror[name="${conditionFlagPath}"]`);
-      ConditionVariableInserter.insert(editor, button.dataset.scCaeInsertVariable);
-    });
-  }
-
   static insert(editor, variable) {
     if (!editor || editor.editable === false || !ConditionVariableRegistry.has(variable)) {
       return false;
@@ -38,7 +19,11 @@ export class ConditionVariableInserter {
 
     editor.value = `${value.slice(0, cursor)}${variable}${value.slice(cursor)}`;
     editor.scrollTo?.({ top: nextCursor });
-    editor.querySelector?.('[contenteditable="true"]')?.focus?.();
+    if (typeof editor.click === "function") {
+      editor.click();
+    } else {
+      editor.querySelector?.('[contenteditable="true"]')?.focus?.();
+    }
     return true;
   }
 }

@@ -29,22 +29,39 @@
 
         <div class="sc-cae-settings-rows">
           {{#each this.fields}}
-            <label class="sc-cae-settings-row {{#if this.disabled}}is-disabled{{/if}}">
-              <span class="sc-cae-settings-row__copy">
-                <span class="sc-cae-settings-row__label">{{this.name}}</span>
-                {{#if this.hint}}
-                  <span class="sc-cae-settings-row__hint">{{this.hint}}</span>
-                {{/if}}
-              </span>
+            {{#if this.isSelect}}
+              <div class="sc-cae-settings-row sc-cae-settings-row--select {{#if this.disabled}}is-disabled{{/if}}">
+                <span class="sc-cae-settings-row__copy">
+                  <span class="sc-cae-settings-row__label">{{this.name}}</span>
+                  {{#if this.hint}}
+                    <span class="sc-cae-settings-row__hint">{{this.hint}}</span>
+                  {{/if}}
+                </span>
 
-              <input
-                type="checkbox"
-                name="{{this.key}}"
-                {{#if this.checked}}checked{{/if}}
-                {{#if this.disabled}}disabled{{/if}}
-              >
-              <span class="sc-cae-settings-check" aria-hidden="true"></span>
-            </label>
+                <select name="{{this.key}}" {{#if this.disabled}}disabled{{/if}}>
+                  {{#each this.options}}
+                    <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                  {{/each}}
+                </select>
+              </div>
+            {{else}}
+              <label class="sc-cae-settings-row {{#if this.disabled}}is-disabled{{/if}}">
+                <span class="sc-cae-settings-row__copy">
+                  <span class="sc-cae-settings-row__label">{{this.name}}</span>
+                  {{#if this.hint}}
+                    <span class="sc-cae-settings-row__hint">{{this.hint}}</span>
+                  {{/if}}
+                </span>
+
+                <input
+                  type="checkbox"
+                  name="{{this.key}}"
+                  {{#if this.checked}}checked{{/if}}
+                  {{#if this.disabled}}disabled{{/if}}
+                >
+                <span class="sc-cae-settings-check" aria-hidden="true"></span>
+              </label>
+            {{/if}}
           {{/each}}
         </div>
       </section>

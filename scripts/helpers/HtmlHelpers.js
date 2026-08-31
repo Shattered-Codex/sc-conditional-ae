@@ -4,4 +4,8 @@ export class HtmlHelpers {
     element.textContent = String(value ?? "");
     return element.innerHTML;
   }
+
+  static escapeAttribute(value) {
+    return HtmlHelpers.escape(value).replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+  }
 }

@@ -22,6 +22,7 @@ export class ActiveEffectConditionHooks {
   static #lightingDependencyRefreshScheduled = false;
   static #lightingDependencyRefreshForce = false;
   static #readyRefreshScheduled = false;
+  static #LIGHTING_REFRESH_THROTTLE_MS = 50;
   static #CONDITION_DISABLE_SYNC_OPTION = "conditionDisableSync";
   static #SUPPRESSION_GETTER_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.isSuppressedPatched`);
   static #SUPPRESSION_METHOD_PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.determineSuppressionPatched`);
@@ -442,7 +443,7 @@ export class ActiveEffectConditionHooks {
       ActiveEffectConditionHooks.#lightingDependencyRefreshScheduled = false;
       ActiveEffectConditionHooks.#lightingDependencyRefreshForce = false;
       ActiveEffectConditionHooks.#refreshLightingDependencies({ force: shouldForce });
-    }, 0);
+    }, ActiveEffectConditionHooks.#LIGHTING_REFRESH_THROTTLE_MS);
   }
 
   static #refreshLightingDependencies({ force = false } = {}) {

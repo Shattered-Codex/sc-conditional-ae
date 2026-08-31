@@ -102,7 +102,7 @@ export class ConditionTabContextBuilder {
       conditionInvalid: !validation.valid,
       validationMessage: validation.error?.message ?? "",
       evaluation,
-      conditionVariables: ConditionVariableRegistry.names,
+      conditionVariables: ConditionTabContextBuilder.#buildConditionVariables(),
       codeHelpTooltip: ConditionTabContextBuilder.#buildCodeHelpTooltip(sheet, usesDaeCompatibility),
       strings: {
         label: Constants.localize("SCConditionalAE.ConditionTab.Label", "Condition"),
@@ -129,6 +129,14 @@ export class ConditionTabContextBuilder {
         insertVariable: Constants.localize(
           "SCConditionalAE.ConditionTab.InsertVariable",
           "Insert variable"
+        ),
+        variableSearchPlaceholder: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableSearchPlaceholder",
+          "Search variables..."
+        ),
+        variableSearchEmpty: Constants.localize(
+          "SCConditionalAE.ConditionTab.VariableSearchEmpty",
+          "No variable matches this search."
         ),
         placeholder: Constants.localize(
           "SCConditionalAE.ConditionTab.Placeholder",
@@ -274,6 +282,19 @@ export class ConditionTabContextBuilder {
     }
 
     return lines.join("\n");
+  }
+
+  static #buildConditionVariables() {
+    return ConditionVariableRegistry.variables.map(variable => {
+      const description = Constants.localize(variable.descriptionKey, variable.description);
+      const kindLabel = Constants.localize(variable.kindKey, variable.kind);
+      return {
+        name: variable.name,
+        description,
+        kindLabel,
+        searchText: `${variable.name} ${kindLabel} ${description}`
+      };
+    });
   }
 
   static #getAvailableVariablesText() {

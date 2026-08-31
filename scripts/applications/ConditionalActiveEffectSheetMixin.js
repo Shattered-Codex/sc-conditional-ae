@@ -1,19 +1,17 @@
 import { Constants } from "../constants/Constants.js";
 import { ConditionTabContextBuilder } from "./ConditionTabContextBuilder.js";
-import { ConditionVariableInserter } from "./ConditionVariableInserter.js";
+import { ConditionVariablePopover } from "./ConditionVariablePopover.js";
 import { EffectSheetSubmitDataHandler } from "./EffectSheetSubmitDataHandler.js";
 import { FormulaColumnRenderer } from "./FormulaColumnRenderer.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 const TEMPLATE_PATH = `modules/${Constants.MODULE_ID}/templates/active-effect-condition-tab.hbs`;
-const MINIMUM_SHEET_WIDTH = 1080;
-const DAE_MINIMUM_SHEET_WIDTH = 1080;
 
 export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
   return class ConditionalActiveEffectSheet extends ActiveEffectSheet {
     static SC_CONDITIONAL_AE_MIXED_SHEET = true;
 
-    static DEFAULT_OPTIONS = getExtendedDefaultOptions(super.DEFAULT_OPTIONS ?? {});
+    static DEFAULT_OPTIONS = super.DEFAULT_OPTIONS ?? {};
 
     static PARTS = getExtendedParts(super.PARTS ?? {});
 
@@ -52,10 +50,9 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
 
     _onRender(...args) {
       super._onRender?.(...args);
-      ensureMinimumSheetWidth(this);
       activateBadgeLabelCounter(this);
       activateApplyBehaviorHint(this);
-      activateConditionVariableToolbar(this);
+      activateConditionVariablePopover(this);
       if (ModuleSettings.isFormulaChangesEnabled()) {
         FormulaColumnRenderer.scheduleRender(this);
         FormulaColumnRenderer.activateObserver(this);
@@ -63,83 +60,12 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
     }
 
     _onClose(...args) {
+      this._scCaeConditionVariablePopover?.destroy?.();
+      this._scCaeConditionVariablePopover = null;
       FormulaColumnRenderer.deactivateObserver(this);
       return super._onClose?.(...args);
     }
   };
-}
-
-function getExtendedDefaultOptions(options) {
-  if (!ModuleSettings.isFormulaChangesEnabled()) {
-    return options;
-  }
-
-  const minimumWidth = getMinimumSheetWidth({ options });
-  const configuredWidth = Number(options.position?.width);
-  const width = Number.isFinite(configuredWidth)
-    ? Math.max(configuredWidth, minimumWidth)
-    : minimumWidth;
-
-  return {
-    ...options,
-    position: {
-      ...(options.position ?? {}),
-      width
-    }
-  };
-}
-
-function ensureMinimumSheetWidth(sheet) {
-  if (!ModuleSettings.isFormulaChangesEnabled()) {
-    return;
-  }
-
-  const root = FormulaColumnRenderer.getSheetRoot(sheet);
-  const minimumWidth = getMinimumSheetWidth({ sheet, root });
-  const currentWidth = root?.getBoundingClientRect?.().width ?? 0;
-  if (currentWidth >= minimumWidth) {
-    return;
-  }
-
-  if (typeof sheet.setPosition === "function") {
-    sheet.setPosition({ width: minimumWidth });
-    return;
-  }
-
-  if (root) {
-    root.style.width = `${minimumWidth}px`;
-  }
-}
-
-function getMinimumSheetWidth({ sheet, root, options } = {}) {
-  return hasDaeSheetClass(root, sheet, options)
-    ? DAE_MINIMUM_SHEET_WIDTH
-    : MINIMUM_SHEET_WIDTH;
-}
-
-function hasDaeSheetClass(root, sheet, options) {
-  if (root?.classList?.contains("dae")) {
-    return true;
-  }
-
-  const classes = getConfiguredSheetClasses(sheet, options);
-  return classes.includes("dae");
-}
-
-function getConfiguredSheetClasses(sheet, options) {
-  const candidates = [
-    options?.classes,
-    sheet?.options?.classes,
-    sheet?.constructor?.DEFAULT_OPTIONS?.classes
-  ];
-
-  for (const value of candidates) {
-    if (Array.isArray(value)) {
-      return value;
-    }
-  }
-
-  return [];
 }
 
 function getExtendedParts(parts) {
@@ -244,7 +170,13 @@ function activateApplyBehaviorHint(sheet) {
   select.addEventListener("change", syncHint);
 }
 
-function activateConditionVariableToolbar(sheet) {
+function activateConditionVariablePopover(sheet) {
   const root = FormulaColumnRenderer.getSheetRoot(sheet) ?? sheet.element;
-  ConditionVariableInserter.activate(root, Constants.CONDITION_FLAG_PATH);
+  const controller = ConditionVariablePopover.activate(root, Constants.CONDITION_FLAG_PATH);
+  if (!controller) {
+    return;
+  }
+
+  sheet._scCaeConditionVariablePopover?.destroy?.();
+  sheet._scCaeConditionVariablePopover = controller;
 }

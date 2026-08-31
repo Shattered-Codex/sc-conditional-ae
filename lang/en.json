@@ -10,7 +10,7 @@
       "CompatibilityHint": "This condition came from DAE. SC Conditional AE is adapting it automatically.",
       "Variables": "Available variables: {variables}.",
       "VariableToolbarLabel": "Available variables",
-      "VariableToolbarHint": "Select a variable to insert it at the current cursor position.",
+      "VariableToolbarHint": "Search for a variable and insert it at the current cursor position.",
       "InsertVariable": "Insert variable",
       "Placeholder": "Example: return lightLevel === \"bright\";",
       "Evaluation": {
@@ -46,7 +46,31 @@
       "ApplyBehaviorDae": "Same as DAE",
       "ApplyBehaviorUpdateHint": "Reapplies the current Active Effect on the target instead of creating a new one.",
       "ApplyBehaviorDuplicateHint": "Adds a new Active Effect instead of updating the existing one.",
-      "ApplyBehaviorDaeHint": "Uses DAE's Stackable setting to decide whether the effect stacks."
+      "ApplyBehaviorDaeHint": "Uses DAE's Stackable setting to decide whether the effect stacks.",
+      "VariableSearchPlaceholder": "Search variables...",
+      "VariableSearchEmpty": "No variable matches this search.",
+      "VariableDescription": {
+        "effect": "The Active Effect being evaluated.",
+        "actor": "The actor that owns the Active Effect.",
+        "targetActor": "Alias of the affected actor.",
+        "token": "The affected actor's canvas token, or null when unavailable.",
+        "lightLevel": "Light under the token: bright, dim, dark, or null when unavailable.",
+        "item": "The item that owns the Active Effect, when there is one.",
+        "origin": "The document the Active Effect originated from.",
+        "originActor": "The actor that originated the Active Effect.",
+        "user": "The user evaluating the condition.",
+        "rollData": "Roll data resolved from the owning actor.",
+        "source": "The source data of the Active Effect.",
+        "getProperty": "Reads a nested property from an object by path.",
+        "hasProperty": "Checks whether a nested property path exists.",
+        "deepClone": "Returns a deep copy of a value.",
+        "game": "The Foundry game instance."
+      },
+      "VariableKind": {
+        "object": "object",
+        "function": "function",
+        "string": "string"
+      }
     },
     "MacroChange": {
       "Name": "Macro to Execute",
@@ -75,12 +99,26 @@
       "InvalidFormula": "Invalid Active Effect formula.",
       "Column": "Formula",
       "ColumnHint": "Formula rolled when this Active Effect is activated.",
-      "Placeholder": "Optional formula"
+      "Placeholder": "Optional formula",
+      "EditorTitle": "Formula editor",
+      "EditorOpen": "Edit formula",
+      "EditorSave": "Save formula",
+      "EditorHint": "Formula rolled when this Active Effect is activated. Leave it blank to remove the formula.",
+      "ColumnShort": "fx",
+      "EditorShowAllVariables": "see all",
+      "EditorFilterVariables": "Filter...",
+      "EditorNoVariable": "No variable matches this search.",
+      "PreviewEmpty": "No formula. This change keeps its own value.",
+      "PreviewInvalid": "This formula is invalid.",
+      "PreviewResult": "Result on this actor: {value}",
+      "PreviewRange": "Result on this actor: {minimum} to {maximum}",
+      "PreviewNoActor": "This Active Effect has no actor yet, so roll data is unavailable here.",
+      "ToggleValueMode": "Switch between a fixed value and a formula."
     },
     "Settings": {
       "EnableFormulaChanges": {
-        "Name": "Enable formula column",
-        "Hint": "Adds the Formula column to Active Effect changes and rolls formulas when effects are activated."
+        "Name": "Enable formula fields",
+        "Hint": "Adds formula fields to Active Effect changes and rolls formulas when effects are activated."
       },
       "UseFormulaChatCard": {
         "Name": "Post formula roll chat card",
@@ -118,6 +156,10 @@
           "Description": "World-level settings that control condition tabs, formula changes, and chat-card behavior.",
           "PermissionNote": "Only a GM can change the settings in this section."
         },
+        "InterfaceSection": {
+          "Title": "Interface",
+          "Description": "Personal display preferences for the Active Effect sheet. These apply only to you."
+        },
         "ClientSection": {
           "Title": "Diagnostics",
           "Description": "Client-side settings for troubleshooting and local browser logging."
@@ -127,6 +169,14 @@
         "Save": "Save",
         "Cancel": "Cancel",
         "Saved": "SC - Conditional AE settings saved."
+      },
+      "FormulaFieldStyle": {
+        "Name": "Formula field style",
+        "Hint": "How a change's formula is edited in the Changes tab.",
+        "Popup": "Popup — dedicated editor with variables and preview",
+        "Expand": "Expanding row — full-width field under the change",
+        "Single": "Single field — the Value field switches to a formula",
+        "Column": "Formula column — a labelled column always in view"
       }
     }
   }

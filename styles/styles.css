@@ -47,69 +47,198 @@
   min-height: 220px;
 }
 
-.sc-cae-variable-toolbar {
+.sc-cae-variable-popover {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.035);
+  align-items: flex-start;
 }
 
-.sc-cae-variable-toolbar__heading {
-  display: flex;
+.sc-cae-variable-trigger {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  font-size: 0.8rem;
-}
-
-.sc-cae-variable-toolbar__hint {
-  color: var(--color-text-secondary, #9e9e8e);
-  font-size: 0.76rem;
-  font-weight: 400;
-}
-
-.sc-cae-variable-toolbar__buttons {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  min-width: 0;
-}
-
-.sc-cae-variable-button {
-  flex: 0 0 auto;
+  gap: 0.4rem;
   width: auto;
   min-width: 0;
   height: 28px;
   margin: 0;
-  padding: 0 0.45rem;
+  padding: 0 0.65rem;
   border: 1px solid color-mix(in srgb, var(--sc-cae-accent, #39f08c) 34%, transparent 66%);
   border-radius: 999px;
   background: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 7%, transparent 93%);
+  font-size: 0.8rem;
   line-height: 1;
+  cursor: pointer;
 }
 
-.sc-cae-variable-button code {
-  color: inherit;
-  font-size: 0.78rem;
-  pointer-events: none;
-}
-
-.sc-cae-variable-button:hover,
-.sc-cae-variable-button:focus-visible {
+.sc-cae-variable-trigger:hover,
+.sc-cae-variable-trigger:focus-visible,
+.sc-cae-variable-popover--open .sc-cae-variable-trigger {
   border-color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 68%, transparent 32%);
   background: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 16%, transparent 84%);
 }
 
-@media (max-width: 760px) {
-  .sc-cae-variable-toolbar__heading {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.15rem;
-  }
+.sc-cae-variable-trigger__caret {
+  font-size: 0.66rem;
+  opacity: 0.7;
+  transition: transform 0.12s ease;
+}
+
+.sc-cae-variable-popover--open .sc-cae-variable-trigger__caret {
+  transform: rotate(180deg);
+}
+
+.sc-cae-variable-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  display: none;
+  box-sizing: border-box;
+  width: min(360px, 100%);
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.4rem 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: var(--color-bg-option, #16161d);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.sc-cae-variable-popover--open .sc-cae-variable-panel {
+  display: flex;
+}
+
+.sc-cae-variable-panel__search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--color-text-secondary, #9e9e8e);
+}
+
+.sc-cae-variable-search {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+}
+
+.sc-cae-variable-panel__search:focus-within {
+  border-color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 55%, transparent 45%);
+  color: var(--sc-cae-accent, #39f08c);
+}
+
+.sc-cae-variable-search {
+  color: var(--color-text-primary, #f0ecde);
+}
+
+.sc-cae-variable-search:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.sc-cae-variable-list {
+  display: flex;
+  max-height: 232px;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 40%, transparent 60%) transparent;
+}
+
+.sc-cae-variable-list li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Foundry centres button content; the option is a two-line record, so it must start at the left. */
+.sc-cae-variable-option {
+  display: flex;
+  width: 100%;
+  height: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.1rem;
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+  color: inherit;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.sc-cae-variable-option:hover,
+.sc-cae-variable-option:focus-visible,
+.sc-cae-variable-option--active {
+  border-left-color: var(--sc-cae-accent, #39f08c);
+  background: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 10%, transparent 90%);
+  outline: none;
+  box-shadow: none;
+}
+
+.sc-cae-variable-option__head {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+/* Reset the boxed <code> styling systems apply, so the name reads as a plain token. */
+.sc-cae-variable-option code {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--sc-cae-accent, #39f08c);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.sc-cae-variable-option__kind {
+  margin-left: auto;
+  color: var(--color-text-secondary, #9e9e8e);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sc-cae-variable-option__description {
+  width: 100%;
+  color: var(--color-text-secondary, #9e9e8e);
+  font-size: 0.73rem;
+  text-align: left;
+}
+
+.sc-cae-variable-empty {
+  margin: 0;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.sc-cae-variable-option--hidden {
+  display: none !important;
 }
 
 .sc-cae-code-header {
@@ -208,30 +337,182 @@
   user-select: text;
 }
 
-.sc-cae-formula-cell {
-  min-width: 0;
-  vertical-align: top;
-}
-
-.sc-cae-formula-header,
+.sc-cae-formula-cell,
 .sc-cae-formula-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
 }
 
-.sc-cae-formula-column {
-  align-self: start;
+/* Compact treatments use this as a spacer; column mode provides the label. */
+.sc-cae-formula-header {
+  min-width: 0;
+  text-align: center;
 }
 
-.sc-cae-formula-input {
+.sc-cae-formula-input:not(.sc-cae-formula-input--visible) {
+  display: none !important;
+}
+
+.sc-cae-formula-input--visible {
   box-sizing: border-box;
-  min-width: 0;
   width: 100%;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+}
+
+.sc-cae-formula-open {
+  display: inline-flex;
+  height: 1.75rem;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary, #9e9e8e);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sc-cae-formula-open--expand {
+  width: 1.75rem;
+}
+
+.sc-cae-formula-open--popup {
+  width: 100%;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.sc-cae-formula-open i {
+  pointer-events: none;
+}
+
+.sc-cae-formula-open:hover,
+.sc-cae-formula-open:focus-visible {
+  border-color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 60%, transparent 40%);
+  background: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 14%, transparent 86%);
+  color: var(--color-text-emphasis, #f0ecde);
+}
+
+.sc-cae-formula-open--set {
+  border-color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 55%, transparent 45%);
+  background: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 18%, transparent 82%);
+  color: var(--sc-cae-accent, #39f08c);
+}
+
+/* 1a — the expansion spans the row it belongs to and reads as a child of it. */
+.sc-cae-formula-expansion {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid color-mix(in srgb, var(--sc-cae-accent, #39f08c) 55%, transparent 45%);
+}
+
+.sc-cae-formula-expansion__field {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sc-cae-formula-expansion__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 78%, #f3f7ff 22%);
+}
+
+.sc-cae-formula-collapse {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary, #9e9e8e);
+  cursor: pointer;
+}
+
+.sc-cae-formula-collapse:hover,
+.sc-cae-formula-collapse:focus-visible {
+  color: var(--color-text-emphasis, #f0ecde);
+}
+
+.sc-cae-formula-expansion-row > td {
+  padding-top: 0;
+}
+
+/* 1c — the change's own Value cell hosts the number/formula switch. */
+.sc-cae-formula-single {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-border-light-tertiary, rgba(255, 255, 255, 0.18));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sc-cae-formula-single:focus-within {
+  border-color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 60%, transparent 40%);
+}
+
+.sc-cae-formula-single input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sc-cae-formula-single .sc-cae-formula-value--hidden {
+  display: none !important;
+}
+
+.sc-cae-formula-mode {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--color-border-light-tertiary, rgba(255, 255, 255, 0.18));
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary, #9e9e8e);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sc-cae-formula-mode i {
+  pointer-events: none;
+}
+
+.sc-cae-formula-mode--formula {
+  background: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 18%, transparent 82%);
+  color: var(--sc-cae-accent, #39f08c);
 }
 
 .active-effect-config .tab.changes.sc-cae-formula-section {
   overflow-y: visible;
 }
 
+/* `popup` and `expand` add one narrow cell; the sheet keeps its native width. */
 .active-effect-config section.changes.sc-cae-formula-section header,
 .active-effect-config section.changes.sc-cae-formula-section ol,
 .active-effect-config section[data-tab="changes"].sc-cae-formula-section header,
@@ -239,10 +520,29 @@
   grid-template-columns:
     minmax(0, 2fr)
     minmax(60px, 0.85fr)
-    minmax(60px, 0.9fr)
-    minmax(52px, 0.65fr)
+    minmax(60px, 1.1fr)
+    2.75rem
     minmax(48px, 0.65fr)
     1rem;
+}
+
+.active-effect-config section.changes.sc-cae-formula-section--expand header,
+.active-effect-config section.changes.sc-cae-formula-section--expand ol,
+.active-effect-config section[data-tab="changes"].sc-cae-formula-section--expand header,
+.active-effect-config section[data-tab="changes"].sc-cae-formula-section--expand ol {
+  grid-template-columns:
+    minmax(0, 2fr)
+    minmax(60px, 0.85fr)
+    minmax(60px, 1.1fr)
+    2.125rem
+    minmax(48px, 0.65fr)
+    1rem;
+}
+
+.active-effect-config section.changes.sc-cae-formula-section header .sc-cae-formula-header,
+.active-effect-config section[data-tab="changes"].sc-cae-formula-section header .sc-cae-formula-header {
+  align-self: center;
+  font-weight: 700;
 }
 
 .active-effect-config section.changes.sc-cae-formula-section header > *,
@@ -252,24 +552,56 @@
   min-width: 0;
 }
 
-.active-effect-config section.changes.sc-cae-formula-section .sc-cae-formula-row input,
+.active-effect-config section.changes.sc-cae-formula-section .sc-cae-formula-row input:not(.sc-cae-formula-input),
 .active-effect-config section.changes.sc-cae-formula-section .sc-cae-formula-row select,
-.active-effect-config section[data-tab="changes"].sc-cae-formula-section .sc-cae-formula-row input,
+.active-effect-config section[data-tab="changes"].sc-cae-formula-section .sc-cae-formula-row input:not(.sc-cae-formula-input),
 .active-effect-config section[data-tab="changes"].sc-cae-formula-section .sc-cae-formula-row select {
   box-sizing: border-box;
   min-width: 0;
   width: 100%;
 }
 
-.active-effect-config section.changes.sc-cae-formula-section header .sc-cae-formula-header,
-.active-effect-config section[data-tab="changes"].sc-cae-formula-section header .sc-cae-formula-header {
-  align-self: center;
-  font-weight: 700;
-}
-
 .dae.active-effect-config section.tab.changes.sc-cae-formula-section header,
 .dae.active-effect-config section.tab.changes.sc-cae-formula-section ol {
-  grid-template-columns: 400px 110px minmax(250px, 1fr) minmax(160px, 0.9fr) 60px 1rem;
+  grid-template-columns: 400px 110px minmax(250px, 1fr) 2.75rem 60px 1rem;
+}
+
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section--expand header,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section--expand ol {
+  grid-template-columns: 400px 110px minmax(250px, 1fr) 2.125rem 60px 1rem;
+}
+
+/* The `column` treatment edits in place, so its column needs real width. */
+.active-effect-config section.changes.sc-cae-formula-section--column header,
+.active-effect-config section.changes.sc-cae-formula-section--column ol,
+.active-effect-config section[data-tab="changes"].sc-cae-formula-section--column header,
+.active-effect-config section[data-tab="changes"].sc-cae-formula-section--column ol {
+  grid-template-columns:
+    minmax(0, 1.6fr)
+    minmax(60px, 0.8fr)
+    minmax(60px, 0.9fr)
+    minmax(70px, 0.9fr)
+    minmax(48px, 0.6fr)
+    1rem;
+}
+
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section--column header,
+.dae.active-effect-config section.tab.changes.sc-cae-formula-section--column ol {
+  grid-template-columns: 400px 110px minmax(200px, 1fr) minmax(120px, 0.8fr) 60px 1rem;
+}
+
+.sc-cae-formula-section--column .sc-cae-formula-cell,
+.sc-cae-formula-section--column .sc-cae-formula-column {
+  justify-content: stretch;
+}
+
+.sc-cae-formula-section--column .sc-cae-formula-header {
+  text-align: left;
+}
+
+/* `single` adds no cell at all, so the system's own grid is left untouched. */
+.sc-cae-formula-section--single .sc-cae-formula-value-cell {
+  min-width: 0;
 }
 
 .dae.active-effect-config section.tab.changes.sc-cae-formula-section .mode select,
@@ -280,10 +612,112 @@
   width: 100%;
 }
 
-.dae.active-effect-config section.tab.changes.sc-cae-formula-section .sc-cae-formula-header,
-.dae.active-effect-config section.tab.changes.sc-cae-formula-section .sc-cae-formula-column,
-.dae.active-effect-config section.tab.changes.sc-cae-formula-section .sc-cae-formula-input {
-  min-width: 160px;
+.sc-cae-formula-editor__subtitle {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+}
+
+.sc-cae-formula-editor__hint {
+  margin: 0 0 0.5rem;
+}
+
+.sc-cae-formula-editor__input {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  resize: vertical;
+}
+
+.sc-cae-formula-editor__note {
+  margin: 0.5rem 0 0;
+}
+
+.sc-cae-formula-editor__variables {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.sc-cae-formula-editor__chip {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.15rem 0.45rem;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-secondary, #9e9e8e);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.sc-cae-formula-editor__chip:hover,
+.sc-cae-formula-editor__chip:focus-visible {
+  background: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 16%, transparent 84%);
+  color: var(--color-text-emphasis, #f0ecde);
+}
+
+.sc-cae-formula-editor__more {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.15rem 0.45rem;
+  border: 0;
+  background: none;
+  color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 78%, #f3f7ff 22%);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.sc-cae-formula-editor__browser {
+  margin-top: 0.4rem;
+  border: 1px solid var(--color-border-light-tertiary, rgba(255, 255, 255, 0.18));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sc-cae-formula-editor__search {
+  box-sizing: border-box;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-light-tertiary, rgba(255, 255, 255, 0.18));
+  border-radius: 0;
+  background: transparent;
+}
+
+.sc-cae-formula-editor__browser-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-height: 11rem;
+  padding: 0.4rem;
+  overflow-y: auto;
+}
+
+.sc-cae-formula-editor__browser-empty {
+  margin: 0;
+  padding: 0 0.4rem 0.4rem;
+}
+
+.sc-cae-formula-editor__preview {
+  margin: 0.6rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border-light-tertiary, rgba(255, 255, 255, 0.18));
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #9e9e8e);
+}
+
+.sc-cae-formula-editor__preview[data-state="ok"] {
+  color: color-mix(in srgb, var(--sc-cae-accent, #39f08c) 80%, #f3f7ff 20%);
+}
+
+.sc-cae-formula-editor__preview[data-state="invalid"] {
+  color: #f2777a;
 }
 
 .sc-cae-badge-label-group .form-fields {
@@ -638,6 +1072,29 @@
   font-size: 10px;
   line-height: 1.4;
   color: var(--sc-text-mute);
+}
+
+.sc-cae-settings-row--select {
+  cursor: default;
+}
+
+.sc-cae-settings-row--select select {
+  width: auto;
+  min-width: 200px;
+  max-width: 260px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--sc-border);
+  border-radius: 3px;
+  background: var(--sc-bg-3);
+  color: var(--sc-text);
+  font-size: 11px;
+}
+
+.sc-cae-settings-row--select select:focus-visible {
+  border-color: var(--sc-accent);
+  box-shadow: var(--sc-glow-accent);
+  outline: none;
 }
 
 .sc-cae-settings-row input[type="checkbox"] {
