@@ -75,6 +75,7 @@ export class ConditionTabContextBuilder {
     );
     const normalizedApplyBehavior = ConditionTabContextBuilder.normalizeDisplayedApplyBehavior(applyBehavior);
     const showDaeApplyBehavior = Constants.isDaeActive();
+    const conditionUsesTokenContext = ActiveEffectConditionService.usesTokenContext(sheet.document);
 
     return {
       tab: ConditionTabContextBuilder.#getConditionTab(sheet, context),
@@ -87,6 +88,7 @@ export class ConditionTabContextBuilder {
       conditionBehaviorIsSuppress: conditionBehavior === Constants.CONDITION_BEHAVIOR_SUPPRESS,
       conditionBehaviorIsDisable: conditionBehavior === Constants.CONDITION_BEHAVIOR_DISABLE,
       conditionBehaviorFlagPath: Constants.CONDITION_BEHAVIOR_FLAG_PATH,
+      conditionUsesTokenContext,
       applyBehavior: ConditionTabContextBuilder.getApplyBehaviorLabel(normalizedApplyBehavior),
       applyBehaviorDescription: ConditionTabContextBuilder.getApplyBehaviorDescription(normalizedApplyBehavior),
       applyBehaviorIsDefault: normalizedApplyBehavior === "default",
@@ -115,11 +117,11 @@ export class ConditionTabContextBuilder {
           : "",
         variables: Constants.localize(
           "SCConditionalAE.ConditionTab.Variables",
-          "Available variables: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
+          "Available variables: effect, actor, targetActor, token, lightLevel, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
         ),
         placeholder: Constants.localize(
           "SCConditionalAE.ConditionTab.Placeholder",
-          "Example: return actor?.system?.attributes?.hp?.value > 0;"
+          "Example: return lightLevel === \"bright\";"
         ),
         evaluationHeading: Constants.localize("SCConditionalAE.ConditionTab.Evaluation.Heading", "Current evaluation"),
         evaluationEmpty: Constants.localize(
@@ -168,6 +170,10 @@ export class ConditionTabContextBuilder {
         conditionBehaviorHint: Constants.localize(
           "SCConditionalAE.ConditionTab.ConditionBehaviorHint",
           "Choose whether to keep the Active Effect enabled while suppressing its changes, or synchronize its disabled state with the condition."
+        ),
+        spatialConditionBehaviorHint: Constants.localize(
+          "SCConditionalAE.ConditionTab.SpatialConditionBehaviorHint",
+          "Conditions that use token or lightLevel always suppress changes locally. They never persist the Active Effect's disabled state."
         ),
         applyBehavior: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehavior", "When applied to a target"),
         applyBehaviorUpdate: Constants.localize("SCConditionalAE.ConditionTab.ApplyBehaviorUpdate", "Default"),
@@ -246,7 +252,7 @@ export class ConditionTabContextBuilder {
       ),
       Constants.localize(
         "SCConditionalAE.ConditionTab.Variables",
-        "Available variables: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
+        "Available variables: effect, actor, targetActor, token, lightLevel, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game."
       )
     ];
 

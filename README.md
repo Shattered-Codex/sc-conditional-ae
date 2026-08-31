@@ -107,6 +107,8 @@ return actor?.system?.attributes?.hp?.value > 0;
 | `effect` | The Active Effect being evaluated |
 | `actor` | The affected actor |
 | `targetActor` | Alias of the affected actor |
+| `token` | The affected actor's synthetic token, or its first active token on the current canvas |
+| `lightLevel` | The token's current illumination: `"bright"`, `"dim"`, `"dark"`, or `null` when no canvas token can be resolved |
 | `item` | The owning item, when applicable |
 | `origin` | The effect origin document, when available |
 | `originActor` | The actor tied to the origin document, when available |
@@ -163,6 +165,28 @@ Apply only for a specific item type:
 ```js
 return item?.system?.type?.value === "martialM";
 ```
+
+Apply only in bright light:
+
+```js
+return lightLevel === "bright";
+```
+
+Apply in bright or dim light:
+
+```js
+return ["bright", "dim"].includes(lightLevel);
+```
+
+Apply only in darkness:
+
+```js
+return lightLevel === "dark";
+```
+
+Conditions that reference `token` are refreshed when that token moves. Conditions that reference `lightLevel` are checked after Foundry refreshes canvas lighting; the Actor is only reset when the condition's availability actually changes. Conditions that do not use either variable do not incur this lighting work.
+
+Spatial conditions are evaluated locally against the rendered canvas. If a linked Actor has multiple tokens, the first active token is used. Because persisting `disabled` would make one client's scene state affect every client and linked token, spatial conditions always use change suppression even when **Disable Active Effect** is selected.
 
 ---
 

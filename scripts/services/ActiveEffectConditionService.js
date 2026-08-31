@@ -2,6 +2,8 @@ import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
+import { ConditionSourceInspector } from "../helpers/ConditionSourceInspector.js";
+import { TokenLightingService } from "./TokenLightingService.js";
 
 export class ActiveEffectConditionService {
   static #compiledConditionCache = new Map();
@@ -24,6 +26,25 @@ export class ActiveEffectConditionService {
 
   static hasCondition(effect) {
     return ActiveEffectConditionService.getCondition(effect).trim().length > 0;
+  }
+
+  static usesLightingContext(effect) {
+    return ConditionSourceInspector.usesIdentifier(
+      ActiveEffectConditionService.getCondition(effect),
+      "lightLevel"
+    );
+  }
+
+  static usesDirectTokenContext(effect) {
+    return ConditionSourceInspector.usesIdentifier(
+      ActiveEffectConditionService.getCondition(effect),
+      "token"
+    );
+  }
+
+  static usesTokenContext(effect) {
+    return ActiveEffectConditionService.usesDirectTokenContext(effect)
+      || ActiveEffectConditionService.usesLightingContext(effect);
   }
 
   static getBehavior(effect) {
@@ -120,7 +141,7 @@ export class ActiveEffectConditionService {
 
       try {
         const runner = ActiveEffectConditionService.#compileCondition(rawCode);
-        context = ActiveEffectConditionService.#buildContext(effect, options);
+        context = ActiveEffectConditionService.#buildContext(effect, options, rawCode);
         ActiveEffectConditionService.#debug("evaluating active effect condition", {
           effect: effectSummary,
           conditionLength: rawCode.length
@@ -171,11 +192,13 @@ const {
   getProperty,
   hasProperty,
   item,
+  lightLevel,
   origin,
   originActor,
   rollData,
   source,
   targetActor,
+  token,
   user
 } = context;
 ${body}`
@@ -191,10 +214,16 @@ ${body}`
     return compiled;
   }
 
-  static #buildContext(effect, options) {
+  static #buildContext(effect, options, conditionCode = "") {
     const affectedActor = options.actor ?? ActiveEffectContextBuilder.getAffectedActor(effect);
     const origin = options.origin ?? ActiveEffectContextBuilder.getOrigin(effect);
     const item = options.item ?? ActiveEffectContextBuilder.getItem(effect, origin);
+    const usesLightingContext = ConditionSourceInspector.usesIdentifier(conditionCode, "lightLevel");
+    const usesTokenContext = usesLightingContext
+      || ConditionSourceInspector.usesIdentifier(conditionCode, "token");
+    const token = usesTokenContext
+      ? (options.token ?? TokenLightingService.getToken(affectedActor))
+      : null;
     const context = {
       actor: affectedActor,
       deepClone: foundry.utils.deepClone.bind(foundry.utils),
@@ -203,10 +232,14 @@ ${body}`
       getProperty: foundry.utils.getProperty.bind(foundry.utils),
       hasProperty: foundry.utils.hasProperty.bind(foundry.utils),
       item,
+      lightLevel: usesLightingContext
+        ? (options.lightLevel ?? TokenLightingService.getLightLevel(token))
+        : null,
       origin,
       originActor: ActiveEffectContextBuilder.getOriginActor(origin),
       source: ActiveEffectConditionService.#getSourceData(effect),
       targetActor: affectedActor,
+      token,
       user: game.user ?? null
     };
 

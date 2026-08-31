@@ -8,8 +8,8 @@
       "Heading": "Condição do Active Effect",
       "Hint": "Use JavaScript. Este Active Effect só é aplicado quando o script retornar true.",
       "CompatibilityHint": "Esta condição veio do DAE. O SC Conditional AE está adaptando isso automaticamente.",
-      "Variables": "Variáveis disponíveis: effect, actor, targetActor, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game.",
-      "Placeholder": "Exemplo: return actor?.system?.attributes?.hp?.value > 0;",
+      "Variables": "Variáveis disponíveis: effect, actor, targetActor, token, lightLevel, item, origin, originActor, user, rollData, source, getProperty, hasProperty, deepClone, game.",
+      "Placeholder": "Exemplo: return lightLevel === \"bright\";",
       "Evaluation": {
         "Heading": "Avaliação atual",
         "Empty": "Nenhuma condição configurada. O efeito está disponível.",
@@ -36,6 +36,7 @@
       "ConditionBehaviorSuppress": "Suprimir alterações (padrão)",
       "ConditionBehaviorDisable": "Desabilitar Active Effect",
       "ConditionBehaviorHint": "Escolha entre manter o Active Effect habilitado enquanto suas alterações são suprimidas ou sincronizar seu estado desabilitado com a condição.",
+      "SpatialConditionBehaviorHint": "Condições que usam token ou lightLevel sempre suprimem alterações localmente. Elas nunca persistem o estado desabilitado do Active Effect.",
       "ApplyBehavior": "Quando aplicado a um alvo",
       "ApplyBehaviorUpdate": "Default",
       "ApplyBehaviorDuplicate": "Stack",
