@@ -625,9 +625,48 @@
  * tracks past the sheet. `!important` is needed because DAE declares those
  * minimums with an equally specific selector, so source order would decide.
  * ------------------------------------------------------------------------ */
+
+/*
+ * DAE sizes the header and the row container to `max-content`. With
+ * proportional tracks that makes the rows as wide as DAE's unwrapped field
+ * descriptions, while the header, whose labels are short, keeps the sheet's
+ * width, so every cell drifts away from its label and off the right edge.
+ */
+.sc-cae-changes-grid > header,
+.sc-cae-changes-grid > ol {
+  min-width: 0 !important;
+}
+
+/*
+ * The row container reserves a stable scrollbar gutter; DAE pads the header by
+ * a fixed 14px to match it. Proportional tracks turn any difference into a
+ * drift that grows towards the last column, so the header reserves the very
+ * same gutter instead and keeps core's 2px padding.
+ */
+.sc-cae-changes-grid > header {
+  padding-right: 2px !important;
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
 .sc-cae-changes-grid > header > *,
 .sc-cae-changes-grid > ol > li > * {
   min-width: 0 !important;
+}
+
+/*
+ * DAE writes the key's description under its input, but a module that turns
+ * the key cell into a flex row lays it beside the input, where a long
+ * description takes the whole track and collapses the input. It is sent back
+ * to its own line.
+ */
+.sc-cae-changes-grid > ol > li > .key {
+  flex-wrap: wrap;
+}
+
+.sc-cae-changes-grid > ol > li > .key > .dae-field-info {
+  flex: 1 0 100%;
+  min-width: 0;
 }
 
 .sc-cae-changes-grid > ol > li > * > input,
