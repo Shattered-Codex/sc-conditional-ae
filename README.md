@@ -101,11 +101,30 @@ return actor?.system?.attributes?.hp?.value > 0;
 | When applied to a target | Controls whether target application updates an existing effect or creates a new stack |
 | Wiki link | Opens the module wiki directly from the sheet |
 
+### D&D 5e 6.x condition editor
+
+In D&D 5e 6.x, the native filter button opens a unified editor with two tabs:
+
+- **Native Conditions** keeps the system's JSON filter in `system.conditions` or in the selected change's native `conditions` field.
+- **Advanced Conditions** provides the SC JavaScript editor. Effect-wide scripts keep using `flags.sc-conditional-ae.condition`; change-specific scripts use the change's stable `_id` under `flags.sc-conditional-ae.changeConditions`.
+
+The Native Conditions tab opens in a visual builder. The `k` field remains free text for any roll-data path, while group and comparison operators are selected from the operators supported by the native filter. Values accept JSON literals, with strings displayed in quotes to preserve their type. A single toggle switches to the generated JSON for direct editing and back to the builder; invalid or unsupported JSON stays in the raw editor until corrected so it is never silently replaced.
+
+The evaluation panel combines the native and advanced layers. In a change editor it also includes both effect-wide conditions. Filters that require `roll.*` are shown as contextual until a real roll supplies that data. Token and `lightLevel` conditions use the same lighting refresh behavior described below.
+
+Change-specific Advanced Conditions gate only their own operation. Attribute changes, macros, and formula-backed changes react independently; macro `off` remains conservative so a previously activated macro can clean up safely.
+
+The separate Condition sheet tab remains responsible for effect-wide behavior, badge, and stacking options in 6.x. D&D 5e 5.3 keeps the existing editor and behavior unchanged.
+
+The 6.x per-change dialog also exposes the module's formula editor. Internally, compatibility code maps the legacy `changes`/numeric `mode` format to the 6.x `system.changes`/string `type` format without migrating or rewriting 5.3 documents.
+
 ### Available variables
 
 | Variable | Meaning |
 |---|---|
 | `effect` | The Active Effect being evaluated |
+| `change` | The individual Active Effect change, or `null` for an effect-wide condition |
+| `changeId` | The stable ID of the individual change, or `null` for an effect-wide condition |
 | `actor` | The affected actor |
 | `targetActor` | Alias of the affected actor |
 | `token` | The affected actor's synthetic token, or its first active token on the current canvas |
@@ -208,6 +227,16 @@ What this means in practice:
 - The module adapts them automatically instead of forcing a full rewrite.
 - DAE fields edited directly in DAE's own inputs are preserved when the SC condition input was not changed. When the Condition tab is displaying a DAE-backed condition, editing or clearing it updates only that displayed enable/disable field, so an independent opposite field is preserved.
 - If DAE is active, a `libWrapper` warning may appear in the browser console. That warning is expected and does not necessarily indicate broken behavior.
+
+### Changes tab column layout
+
+On `dnd5e` 5.3 the Changes tab is Foundry's own grid: the row container declares a fixed number of columns and every cell of a change takes one of them. Each module that adds a cell — DAE's **Phase** column, this module's formula cell, a key search button — pushes the row past that number, and the surplus cells wrap onto new lines.
+
+The module re-measures the row whenever the tab is rendered or a row changes, and rewrites the column list from the cells that are actually there. Nothing needs to be configured:
+
+- All cells stay on a single line, whichever combination of modules is installed.
+- Column widths are recomputed, so a cell added by a module the layout never knew about still gets room.
+- A tab that already fits its cells is left untouched, and so is the card layout `dnd5e` 6.0 uses for the same tab.
 
 ---
 
@@ -391,6 +420,7 @@ game.modules.get("sc-conditional-ae").api
 | `dnd5e` | Required | Module warns and stops setup outside `dnd5e` |
 | DAE conditions | Supported | Legacy flags and compatibility expressions are adapted |
 | DAE macro key | Partial | `macro.execute` is only handled here when DAE is not active |
+| Changes tab columns | Adapted | Columns added by other modules are re-measured so every cell stays on one row |
 | Aura Effects | Safe fallback | Registers a fallback `auraeffects.aura` Active Effect type when needed |
 | `libWrapper` | Recommended | Best path for patch compatibility |
 

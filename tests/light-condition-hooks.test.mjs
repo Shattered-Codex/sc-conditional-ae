@@ -40,6 +40,7 @@ class FakeActiveEffect {
   constructor(actor, {
     behavior = "suppress",
     condition = "return true;",
+    changeCondition = "",
     disabled = false
   } = {}) {
     this.id = `effect-${nextId++}`;
@@ -49,10 +50,16 @@ class FakeActiveEffect {
     this.condition = condition;
     this.disabled = disabled;
     this.active = !disabled;
+    this.system = {
+      changes: [{ _id: "change-1", key: "system.test" }]
+    };
     this.updateCalls = [];
     this.flags = {
       dae: { disableCondition: "", enableCondition: "" },
-      "sc-conditional-ae": { conditionBehavior: behavior }
+      "sc-conditional-ae": {
+        conditionBehavior: behavior,
+        changeConditions: changeCondition ? { "change-1": changeCondition } : {}
+      }
     };
     actor.effects.push(this);
   }
@@ -150,7 +157,8 @@ users.activeGM = users[1];
 globalThis.CONFIG = {
   Actor: { documentClass: FakeActor },
   Item: { documentClass: FakeItem },
-  ActiveEffect: { documentClass: FakeActiveEffect }
+  ActiveEffect: { documentClass: FakeActiveEffect },
+  Macro: { documentClass: class FakeMacro {} }
 };
 globalThis.CONST = { ACTIVE_EFFECT_MODES: { CUSTOM: 0 } };
 globalThis.foundry = {
@@ -177,8 +185,9 @@ globalThis.game = {
     ["lib-wrapper", { active: false }]
   ]),
   release: { generation: 13 },
+  macros: { get: () => null, getName: () => null },
   settings: { get: () => false },
-  system: { id: "dnd5e" },
+  system: { id: "dnd5e", version: "6.0.0" },
   time: null,
   user: users[0],
   users
@@ -195,6 +204,7 @@ globalThis.Hooks = {
     hookCallbacks.set(name, callbacks);
   }
 };
+globalThis.ChatMessage = { getSpeaker: () => ({}) };
 globalThis.window = {
   setTimeout(callback) {
     timerQueue.push(callback);
@@ -272,7 +282,12 @@ const { ActiveEffectConditionService } = await import(
   "../scripts/services/ActiveEffectConditionService.js"
 );
 
+const { ActiveEffectMacroChangeHooks } = await import(
+  "../scripts/hooks/ActiveEffectMacroChangeHooks.js"
+);
+
 ActiveEffectConditionHooks.activate();
+ActiveEffectMacroChangeHooks.activate();
 
 test("a common condition evaluates without reading canvas", () => {
   const actor = new FakeActor();
@@ -330,6 +345,108 @@ test("lightingRefresh skips unchanged light and coalesces an availability transi
   assert.equal(actor.resetCount, stableResetCount + 1);
 });
 
+test("lightingRefresh also resets for an individual advanced light condition", async () => {
+  lightingMode = "bright";
+  const actor = new FakeActor();
+  const token = makeToken(actor, "individual-light-token");
+  actor.activeTokens = [token];
+  new FakeActiveEffect(actor, {
+    condition: "",
+    changeCondition: "return lightLevel === 'bright';"
+  });
+  resetCanvas([token]);
+
+  await callHook("updateActor", actor, {}, {}, game.user.id);
+  await flushTimers();
+  await callHook("lightingRefresh", canvas.effects);
+  await flushTimers();
+  const stableResetCount = actor.resetCount;
+
+  lightingMode = "dark";
+  await callHook("lightingRefresh", canvas.effects);
+  await flushTimers();
+
+  assert.equal(actor.resetCount, stableResetCount + 1);
+});
+
+test("an individual advanced light condition gates only its own change", async () => {
+  lightingMode = "bright";
+  const actor = new FakeActor();
+  const token = makeToken(actor, "individual-change-token");
+  actor.activeTokens = [token];
+  const effect = new FakeActiveEffect(actor, {
+    condition: "",
+    changeCondition: "return lightLevel === 'bright';"
+  });
+  resetCanvas([token]);
+
+  const change = { ...effect.system.changes[0], effect };
+  assert.deepEqual(FakeActiveEffect.applyChange(actor, change), { applied: true });
+
+  lightingMode = "dark";
+  await callHook("lightingRefresh", canvas.effects);
+  await flushTimers();
+  assert.deepEqual(FakeActiveEffect.applyChange(actor, change), {});
+});
+
+test("individual light transitions execute only their macro change", async () => {
+  lightingMode = "dark";
+  const actor = new FakeActor();
+  const token = makeToken(actor, "individual-macro-token");
+  actor.activeTokens = [token];
+  const effect = new FakeActiveEffect(actor, {
+    condition: "",
+    changeCondition: "return lightLevel === 'bright';"
+  });
+  effect.system.changes[0].key = "cae.macro.execute";
+  effect.system.changes[0].value = "lightingMacro";
+  const calls = [];
+  game.macros = {
+    get: reference => reference === "lightingMacro"
+      ? { execute: async scope => calls.push(scope.action) }
+      : null,
+    getName: () => null
+  };
+  resetCanvas([token]);
+
+  await callHook("updateActor", actor, {}, {}, game.user.id);
+  await flushTimers();
+  lightingMode = "bright";
+  await callHook("lightingRefresh", canvas.effects);
+  await flushTimers();
+  await Promise.resolve();
+
+  lightingMode = "dark";
+  await callHook("lightingRefresh", canvas.effects);
+  await flushTimers();
+  await Promise.resolve();
+
+  assert.deepEqual(calls, ["on", "off"]);
+});
+
+test("dnd5e 5.3 keeps the legacy effect-wide light condition behavior", async () => {
+  game.system.version = "5.3.3";
+  try {
+    lightingMode = "bright";
+    const actor = new FakeActor();
+    const token = makeToken(actor, "legacy-light-token");
+    actor.activeTokens = [token];
+    const effect = new FakeActiveEffect(actor, {
+      condition: "return lightLevel === 'bright';"
+    });
+    resetCanvas([token]);
+
+    assert.deepEqual(FakeActiveEffect.applyChange(actor, { effect }), { applied: true });
+
+    lightingMode = "dark";
+    await callHook("lightingRefresh", canvas.effects);
+    await flushTimers();
+    assert.deepEqual(FakeActiveEffect.applyChange(actor, { effect }), {});
+  } finally {
+    game.system.version = "6.0.0";
+  }
+});
+
 test("moveToken refreshes only the selected token and coalesces repeated events", async () => {
   lightingMode = "dark";
   const actor = new FakeActor();
@@ -378,6 +495,29 @@ test("a light tier change with the same availability does not reset the Actor", 
   assert.equal(actor.resetCount, stableResetCount);
 });
 
+test("an individual light condition does not reset when its result stays available", async () => {
+  lightingMode = "bright";
+  const actor = new FakeActor();
+  const token = makeToken(actor, "individual-tier-token");
+  actor.activeTokens = [token];
+  new FakeActiveEffect(actor, {
+    condition: "",
+    changeCondition: "return lightLevel !== 'dark';"
+  });
+  resetCanvas([token]);
+
+  await callHook("updateActor", actor, {}, {}, game.user.id);
+  await flushTimers();
+  await callHook("lightingRefresh", canvas.effects);
+  await flushTimers();
+  const stableResetCount = actor.resetCount;
+
+  lightingMode = "dim";
+  await callHook("lightingRefresh", canvas.effects);
+  await flushTimers();
+  assert.equal(actor.resetCount, stableResetCount);
+});
+
 test("token hooks ignore documents from another Scene", async () => {
   const actor = new FakeActor();
   const token = makeToken(actor, "remote-token");
@@ -410,4 +550,71 @@ test("spatial disable behavior never persists disabled state", async () => {
   assert.equal(effect.disabled, false);
   assert.equal(effect.updateCalls.length, 0);
   assert.equal(ActiveEffectConditionService.isConditionManagedDisabled(effect), false);
+});
+
+test("adding a false condition to a live change turns its macro off", async () => {
+  lightingMode = "dark";
+  const actor = new FakeActor();
+  const token = makeToken(actor, "added-condition-token");
+  actor.activeTokens = [token];
+  const effect = new FakeActiveEffect(actor, { condition: "" });
+  effect.system.changes[0].key = "cae.macro.execute";
+  effect.system.changes[0].value = "addedMacro";
+  const calls = [];
+  game.macros = {
+    get: reference => reference === "addedMacro"
+      ? { execute: async scope => calls.push(scope.action) }
+      : null,
+    getName: () => null
+  };
+  resetCanvas([token]);
+
+  await callHook("updateActor", actor, {}, {}, game.user.id);
+  await flushTimers();
+  await Promise.resolve();
+  calls.length = 0;
+
+  // The change was applying until the condition existed, so it has to be told
+  // to clean up now that the condition reads false.
+  await callHook("preUpdateActiveEffect", effect, {});
+  effect.flags["sc-conditional-ae"].changeConditions = { "change-1": "return lightLevel === 'bright';" };
+  await callHook("updateActiveEffect", effect, {}, {}, game.user.id);
+  await flushTimers();
+  await Promise.resolve();
+
+  assert.deepEqual(calls, ["off"]);
+});
+
+test("removing a false condition turns the change back on", async () => {
+  lightingMode = "dark";
+  const actor = new FakeActor();
+  const token = makeToken(actor, "removed-condition-token");
+  actor.activeTokens = [token];
+  const effect = new FakeActiveEffect(actor, {
+    condition: "",
+    changeCondition: "return lightLevel === 'bright';"
+  });
+  effect.system.changes[0].key = "cae.macro.execute";
+  effect.system.changes[0].value = "removedMacro";
+  const calls = [];
+  game.macros = {
+    get: reference => reference === "removedMacro"
+      ? { execute: async scope => calls.push(scope.action) }
+      : null,
+    getName: () => null
+  };
+  resetCanvas([token]);
+
+  await callHook("updateActor", actor, {}, {}, game.user.id);
+  await flushTimers();
+  await Promise.resolve();
+  calls.length = 0;
+
+  await callHook("preUpdateActiveEffect", effect, {});
+  effect.flags["sc-conditional-ae"].changeConditions = {};
+  await callHook("updateActiveEffect", effect, {}, {}, game.user.id);
+  await flushTimers();
+  await Promise.resolve();
+
+  assert.deepEqual(calls, ["on"]);
 });

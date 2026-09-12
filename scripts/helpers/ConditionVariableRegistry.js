@@ -1,5 +1,7 @@
 const CONDITION_VARIABLES = Object.freeze([
   { name: "effect", kind: "object", description: "The Active Effect being evaluated." },
+  { name: "change", kind: "object", description: "The individual Active Effect change, or null for an effect-wide condition." },
+  { name: "changeId", kind: "string", description: "The stable ID of the individual change, or null for an effect-wide condition." },
   { name: "actor", kind: "object", description: "The actor that owns the Active Effect." },
   { name: "targetActor", kind: "object", description: "Alias of the affected actor." },
   { name: "token", kind: "object", description: "The affected actor's canvas token, or null when unavailable." },

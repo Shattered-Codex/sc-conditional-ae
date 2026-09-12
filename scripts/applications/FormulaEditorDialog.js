@@ -25,7 +25,8 @@ export class FormulaEditorDialog {
     const variables = RollDataVariableRegistry.build(actor);
     const title = Constants.localize("SCConditionalAE.FormulaChange.EditorTitle", "Formula editor");
 
-    return foundry.applications.api.DialogV2.wait({
+    const result = await foundry.applications.api.DialogV2.wait({
+      rejectClose: false,
       window: {
         title: changeKey ? `${title} — ${changeKey}` : title,
         icon: "fa-solid fa-square-root-variable"
@@ -34,25 +35,27 @@ export class FormulaEditorDialog {
       position: { width: 560 },
       content: FormulaEditorDialog.buildContent({ formula, changeKey, effectName, variables }),
       render: (...args) => FormulaEditorDialog.activate(FormulaEditorDialog.#resolveRoot(args), variables),
-      rejectClose: false,
       buttons: [
         {
           action: "save",
           icon: "fa-solid fa-floppy-disk",
           label: Constants.localize("SCConditionalAE.FormulaChange.EditorSave", "Save formula"),
           default: true,
-          callback: (_event, _button, dialog) => (
-            dialog.element?.querySelector(FORMULA_SELECTOR)?.value?.trim() ?? ""
-          )
+          callback: (_event, _button, dialog) => ({
+            action: "save",
+            formula: dialog.element?.querySelector(FORMULA_SELECTOR)?.value?.trim() ?? ""
+          })
         },
         {
           action: "cancel",
           icon: "fa-solid fa-xmark",
           label: Constants.localize("Cancel", "Cancel"),
-          callback: () => null
+          callback: () => ({ action: "cancel" })
         }
       ]
     });
+
+    return result?.action === "save" ? result.formula : null;
   }
 
   static buildContent({ formula = "", changeKey = "", effectName = "", variables = null } = {}) {
@@ -286,17 +289,7 @@ export class FormulaEditorDialog {
   }
 
   static #format(key, fallback, data) {
-    if (typeof game?.i18n?.format === "function") {
-      const localized = game.i18n.format(key, data);
-      if (localized && localized !== key) {
-        return localized;
-      }
-    }
-
-    return Object.entries(data).reduce(
-      (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
-      fallback
-    );
+    return Constants.format(key, data, fallback);
   }
 
   // DialogV2 render callbacks differ across Foundry versions; find the element either way.

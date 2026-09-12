@@ -1,6 +1,7 @@
 import { Constants } from "../constants/Constants.js";
 import { ConditionTabContextBuilder } from "./ConditionTabContextBuilder.js";
 import { ConditionVariablePopover } from "./ConditionVariablePopover.js";
+import { Dnd5e6AdvancedConditionsAdapter } from "./Dnd5e6AdvancedConditionsAdapter.js";
 import { EffectSheetSubmitDataHandler } from "./EffectSheetSubmitDataHandler.js";
 import { FormulaColumnRenderer } from "./FormulaColumnRenderer.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -48,8 +49,9 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
         : this.document.update(EffectSheetSubmitDataHandler.findSubmitDataArgument(args));
     }
 
-    _onRender(...args) {
-      super._onRender?.(...args);
+    async _onRender(...args) {
+      await super._onRender?.(...args);
+      Dnd5e6AdvancedConditionsAdapter.bind(this);
       activateBadgeLabelCounter(this);
       activateApplyBehaviorHint(this);
       activateConditionVariablePopover(this);

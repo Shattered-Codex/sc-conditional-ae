@@ -1,6 +1,12 @@
 import { Constants } from "./constants/Constants.js";
+import { DebugLog } from "./helpers/DebugLog.js";
 import { ActiveEffectSheetRegistrar } from "./applications/ActiveEffectSheetRegistrar.js";
+import { ChangesGridLayoutAdapter } from "./applications/ChangesGridLayoutAdapter.js";
+import { Dnd5e6AdvancedConditionsAdapter } from "./applications/Dnd5e6AdvancedConditionsAdapter.js";
+import { Dnd5e6ChangeConditionStatusRenderer } from "./applications/Dnd5e6ChangeConditionStatusRenderer.js";
+import { Dnd5e6FormulaChangeAdapter } from "./applications/Dnd5e6FormulaChangeAdapter.js";
 import { EffectListFormulaRollButtonRenderer } from "./applications/EffectListFormulaRollButtonRenderer.js";
+import { EffectSheetIconTintRenderer } from "./applications/EffectSheetIconTintRenderer.js";
 import { FormulaColumnRenderer } from "./applications/FormulaColumnRenderer.js";
 import { AuraEffectsCompatibility } from "./compat/AuraEffectsCompatibility.js";
 import { DaeCompatibility } from "./compat/DaeCompatibility.js";
@@ -19,13 +25,13 @@ import { ModuleSettingsRegistrar } from "./settings/ModuleSettingsRegistrar.js";
 DaeCompatibility.activate();
 
 Hooks.once("init", () => {
-  Constants.debug("module init");
+  DebugLog.write("module init");
   AuraEffectsCompatibility.activate();
   ModuleSettingsRegistrar.register();
 });
 
 Hooks.once("setup", () => {
-  Constants.debug("module setup", {
+  DebugLog.write("module setup", {
     system: game.system?.id,
     dnd5eActive: Constants.isDnd5eActive()
   });
@@ -41,6 +47,11 @@ Hooks.once("setup", () => {
   ActiveEffectTransferContextHooks.activate();
   EffectApplicationHooks.activate();
   ActiveEffectTransferHooks.activate();
+  ChangesGridLayoutAdapter.activate();
+  Dnd5e6AdvancedConditionsAdapter.activate();
+  Dnd5e6ChangeConditionStatusRenderer.activate();
+  EffectSheetIconTintRenderer.activate();
+  Dnd5e6FormulaChangeAdapter.activate();
   const formulaChangesEnabled = ModuleSettings.isFormulaChangesEnabled();
   EffectListFormulaRollButtonRenderer.activate({ formulaControlsEnabled: formulaChangesEnabled });
   if (formulaChangesEnabled) {
@@ -52,7 +63,7 @@ Hooks.once("setup", () => {
 });
 
 Hooks.once("ready", () => {
-  Constants.debug("module ready; scheduling Active Effect sheet registration");
+  DebugLog.write("module ready; scheduling Active Effect sheet registration");
 
   const module = game.modules.get(Constants.MODULE_ID);
   if (module) {

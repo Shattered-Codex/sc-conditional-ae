@@ -1,3 +1,4 @@
+import { ApplicationRoot } from "../helpers/ApplicationRoot.js";
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { FormulaEditorDialog } from "./FormulaEditorDialog.js";
@@ -108,15 +109,7 @@ export class FormulaColumnRenderer {
   }
 
   static getSheetRoot(sheet, rootOverride) {
-    if (rootOverride instanceof HTMLElement) {
-      return rootOverride;
-    }
-
-    if (rootOverride?.[0] instanceof HTMLElement) {
-      return rootOverride[0];
-    }
-
-    return sheet.element instanceof HTMLElement ? sheet.element : sheet.element?.[0] ?? null;
+    return ApplicationRoot.resolve(sheet, rootOverride);
   }
 
   static #render(sheet, rootOverride) {
@@ -130,7 +123,12 @@ export class FormulaColumnRenderer {
     }
 
     const style = ModuleSettings.getFormulaFieldStyle();
-    const formulaChanges = ActiveEffectFormulaChangeService.getFormulaChanges(sheet.document);
+    // Resolved by key, so a reordered change still shows its own formula rather
+    // than whatever the stored position now points at.
+    const formulaChanges = Object.fromEntries(
+      ActiveEffectFormulaChangeService.getFormulaChangeEntries(sheet.document)
+        .map(entry => [entry.index, { formula: entry.formula, key: entry.key }])
+    );
     FormulaColumnRenderer.#ensureColumnForAllRows(root, formulaChanges, style);
     FormulaColumnRenderer.#activateDelegation(root, sheet);
   }

@@ -1,4 +1,5 @@
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
+import { ActiveEffectChangesCompatibility } from "../compat/ActiveEffectChangesCompatibility.js";
 
 export class ActiveEffectTransferContextService {
   static #PENDING_TTL_MS = 10000;
@@ -85,8 +86,12 @@ export class ActiveEffectTransferContextService {
       return false;
     }
 
-    const sourceChanges = ActiveEffectContextBuilder.getChangeSignature(sourceEffect.changes ?? []);
-    const targetChanges = ActiveEffectContextBuilder.getChangeSignature(effectData?.changes ?? []);
+    const sourceChanges = ActiveEffectContextBuilder.getChangeSignature(
+      ActiveEffectChangesCompatibility.get(sourceEffect)
+    );
+    const targetChanges = ActiveEffectContextBuilder.getChangeSignature(
+      ActiveEffectChangesCompatibility.get(effectData)
+    );
     if (sourceChanges.length !== targetChanges.length) {
       return false;
     }

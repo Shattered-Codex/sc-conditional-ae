@@ -1,0 +1,134 @@
+<div class="sc-cae-v6-conditions-editor__content">
+  <div class="sc-cae-v6-tabs">
+    <nav class="tabs sheet-tabs" role="tablist" aria-label="{{ strings.tabsLabel }}">
+      <button id="sc-cae-v6-tab-native" type="button" class="item active" data-tab="native" data-sc-cae-tab="native"
+              role="tab" aria-controls="sc-cae-v6-panel-native" aria-selected="true">
+        <i class="fa-solid fa-filter" aria-hidden="true"></i>
+        <span>{{ strings.native }}</span>
+      </button>
+      <button id="sc-cae-v6-tab-advanced" type="button" class="item" data-tab="advanced" data-sc-cae-tab="advanced"
+              role="tab" aria-controls="sc-cae-v6-panel-advanced" aria-selected="false" tabindex="-1">
+        <i class="fa-solid fa-code" aria-hidden="true"></i>
+        <span>{{ strings.advanced }}</span>
+      </button>
+      <button id="sc-cae-v6-tab-evaluation" type="button" class="item" data-tab="evaluation"
+              data-sc-cae-tab="evaluation" role="tab" aria-controls="sc-cae-v6-panel-evaluation"
+              aria-selected="false" tabindex="-1">
+        <i class="fa-solid {{ evaluation.combined.icon }} sc-cae-v6-tab-state" data-sc-cae-tab-state
+           data-state="{{ evaluation.combined.state }}" aria-hidden="true"></i>
+        <span>{{ strings.evaluationTab }}</span>
+      </button>
+    </nav>
+    <hr class="ampersand">
+  </div>
+
+  <section id="sc-cae-v6-panel-native" class="tab sc-cae-v6-condition-panel active" data-tab="native"
+           data-sc-cae-panel="native" role="tabpanel" aria-labelledby="sc-cae-v6-tab-native" tabindex="0">
+    <div class="sc-cae-v6-toolbar">
+      <span class="sc-cae-v6-toolbar__title">{{ strings.builder.filterLabel }}</span>
+      <div class="sc-cae-v6-segmented" role="group" aria-label="{{ strings.builder.viewLabel }}">
+        <button type="button" class="active" data-sc-cae-native-view="builder" aria-pressed="true">
+          <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+          <span>{{ strings.builder.builder }}</span>
+        </button>
+        <button type="button" data-sc-cae-native-view="json" aria-pressed="false">
+          <i class="fa-solid fa-code" aria-hidden="true"></i>
+          <span>{{ strings.builder.json }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="sc-cae-native-builder" class="sc-cae-native-builder" data-sc-cae-native-content="builder"
+         data-sc-cae-native-builder></div>
+    <div id="sc-cae-native-json" class="sc-cae-native-json" data-sc-cae-native-content="json" hidden>
+      <code-mirror name="nativeCondition" language="json" indent="2">{{ nativeValue }}</code-mirror>
+    </div>
+
+    <p class="hint sc-cae-v6-footnote">{{ strings.builder.valueHint }}</p>
+  </section>
+
+  <section id="sc-cae-v6-panel-advanced" class="tab sc-cae-v6-condition-panel" data-tab="advanced"
+           data-sc-cae-panel="advanced" role="tabpanel" aria-labelledby="sc-cae-v6-tab-advanced" tabindex="0" hidden>
+    <div class="sc-cae-v6-toolbar">
+      <span class="sc-cae-v6-toolbar__title">
+        {{ strings.advancedCodeLabel }}
+        <a class="sc-cae-help-link" href="{{ conditionWikiUrl }}" target="_blank" rel="noopener">
+          <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> {{ strings.wiki }}
+        </a>
+      </span>
+      <div class="sc-cae-variable-popover" data-sc-cae-variable-popover>
+        <button type="button" class="sc-cae-variable-trigger" data-sc-cae-variable-trigger
+                aria-haspopup="dialog" aria-expanded="false">
+          <i class="fa-solid fa-brackets-curly" aria-hidden="true"></i>
+          <span>{{ strings.insertVariable }}</span>
+          <i class="fa-solid fa-chevron-down sc-cae-variable-trigger__caret" aria-hidden="true"></i>
+        </button>
+        <div class="sc-cae-variable-panel" data-sc-cae-variable-panel role="dialog"
+             aria-label="{{ strings.insertVariable }}">
+          <div class="sc-cae-variable-panel__search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="text" class="sc-cae-variable-search" data-sc-cae-variable-search
+                   placeholder="{{ strings.variableSearch }}" aria-label="{{ strings.variableSearch }}"
+                   spellcheck="false" autocomplete="off" />
+          </div>
+          <ul class="sc-cae-variable-list" data-sc-cae-variable-list>
+            {{#each variables}}
+            <li>
+              <button type="button" class="sc-cae-variable-option"
+                      data-sc-cae-insert-variable="{{ name }}" data-sc-cae-variable-search="{{ searchText }}">
+                <span class="sc-cae-variable-option__head"><code>{{ name }}</code><span class="sc-cae-variable-option__kind">{{ kindLabel }}</span></span>
+                <span class="sc-cae-variable-option__description">{{ description }}</span>
+              </button>
+            </li>
+            {{/each}}
+          </ul>
+          <p class="hint sc-cae-variable-empty sc-cae-variable-option--hidden" data-sc-cae-variable-empty>{{ strings.variableSearchEmpty }}</p>
+        </div>
+      </div>
+    </div>
+
+    <code-mirror name="advancedCondition" language="javascript" indent="2">{{ advancedValue }}</code-mirror>
+  </section>
+
+  <section id="sc-cae-v6-panel-evaluation" class="tab sc-cae-v6-condition-panel" data-tab="evaluation"
+           data-sc-cae-panel="evaluation" role="tabpanel" aria-labelledby="sc-cae-v6-tab-evaluation"
+           tabindex="0" hidden>
+    <fieldset class="sc-cae-v6-condition-evaluation card">
+      <legend>{{ strings.evaluation }}</legend>
+      {{#if evaluation.nativeGlobal}}
+      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="nativeGlobal"
+           data-state="{{ evaluation.nativeGlobal.state }}">
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.nativeGlobal }}</span>
+        <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.nativeGlobal.label }}</strong></span>
+      </div>
+      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="advancedGlobal"
+           data-state="{{ evaluation.advancedGlobal.state }}">
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.advancedGlobal }}</span>
+        <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.advancedGlobal.label }}</strong></span>
+      </div>
+      {{/if}}
+      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="native" data-state="{{ evaluation.native.state }}">
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.native }}</span>
+        <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.native.label }}</strong></span>
+      </div>
+      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="advanced" data-state="{{ evaluation.advanced.state }}">
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.advanced }}</span>
+        <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.advanced.label }}</strong></span>
+      </div>
+      <div class="sc-cae-v6-evaluation-row sc-cae-v6-combined-status" data-sc-cae-combined-status
+           data-state="{{ evaluation.combined.state }}" role="status" aria-live="polite">
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.combined }}</span>
+        <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-status-label>{{ evaluation.combined.label }}</strong></span>
+      </div>
+    </fieldset>
+  </section>
+
+  <footer class="form-footer">
+    <button type="button" class="sc-cae-v6-submit" data-action="save">
+      <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> {{ strings.save }}
+    </button>
+    <button type="button" data-action="cancel">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i> {{ strings.cancel }}
+    </button>
+  </footer>
+</div>

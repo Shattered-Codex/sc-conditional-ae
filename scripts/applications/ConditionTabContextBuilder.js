@@ -3,6 +3,9 @@ import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilde
 import { DaeCompatibility } from "../compat/DaeCompatibility.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
 import { ConditionVariableRegistry } from "../helpers/ConditionVariableRegistry.js";
+import { ConditionStateLabels } from "../helpers/ConditionStateLabels.js";
+import { Dnd5e6AttributeLabel } from "../helpers/Dnd5e6AttributeLabel.js";
+import { Dnd5e6ChangeConditionService } from "../services/Dnd5e6ChangeConditionService.js";
 
 export class ConditionTabContextBuilder {
   static normalizeConditionBehavior(conditionBehavior) {
@@ -90,6 +93,7 @@ export class ConditionTabContextBuilder {
       conditionBehaviorIsDisable: conditionBehavior === Constants.CONDITION_BEHAVIOR_DISABLE,
       conditionBehaviorFlagPath: Constants.CONDITION_BEHAVIOR_FLAG_PATH,
       conditionUsesTokenContext,
+      useNativeAdvancedEditor: Dnd5e6ChangeConditionService.isSupported(),
       applyBehavior: ConditionTabContextBuilder.getApplyBehaviorLabel(normalizedApplyBehavior),
       applyBehaviorDescription: ConditionTabContextBuilder.getApplyBehaviorDescription(normalizedApplyBehavior),
       applyBehaviorIsDefault: normalizedApplyBehavior === "default",
@@ -99,6 +103,7 @@ export class ConditionTabContextBuilder {
       showDaeApplyBehavior,
       badgeLabelMaxLength: Constants.CONDITION_BADGE_LABEL_MAX_LENGTH,
       conditionWikiUrl: `${Constants.MODULE_WIKI_URL}#active-effect-condition`,
+      conditionSummary: ConditionTabContextBuilder.#buildConditionSummary(sheet),
       conditionInvalid: !validation.valid,
       validationMessage: validation.error?.message ?? "",
       evaluation,
@@ -107,6 +112,18 @@ export class ConditionTabContextBuilder {
       strings: {
         label: Constants.localize("SCConditionalAE.ConditionTab.Label", "Condition"),
         heading: Constants.localize("SCConditionalAE.ConditionTab.Heading", "Active Effect condition"),
+        summaryHeading: Constants.localize(
+          "SCConditionalAE.ConditionTab.Summary.Heading",
+          "Condition status"
+        ),
+        summaryEmpty: Constants.localize(
+          "SCConditionalAE.ConditionTab.Summary.Empty",
+          "No condition configured on this effect or on any of its changes."
+        ),
+        advancedEditorHint: Constants.localize(
+          "SCConditionalAE.AdvancedConditions.OpenFromNative",
+          "Edit the JavaScript condition from the Advanced Conditions tab in the native condition editor."
+        ),
         hint: Constants.localize(
           "SCConditionalAE.ConditionTab.Hint",
           "Use JavaScript. This Active Effect is applied only when the script returns true."
@@ -214,6 +231,102 @@ export class ConditionTabContextBuilder {
     };
   }
 
+  /**
+   * The at-a-glance panel for dnd5e 6: what each condition layer resolves to
+   * right now, for the effect and for every change that carries one.
+   */
+  static #buildConditionSummary(sheet) {
+    const summary = Dnd5e6ChangeConditionService.summarize(sheet?.document);
+    if (!summary.supported) {
+      return null;
+    }
+
+    const actor = ActiveEffectContextBuilder.getAffectedActor(sheet?.document);
+    const rows = [
+      ConditionTabContextBuilder.#buildSummaryRow(
+        summary.effect,
+        Constants.localize("SCConditionalAE.ConditionTab.Summary.Effect", "Active Effect"),
+        actor
+      ),
+      ...summary.changes
+        .filter(entry => entry.configured)
+        .map(entry => ConditionTabContextBuilder.#buildSummaryRow(entry, "", actor))
+    ];
+
+    return {
+      state: summary.combined.state,
+      stateLabel: ConditionStateLabels.label(summary.combined.state),
+      stateIcon: ConditionStateLabels.icon(summary.combined.state),
+      rows,
+      counts: ConditionTabContextBuilder.#buildSummaryCounts(summary.totals),
+      hasIssues: summary.totals.error > 0,
+      configuredCount: summary.totals.configured,
+      isEmpty: !rows.some(row => row.configured)
+    };
+  }
+
+  static #buildSummaryRow(entry, fallbackLabel, actor) {
+    const label = fallbackLabel
+      || Dnd5e6AttributeLabel.resolve(entry.key, { actor })
+      || entry.key
+      || Constants.localize("SCConditionalAE.ConditionTab.Summary.UnnamedChange", "Unnamed change");
+
+    return {
+      scope: entry.scope,
+      changeId: entry.changeId ?? "",
+      key: entry.key,
+      label,
+      state: entry.state,
+      stateLabel: ConditionStateLabels.label(entry.state),
+      stateIcon: ConditionStateLabels.icon(entry.state),
+      configured: entry.configured,
+      layers: [
+        ConditionTabContextBuilder.#buildSummaryLayer(
+          entry.native,
+          "SCConditionalAE.ConditionTab.Summary.LayerNative",
+          "Native"
+        ),
+        ConditionTabContextBuilder.#buildSummaryLayer(
+          entry.advanced,
+          "SCConditionalAE.ConditionTab.Summary.LayerAdvanced",
+          "JavaScript"
+        )
+      ].filter(Boolean),
+      message: entry.message,
+      messageLabel: entry.message
+        ? Constants.localize(
+          entry.syntaxError
+            ? "SCConditionalAE.ConditionTab.Summary.SyntaxError"
+            : "SCConditionalAE.ConditionTab.Summary.RuntimeError",
+          entry.syntaxError ? "Syntax error" : "Evaluation error"
+        )
+        : ""
+    };
+  }
+
+  static #buildSummaryLayer(stage, key, fallback) {
+    if (!stage?.configured) {
+      return null;
+    }
+
+    return {
+      label: Constants.localize(key, fallback),
+      state: stage.state,
+      stateLabel: ConditionStateLabels.label(stage.state)
+    };
+  }
+
+  static #buildSummaryCounts(totals) {
+    return ConditionStateLabels.STATES
+      .filter(state => totals[state] > 0)
+      .map(state => ({
+        state,
+        count: totals[state],
+        icon: ConditionStateLabels.icon(state),
+        label: ConditionStateLabels.label(state)
+      }));
+  }
+
   static #buildEvaluation(sheet, condition, validation) {
     const trimmedCondition = String(condition ?? "").trim();
     if (!trimmedCondition.length) {
@@ -299,14 +412,11 @@ export class ConditionTabContextBuilder {
 
   static #getAvailableVariablesText() {
     const variables = ConditionVariableRegistry.names.join(", ");
-    const key = "SCConditionalAE.ConditionTab.Variables";
-    const fallback = `Available variables: ${variables}.`;
-    if (typeof game?.i18n?.format !== "function") {
-      return fallback;
-    }
-
-    const localized = game.i18n.format(key, { variables });
-    return localized && localized !== key ? localized : fallback;
+    return Constants.format(
+      "SCConditionalAE.ConditionTab.Variables",
+      { variables },
+      `Available variables: ${variables}.`
+    );
   }
 
   static #formatConditionResult(value) {

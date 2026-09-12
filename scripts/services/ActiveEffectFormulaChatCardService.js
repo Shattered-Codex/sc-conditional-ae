@@ -1,3 +1,4 @@
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { Constants } from "../constants/Constants.js";
 import { HtmlHelpers } from "../helpers/HtmlHelpers.js";
 import { ActiveEffectFormulaChangeService } from "./ActiveEffectFormulaChangeService.js";
@@ -15,7 +16,7 @@ export class ActiveEffectFormulaChatCardService {
     document.addEventListener("click", ActiveEffectFormulaChatCardService.#onDocumentClick);
   }
 
-  static async requestRoll(effect, { reason = "activation" } = {}) {
+  static async requestRoll(effect, { reason = "activation", changeIndexes = null } = {}) {
     if (
       !ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
       || !ActiveEffectFormulaChangeService.shouldPromptForCurrentUser(effect)
@@ -24,11 +25,11 @@ export class ActiveEffectFormulaChatCardService {
     }
 
     if (!ModuleSettings.isFormulaChatCardEnabled()) {
-      await ActiveEffectFormulaChangeService.rollFormulaChanges(effect);
+      await ActiveEffectFormulaChangeService.rollFormulaChanges(effect, { changeIndexes });
       return;
     }
 
-    await ActiveEffectFormulaChatCardService.#postChatCard(effect, reason);
+    await ActiveEffectFormulaChatCardService.#postChatCard(effect, reason, changeIndexes);
   }
 
   static async #onDocumentClick(event) {
@@ -57,8 +58,7 @@ export class ActiveEffectFormulaChatCardService {
     const effect = await fromUuid(effectUuid);
     if (
       !(effect instanceof CONFIG.ActiveEffect.documentClass)
-      || !ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
-      || !ActiveEffectFormulaChangeService.shouldPromptForCurrentUser(effect)
+      || !ActiveEffectFormulaChangeService.canPromptForRoll(effect)
     ) {
       return;
     }
@@ -70,7 +70,13 @@ export class ActiveEffectFormulaChatCardService {
     try {
       await (
         changeIndex === undefined
-          ? ActiveEffectFormulaChangeService.rollFormulaChanges(effect)
+          // The card only lists the changes it was posted for, so the button
+          // that rolls "all" must mean all of those, not every formula on the
+          // effect. A card raised by one change condition would otherwise roll
+          // formulas whose own conditions never fired.
+          ? ActiveEffectFormulaChangeService.rollFormulaChanges(effect, {
+            changeIndexes: ActiveEffectFormulaChatCardService.#parseChangeIndexes(button)
+          })
           : ActiveEffectFormulaChangeService.rollFormulaChange(effect, changeIndex)
       );
     } catch (error) {
@@ -81,8 +87,22 @@ export class ActiveEffectFormulaChatCardService {
     }
   }
 
-  static async #postChatCard(effect, reason) {
-    const formulaEntries = ActiveEffectFormulaChangeService.getFormulaChangeEntries(effect);
+  static #parseChangeIndexes(button) {
+    const raw = button.dataset.changeIndexes;
+    if (raw === undefined) {
+      return null;
+    }
+
+    const indexes = String(raw).split(",").map(value => Number(value)).filter(Number.isInteger);
+    return indexes.length ? indexes : null;
+  }
+
+  static async #postChatCard(effect, reason, changeIndexes = null) {
+    const selectedIndexes = changeIndexes === null
+      ? null
+      : new Set(Array.from(changeIndexes, value => Number(value)));
+    const formulaEntries = ActiveEffectFormulaChangeService.getFormulaChangeEntries(effect)
+      .filter(entry => !selectedIndexes || selectedIndexes.has(entry.index));
     if (!formulaEntries.length) {
       return;
     }
@@ -139,6 +159,7 @@ export class ActiveEffectFormulaChatCardService {
                 type="button"
                 class="sc-cae-formula-request-button"
                 data-effect-uuid="${effectUuid}"
+                data-change-indexes="${formulaEntries.map(entry => entry.index).join(",")}"
               >${buttonLabel}</button>
             </div>
           </div>
@@ -232,26 +253,10 @@ export class ActiveEffectFormulaChatCardService {
   }
 
   static #getActor(effect) {
-    const parent = effect?.parent;
-    if (parent instanceof CONFIG.Actor.documentClass) {
-      return parent;
-    }
-
-    if (parent instanceof CONFIG.Item.documentClass) {
-      return parent.actor ?? parent.parent ?? null;
-    }
-
-    return null;
+    return ActiveEffectContextBuilder.getAffectedActor(effect);
   }
 
   static #localizeFormat(key, fallback, data) {
-    if (typeof game?.i18n?.format === "function") {
-      const formatted = game.i18n.format(key, data);
-      if (formatted && formatted !== key) {
-        return formatted;
-      }
-    }
-
-    return String(fallback ?? key).replace(/\{(\w+)\}/g, (_match, token) => String(data?.[token] ?? ""));
+    return Constants.format(key, data, fallback);
   }
 }

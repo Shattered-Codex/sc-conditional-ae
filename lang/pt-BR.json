@@ -23,6 +23,17 @@
         "Context": "Avaliado contra",
         "EffectState": "Estado do efeito"
       },
+      "Summary": {
+        "Heading": "Status das condições",
+        "Effect": "Active Effect",
+        "UnnamedChange": "Alteração sem nome",
+        "LayerNative": "Nativa",
+        "LayerAdvanced": "JavaScript",
+        "SyntaxError": "Erro de sintaxe",
+        "RuntimeError": "Erro na avaliação",
+        "EffectGate": "A condição geral do efeito está {state}, então esta alteração continua suprimida.",
+        "Empty": "Nenhuma condição configurada neste efeito nem em suas alterações."
+      },
       "Wiki": "Abrir wiki",
       "Invalid": "Esta condição contém código inválido.",
       "BadgeLabel": "Label do badge de condição",
@@ -51,6 +62,8 @@
       "VariableSearchEmpty": "Nenhuma variável corresponde a esta busca.",
       "VariableDescription": {
         "effect": "O Active Effect sendo avaliado.",
+        "change": "A alteração individual do Active Effect, ou null para uma condição geral.",
+        "changeId": "O ID estável da alteração individual, ou null para uma condição geral.",
         "actor": "O ator dono do Active Effect.",
         "targetActor": "Alias do ator afetado.",
         "token": "O token no canvas do ator afetado, ou null quando indisponível.",
@@ -70,6 +83,77 @@
         "object": "objeto",
         "function": "função",
         "string": "texto"
+      }
+    },
+    "AdvancedConditions": {
+      "Title": "Condições do Active Effect",
+      "TabsLabel": "Editores de condições",
+      "Native": "Condições nativas",
+      "Advanced": "Condições avançadas",
+      "AdvancedCodeLabel": "JavaScript",
+      "Evaluation": "Avaliação atual",
+      "EvaluationTab": "Avaliação",
+      "NativeGlobal": "Condição nativa do efeito",
+      "AdvancedGlobal": "Condição avançada do efeito",
+      "Combined": "Todas as condições",
+      "Pass": "Atende",
+      "Fail": "Não atende",
+      "Error": "Inválida ou com erro",
+      "Contextual": "Depende do contexto da rolagem",
+      "Invalid": "Corrija a condição inválida antes de salvar.",
+      "SaveFailed": "Não foi possível salvar as condições.",
+      "OpenFromNative": "Edite a condição JavaScript pela aba Condições avançadas do editor de condições nativo.",
+      "Builder": {
+        "Builder": "Construtor",
+        "Json": "JSON",
+        "AddCondition": "Adicionar condição",
+        "AddGroup": "Adicionar grupo",
+        "Remove": "Remover",
+        "Empty": "Nenhuma condição. O filtro será satisfeito.",
+        "KeyPlaceholder": "ex.: attributes.hp.value",
+        "ValuePlaceholder": "ex.: 5, true, \"fire\"",
+        "GroupOperator": "Operador do grupo",
+        "ComparisonOperator": "Operador de comparação",
+        "ValueHint": "O valor aceita literais JSON. Strings aparecem entre aspas para que valores como \"5\" continuem sendo texto; 5 sem aspas é número.",
+        "InvalidJson": "Corrija o JSON antes de abrir o construtor visual.",
+        "ViewLabel": "Modo de edição do filtro",
+        "FilterLabel": "Filtro",
+        "MatchLabel": "Satisfazer",
+        "AttributeColumn": "Atributo",
+        "OperatorColumn": "Operador",
+        "ValueColumn": "Valor",
+        "GroupOperators": {
+          "AND": "Todas as condições",
+          "NAND": "Ao menos uma falha",
+          "OR": "Qualquer condição",
+          "NOR": "Nenhuma condição",
+          "XOR": "Exatamente uma condição",
+          "NOT": "Inverter o único filho"
+        },
+        "OperatorCategories": {
+          "value": "Valor",
+          "text": "Texto",
+          "collection": "Coleção"
+        },
+        "Operators": {
+          "exact": "é exatamente",
+          "gt": "é maior que",
+          "gte": "é no mínimo",
+          "lt": "é menor que",
+          "lte": "é no máximo",
+          "empty": "está vazio",
+          "contains": "contém",
+          "icontains": "contém (ignora maiúsculas)",
+          "startswith": "começa com",
+          "istartswith": "começa com (ignora maiúsculas)",
+          "endswith": "termina com",
+          "iendswith": "termina com (ignora maiúsculas)",
+          "has": "possui",
+          "hasany": "possui qualquer um de",
+          "hasall": "possui todos de",
+          "subsetof": "é subconjunto de",
+          "in": "é um de"
+        }
       }
     },
     "MacroChange": {
@@ -97,11 +181,13 @@
       "RollAllUnavailableLabel": "As fórmulas não estão disponíveis agora",
       "RollFlavor": "Rolagem de fórmula do Active Effect",
       "InvalidFormula": "Fórmula inválida no Active Effect.",
+      "SaveFailed": "Não foi possível salvar a fórmula.",
       "Column": "Fórmula",
       "ColumnHint": "Fórmula rolada quando este Active Effect é ativado.",
       "Placeholder": "Fórmula opcional",
       "EditorTitle": "Editor de fórmula",
       "EditorOpen": "Editar fórmula",
+      "EditorOpenHint": "Abre o editor de fórmula para consultar as variáveis disponíveis.",
       "EditorSave": "Salvar fórmula",
       "EditorHint": "Fórmula rolada quando este Active Effect é ativado. Deixe em branco para remover a fórmula.",
       "ColumnShort": "fx",
@@ -113,7 +199,9 @@
       "PreviewResult": "Resultado neste ator: {value}",
       "PreviewRange": "Resultado neste ator: {minimum} a {maximum}",
       "PreviewNoActor": "Este Active Effect ainda não tem ator, então os dados de rolagem não estão disponíveis aqui.",
-      "ToggleValueMode": "Alterna entre um valor fixo e uma fórmula."
+      "ToggleValueMode": "Alterna entre um valor fixo e uma fórmula.",
+      "OrphanedFormula": "Fórmulas em \"{effect}\" não correspondem mais a nenhuma alteração e foram ignoradas: {keys}.",
+      "OrphanedFormulaHint": "Algumas fórmulas deste efeito não correspondem mais a nenhuma alteração e serão ignoradas: {keys}."
     },
     "Settings": {
       "EnableFormulaChanges": {
@@ -128,6 +216,10 @@
         "Name": "Exibir aba de condição",
         "Hint": "Adiciona a aba Condição às janelas de configuração de Active Effect.",
         "DaeNotice": "Se você usa Dynamic Active Effects (DAE) com a aba de condição habilitada, um aviso de conflito do libWrapper pode aparecer no console do navegador. Isso é esperado — o módulo intencionalmente bloqueia a aplicação de efeitos quando a condição não está disponível, o que também ignora o wrapper do DAE nesses casos. Você pode ignorar esse aviso com segurança."
+      },
+      "TintEffectIcons": {
+        "Name": "Colorir ícones dos efeitos",
+        "Hint": "Aplica a Cor de Tingimento do Ícone de cada Active Effect ao ícone dele nas listas de efeitos. Efeitos que continuam no branco padrão não mudam."
       },
       "DebugLogging": {
         "Name": "Habilitar logs de debug",
@@ -177,6 +269,13 @@
         "Expand": "Linha expansível — campo em largura total sob a mudança",
         "Single": "Campo único — o campo Value alterna para fórmula",
         "Column": "Coluna Fórmula — coluna rotulada sempre visível"
+      },
+      "DiscordLink": {
+        "Label": "Discord",
+        "Hint": "Entre no servidor Discord da Shattered Codex."
+      },
+      "CommunityLinks": {
+        "Aria": "Links da comunidade"
       }
     }
   }

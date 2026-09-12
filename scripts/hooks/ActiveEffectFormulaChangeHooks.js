@@ -1,3 +1,4 @@
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectFormulaChatCardService } from "../services/ActiveEffectFormulaChatCardService.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
@@ -73,11 +74,7 @@ export class ActiveEffectFormulaChangeHooks {
   }
 
   static #isActive(effect) {
-    const conditionEvaluation = ActiveEffectConditionService.evaluate(effect);
-    return effect?.active !== false
-      && effect?.disabled !== true
-      && !conditionEvaluation.error
-      && conditionEvaluation.available;
+    return ActiveEffectConditionService.isEffectActive(effect);
   }
 
   static #roll(effect) {
@@ -149,12 +146,7 @@ export class ActiveEffectFormulaChangeHooks {
   }
 
   static #isTransferredOwnedItemEffect(effect) {
-    return effect?.parent instanceof CONFIG.Item.documentClass
-      && effect.parent.actor instanceof CONFIG.Actor.documentClass
-      && effect.transfer !== false
-      && effect.transfer !== 0
-      && effect.transfer !== null
-      && effect.transfer !== undefined
+    return ActiveEffectContextBuilder.isTransferredOwnedItemEffect(effect)
       && ActiveEffectFormulaChangeService.hasFormulaChanges(effect);
   }
 }

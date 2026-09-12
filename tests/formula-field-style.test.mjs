@@ -17,6 +17,14 @@ globalThis.foundry = {
     }
   }
 };
+globalThis.document = {
+  createElement: () => ({
+    innerHTML: "",
+    set textContent(value) {
+      this.innerHTML = String(value ?? "");
+    }
+  })
+};
 
 const { ModuleSettings } = await import("../scripts/settings/ModuleSettings.js");
 const { RollDataVariableRegistry } = await import("../scripts/helpers/RollDataVariableRegistry.js");
@@ -56,13 +64,11 @@ test("offers the three design treatments plus the original column", () => {
 test("defaults to the expanding row", () => {
   stubSetting(undefined);
   assert.equal(ModuleSettings.getFormulaFieldStyle(), "expand");
-  assert.equal(ModuleSettings.isFormulaFieldExpandable(), true);
 });
 
 test("maps the retired inline choice onto the formula column", () => {
   stubSetting("inline");
   assert.equal(ModuleSettings.getFormulaFieldStyle(), "column");
-  assert.equal(ModuleSettings.isFormulaFieldColumn(), true);
 });
 
 test("falls back to the default treatment for an unknown stored style", () => {
@@ -70,16 +76,10 @@ test("falls back to the default treatment for an unknown stored style", () => {
   assert.equal(ModuleSettings.getFormulaFieldStyle(), "expand");
 });
 
-test("resolves each treatment to exactly one predicate", () => {
+test("every offered treatment round-trips through the stored setting", () => {
   for (const style of ModuleSettings.FORMULA_FIELD_STYLES) {
     stubSetting(style);
-    const active = [
-      ModuleSettings.isFormulaFieldExpandable(),
-      ModuleSettings.isFormulaFieldPopup(),
-      ModuleSettings.isFormulaFieldSingle(),
-      ModuleSettings.isFormulaFieldColumn()
-    ].filter(Boolean);
-    assert.equal(active.length, 1, `${style} should match a single predicate`);
+    assert.equal(ModuleSettings.getFormulaFieldStyle(), style, `${style} should resolve to itself`);
   }
 });
 
@@ -140,4 +140,61 @@ test("replaces the current selection", () => {
   FormulaEditorDialog.insertAtCursor(textarea, "@attributes.prof");
 
   assert.equal(textarea.value, "2d6 + @attributes.prof");
+});
+
+test("maps a DialogV2 cancellation to a dismissed formula editor", async () => {
+  let config = null;
+  globalThis.game = { ...(globalThis.game ?? {}), i18n: { localize: key => key } };
+  globalThis.foundry.applications = {
+    api: {
+      DialogV2: {
+        // DialogV2.wait takes a single config object; a second argument is dropped.
+        wait: async (dialog, ...rest) => {
+          config = { dialog, rest };
+          return dialog.buttons.find(button => button.action === "cancel").callback();
+        }
+      }
+    }
+  };
+
+  const result = await FormulaEditorDialog.open();
+
+  assert.equal(result, null);
+  assert.deepEqual(config.rest, []);
+  assert.equal(config.dialog.rejectClose, false);
+});
+
+test("dismissing the editor resolves null instead of rejecting on Foundry v13", async () => {
+  globalThis.game = { ...(globalThis.game ?? {}), i18n: { localize: key => key } };
+  globalThis.foundry.applications = {
+    api: {
+      DialogV2: {
+        // v13 defaults rejectClose to true, so only the opt-out inside the
+        // config keeps a dismissal from rejecting into an unhandled failure.
+        wait: async ({ rejectClose }) => {
+          if (rejectClose !== false) throw new Error("Dialog was dismissed without pressing a button.");
+          return null;
+        }
+      }
+    }
+  };
+
+  assert.equal(await FormulaEditorDialog.open(), null);
+});
+
+test("allows a formula whose literal text is cancel", async () => {
+  globalThis.game = { ...(globalThis.game ?? {}), i18n: { localize: key => key } };
+  globalThis.foundry.applications = {
+    api: {
+      DialogV2: {
+        wait: async dialog => dialog.buttons.find(button => button.action === "save").callback(
+          null,
+          null,
+          { element: { querySelector: () => ({ value: "cancel" }) } }
+        )
+      }
+    }
+  };
+
+  assert.equal(await FormulaEditorDialog.open(), "cancel");
 });

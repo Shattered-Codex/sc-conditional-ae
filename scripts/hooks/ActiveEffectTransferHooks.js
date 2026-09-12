@@ -1,8 +1,8 @@
+import { DebugLog } from "../helpers/DebugLog.js";
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { ActiveEffectTransferContextService } from "../services/ActiveEffectTransferContextService.js";
 import { ActiveEffectTransferMetadataService } from "../services/ActiveEffectTransferMetadataService.js";
-import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class ActiveEffectTransferHooks {
   static #registered = false;
@@ -407,12 +407,7 @@ export class ActiveEffectTransferHooks {
   }
 
   static #isTransferSourceEffect(effect) {
-    return effect?.parent instanceof CONFIG.Item.documentClass
-      && effect.parent.actor instanceof CONFIG.Actor.documentClass
-      && effect.transfer !== false
-      && effect.transfer !== 0
-      && effect.transfer !== null
-      && effect.transfer !== undefined;
+    return ActiveEffectContextBuilder.isTransferredOwnedItemEffect(effect);
   }
 
   static #isStackedTransferSource(effect) {
@@ -453,16 +448,7 @@ export class ActiveEffectTransferHooks {
   }
 
   static #getActorFromDocument(document) {
-    const parent = document?.parent;
-    if (parent instanceof CONFIG.Actor.documentClass) {
-      return parent;
-    }
-
-    if (parent instanceof CONFIG.Item.documentClass) {
-      return parent.actor ?? parent.parent ?? null;
-    }
-
-    return null;
+    return ActiveEffectContextBuilder.getAffectedActor(document);
   }
 
   static #getHookOptions(args) {
@@ -477,16 +463,6 @@ export class ActiveEffectTransferHooks {
   }
 
   static #debug(message, data = undefined) {
-    if (!ModuleSettings.isDebugLoggingEnabled()) {
-      return;
-    }
-
-    const prefix = `[${Constants.MODULE_ID}] ${message}`;
-    if (data === undefined) {
-      console.debug(prefix);
-      return;
-    }
-
-    console.debug(prefix, data);
+    DebugLog.write(message, data);
   }
 }

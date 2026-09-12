@@ -1,8 +1,10 @@
+import { ResponsibleUser } from "../helpers/ResponsibleUser.js";
 import { Constants } from "../constants/Constants.js";
+import { ActiveEffectChangesCompatibility } from "../compat/ActiveEffectChangesCompatibility.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { FormulaRollCardRenderer } from "../helpers/FormulaRollCardRenderer.js";
 import { HtmlHelpers } from "../helpers/HtmlHelpers.js";
-import { ActiveEffectConditionService } from "./ActiveEffectConditionService.js";
+import { Dnd5e6ChangeConditionService } from "./Dnd5e6ChangeConditionService.js";
 
 const ROLL_UPDATE_OPTION = "formulaRollUpdate";
 const REAPPLY_UPDATE_OPTION = "formulaReapplyUpdate";
@@ -10,6 +12,47 @@ const REAPPLY_UPDATE_OPTION = "formulaReapplyUpdate";
 export class ActiveEffectFormulaChangeService {
   static get ROLL_UPDATE_OPTION() {
     return ROLL_UPDATE_OPTION;
+  }
+
+  /**
+   * Effects the chat application is re-applying in the current batch.
+   *
+   * modifyBatch carries no operation options, so the flag that prepareUpdateSource
+   * normally reads cannot ride along. The id is announced here instead and is
+   * consumed by the update that follows in the same tick.
+   */
+  static #PENDING_REAPPLICATION_TTL_MS = 10000;
+  static #pendingReapplications = new Map();
+
+  static markReapplication(effectId) {
+    if (!effectId) return;
+    const id = String(effectId);
+    const previous = ActiveEffectFormulaChangeService.#pendingReapplications.get(id);
+    if (previous?.timeout) globalThis.clearTimeout(previous.timeout);
+    const pending = {
+      // Embedded ids can be equal on different target Actors in the same batch.
+      count: (previous?.count ?? 0) + 1,
+      timeout: null
+    };
+    pending.timeout = globalThis.setTimeout(() => {
+      if (ActiveEffectFormulaChangeService.#pendingReapplications.get(id) === pending) {
+        ActiveEffectFormulaChangeService.#pendingReapplications.delete(id);
+      }
+    }, ActiveEffectFormulaChangeService.#PENDING_REAPPLICATION_TTL_MS);
+    ActiveEffectFormulaChangeService.#pendingReapplications.set(id, pending);
+  }
+
+  static #consumeReapplication(effect) {
+    const id = String(effect?.id ?? "");
+    const pending = ActiveEffectFormulaChangeService.#pendingReapplications.get(id);
+    if (!pending) return false;
+    if (pending.count > 1) {
+      pending.count -= 1;
+    } else {
+      globalThis.clearTimeout(pending.timeout);
+      ActiveEffectFormulaChangeService.#pendingReapplications.delete(id);
+    }
+    return true;
   }
 
   static get REAPPLY_UPDATE_OPTION() {
@@ -53,7 +96,8 @@ export class ActiveEffectFormulaChangeService {
       return;
     }
 
-    const isFormulaReapplication = options?.[Constants.MODULE_ID]?.[REAPPLY_UPDATE_OPTION] === true;
+    const isFormulaReapplication = options?.[Constants.MODULE_ID]?.[REAPPLY_UPDATE_OPTION] === true
+      || ActiveEffectFormulaChangeService.#consumeReapplication(effect);
     const isDisabledReactivation = updates?.disabled === false && effect?.disabled === true;
     const existingFormulaChanges = ActiveEffectFormulaChangeService.#getFormulaChanges(effect);
     const submittedFormulaChanges = ActiveEffectFormulaChangeService.#getSubmittedFormulaChanges(updates);
@@ -74,7 +118,7 @@ export class ActiveEffectFormulaChangeService {
         return;
       }
 
-      ActiveEffectFormulaChangeService.#setSubmittedChanges(updates, prepared.changes);
+      ActiveEffectFormulaChangeService.#setSubmittedChanges(effect, updates, prepared.changes);
       ActiveEffectFormulaChangeService.#clearFlattenedFormulaChangeUpdates(updates);
       ActiveEffectFormulaChangeService.#setFormulaChanges(updates, prepared.formulaChanges, existingFormulaChanges);
       return;
@@ -89,7 +133,7 @@ export class ActiveEffectFormulaChangeService {
       ActiveEffectFormulaChangeService.#clearFlattenedChangeUpdates(updates);
 
       if (!prepared.changed) {
-        updates.changes = flattenedChanges;
+        ActiveEffectChangesCompatibility.setUpdate(updates, flattenedChanges, effect);
         if (
           ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
           || ActiveEffectFormulaChangeService.#hasSubmittedFormulaChanges(submittedFormulaChanges)
@@ -100,7 +144,7 @@ export class ActiveEffectFormulaChangeService {
         return;
       }
 
-      updates.changes = prepared.changes;
+      ActiveEffectChangesCompatibility.setUpdate(updates, prepared.changes, effect);
       ActiveEffectFormulaChangeService.#clearFlattenedFormulaChangeUpdates(updates);
       ActiveEffectFormulaChangeService.#setFormulaChanges(updates, prepared.formulaChanges, existingFormulaChanges);
       return;
@@ -112,7 +156,7 @@ export class ActiveEffectFormulaChangeService {
         submitted: submittedFormulaChanges
       });
       if (prepared.changed) {
-        updates.changes = prepared.changes;
+        ActiveEffectChangesCompatibility.setUpdate(updates, prepared.changes, effect);
         ActiveEffectFormulaChangeService.#clearFlattenedFormulaChangeUpdates(updates);
         ActiveEffectFormulaChangeService.#setFormulaChanges(updates, prepared.formulaChanges, existingFormulaChanges);
       } else if (ActiveEffectFormulaChangeService.hasFormulaChanges(effect)) {
@@ -125,7 +169,7 @@ export class ActiveEffectFormulaChangeService {
     if (updates?.disabled === false && !ActiveEffectFormulaChangeService.hasFormulaChanges(effect)) {
       const prepared = ActiveEffectFormulaChangeService.#prepareChanges(effect);
       if (prepared.changed) {
-        updates.changes = prepared.changes;
+        ActiveEffectChangesCompatibility.setUpdate(updates, prepared.changes, effect);
         ActiveEffectFormulaChangeService.#clearFlattenedFormulaChangeUpdates(updates);
         ActiveEffectFormulaChangeService.#setFormulaChanges(updates, prepared.formulaChanges);
         return;
@@ -141,7 +185,11 @@ export class ActiveEffectFormulaChangeService {
     }
 
     // Reapplying an existing effect should clear formula-backed values so the update hook can request a fresh roll.
-    updates.changes = ActiveEffectFormulaChangeService.#zeroFormulaChangeValues(effect);
+    ActiveEffectChangesCompatibility.setUpdate(
+      updates,
+      ActiveEffectFormulaChangeService.#zeroFormulaChangeValues(effect),
+      effect
+    );
   }
 
   static prepareSubmitData(effect, submitData) {
@@ -156,18 +204,120 @@ export class ActiveEffectFormulaChangeService {
     return ActiveEffectFormulaChangeService.#getFormulaChanges(effect);
   }
 
-  static getFormulaChangeEntries(effect) {
+  /** Bind stored formulas by stable v6 change id, with legacy index/key fallbacks. */
+  static #resolveFormulaBindings(effect) {
     const formulaChanges = ActiveEffectFormulaChangeService.#getFormulaChanges(effect);
-
-    return Object.entries(formulaChanges)
+    const changes = ActiveEffectChangesCompatibility.get(effect);
+    const entries = Object.entries(formulaChanges)
       .map(([index, formulaChange]) => ({
-        index: Number(index),
-        key: String(formulaChange?.key ?? effect?.changes?.[Number(index)]?.key ?? "").trim(),
+        storageKey: index,
+        storedIndex: Number(index),
+        changeId: String(formulaChange?.changeId ?? "").trim(),
+        key: String(formulaChange?.key ?? "").trim(),
         formula: String(formulaChange?.formula ?? "").trim(),
-        currentValue: String(effect?.changes?.[Number(index)]?.value ?? "").trim()
+        index: undefined,
+        drifted: false
       }))
-      .filter(formulaChange => Number.isInteger(formulaChange.index) && formulaChange.formula.length)
+      .filter(entry => entry.formula.length)
+      .sort((left, right) => (
+        (Number.isInteger(left.storedIndex) ? left.storedIndex : Number.MAX_SAFE_INTEGER)
+        - (Number.isInteger(right.storedIndex) ? right.storedIndex : Number.MAX_SAFE_INTEGER)
+      ));
+
+    const claimed = new Set();
+
+    // New v6 data carries the change model's stable identity. It remains
+    // unambiguous when multiple operations write the same key.
+    for (const entry of entries) {
+      if (!entry.changeId) continue;
+      const index = changes.findIndex((change, position) => (
+        !claimed.has(position)
+        && Dnd5e6ChangeConditionService.getChangeId(change) === entry.changeId
+      ));
+      if (index < 0) continue;
+      entry.index = index;
+      entry.key ||= String(changes[index]?.key ?? "").trim();
+      entry.drifted = entry.storedIndex !== index;
+      claimed.add(index);
+    }
+
+    // Exact legacy hits next, so an untouched 5.3 effect binds as it always has
+    // and can never be stolen by a later entry that shares the same key.
+    for (const entry of entries) {
+      if (entry.index !== undefined || entry.changeId) continue;
+      const candidate = changes[entry.storedIndex];
+      if (!candidate || claimed.has(entry.storedIndex)) continue;
+      if (entry.key && candidate.key !== entry.key) continue;
+      entry.index = entry.storedIndex;
+      entry.key ||= String(candidate.key ?? "").trim();
+      claimed.add(entry.storedIndex);
+    }
+
+    for (const entry of entries) {
+      if (entry.index !== undefined || entry.changeId || !entry.key) continue;
+      const index = changes.findIndex((change, position) => (
+        !claimed.has(position) && String(change?.key ?? "").trim() === entry.key
+      ));
+      if (index < 0) continue;
+      entry.index = index;
+      entry.drifted = true;
+      claimed.add(index);
+    }
+
+    for (const entry of entries) {
+      entry.currentValue = entry.index === undefined
+        ? ""
+        : String(changes[entry.index]?.value ?? "").trim();
+    }
+
+    return entries;
+  }
+
+  static getFormulaChangeEntries(effect) {
+    return ActiveEffectFormulaChangeService.#resolveFormulaBindings(effect)
+      .filter(entry => entry.index !== undefined)
       .sort((left, right) => left.index - right.index);
+  }
+
+  /** Stored formulas whose change no longer exists under any position. */
+  static getOrphanedFormulaChanges(effect) {
+    return ActiveEffectFormulaChangeService.#resolveFormulaBindings(effect)
+      .filter(entry => entry.index === undefined);
+  }
+
+  /**
+   * Where a change's formula is stored, which is not necessarily where the
+   * change now sits. Writing anywhere else would leave the drifted entry behind.
+   */
+  static getFormulaStorageIndex(effect, index) {
+    const entry = ActiveEffectFormulaChangeService.#resolveFormulaBindings(effect)
+      .find(candidate => candidate.index === index);
+    if (!entry) return index;
+    return Number.isInteger(entry.storedIndex) ? entry.storedIndex : entry.storageKey;
+  }
+
+  /** Formulas bound to a change that has since moved position. */
+  static getDriftedFormulaChanges(effect) {
+    return ActiveEffectFormulaChangeService.#resolveFormulaBindings(effect)
+      .filter(entry => entry.drifted);
+  }
+
+  /** The formula bound to a change, resolved by key rather than by position. */
+  static getFormulaForChange(effect, changeOrIndex) {
+    const changes = ActiveEffectChangesCompatibility.get(effect);
+    const index = typeof changeOrIndex === "number"
+      ? changeOrIndex
+      : (typeof changeOrIndex === "string"
+        ? changes.findIndex(change => Dnd5e6ChangeConditionService.getChangeId(change) === changeOrIndex)
+        : changes.indexOf(changeOrIndex));
+    return ActiveEffectFormulaChangeService.#resolveFormulaBindings(effect)
+      .find(entry => entry.index === index)?.formula ?? "";
+  }
+
+  /** The effect has something to roll and this client is the one that should ask. */
+  static canPromptForRoll(effect) {
+    return ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
+      && ActiveEffectFormulaChangeService.shouldPromptForCurrentUser(effect);
   }
 
   static shouldPromptForCurrentUser(effect) {
@@ -176,13 +326,17 @@ export class ActiveEffectFormulaChangeService {
       return false;
     }
 
-    return ActiveEffectFormulaChangeService.#getResponsibleUser(actor)?.id === game.user?.id;
+    return ResponsibleUser.isCurrentUser(actor);
   }
 
-  static async rollFormulaChanges(effect) {
+  static async rollFormulaChanges(effect, { changeIndexes = null } = {}) {
+    const selectedIndexes = changeIndexes === null
+      ? null
+      : new Set(Array.from(changeIndexes, value => Number(value)));
     return ActiveEffectFormulaChangeService.#rollFormulaEntries(
       effect,
       ActiveEffectFormulaChangeService.getFormulaChangeEntries(effect)
+        .filter(entry => !selectedIndexes || selectedIndexes.has(entry.index))
     );
   }
 
@@ -200,7 +354,7 @@ export class ActiveEffectFormulaChangeService {
   }
 
   static #prepareChanges(source, formulaChangeSources = {}) {
-    const changes = foundry.utils.deepClone(source?.changes ?? []);
+    const changes = ActiveEffectChangesCompatibility.clone(source);
     if (!Array.isArray(changes) || !changes.length) {
       return { changed: false, changes, formulaChanges: {} };
     }
@@ -225,7 +379,10 @@ export class ActiveEffectFormulaChangeService {
 
       formulaChanges[index] = {
         formula,
-        key: change.key
+        key: change.key,
+        ...(Dnd5e6ChangeConditionService.getChangeId(change)
+          ? { changeId: Dnd5e6ChangeConditionService.getChangeId(change) }
+          : {})
       };
       if (ActiveEffectFormulaChangeService.#shouldResetFormulaBackedValue(change.value, formula, existingFormulaChange?.formula)) {
         change.value = "0";
@@ -240,6 +397,15 @@ export class ActiveEffectFormulaChangeService {
     const indexed = existingFormulaChanges[index] ?? {};
     if (ActiveEffectFormulaChangeService.#isCompatibleStoredFormula(change, indexed)) {
       return indexed;
+    }
+
+    const changeId = Dnd5e6ChangeConditionService.getChangeId(change);
+    if (changeId) {
+      const matched = Object.values(existingFormulaChanges).find(formulaChange => (
+        String(formulaChange?.changeId ?? "").trim() === changeId
+        && ActiveEffectFormulaChangeService.#isCompatibleStoredFormula(change, formulaChange)
+      ));
+      if (matched) return matched;
     }
 
     return {};
@@ -272,6 +438,9 @@ export class ActiveEffectFormulaChangeService {
       return false;
     }
 
+    const storedChangeId = String(formulaChange?.changeId ?? "").trim();
+    const changeId = Dnd5e6ChangeConditionService.getChangeId(change);
+    if (storedChangeId && storedChangeId !== changeId) return false;
     return !formulaChange?.key || formulaChange.key === change.key;
   }
 
@@ -332,7 +501,7 @@ export class ActiveEffectFormulaChangeService {
       return null;
     }
 
-    const changes = foundry.utils.deepClone(effect.changes ?? []);
+    const changes = ActiveEffectChangesCompatibility.clone(effect);
     for (const index of indexes) {
       changes[Number(index)] = {
         ...(changes[Number(index)] ?? {}),
@@ -344,18 +513,12 @@ export class ActiveEffectFormulaChangeService {
   }
 
   static #getChangesArray(source) {
-    if (Array.isArray(source?.changes)) {
-      return foundry.utils.deepClone(source.changes);
-    }
-
-    if (Array.isArray(source?.system?.changes)) {
-      return foundry.utils.deepClone(source.system.changes);
-    }
-
-    return null;
+    return ActiveEffectChangesCompatibility.hasExplicitChanges(source)
+      ? ActiveEffectChangesCompatibility.clone(source)
+      : null;
   }
 
-  static #setSubmittedChanges(updates, changes) {
+  static #setSubmittedChanges(effect, updates, changes) {
     if (
       updates?.system?.changes
       || Object.keys(updates ?? {}).some(key => key.startsWith("system.changes."))
@@ -365,8 +528,13 @@ export class ActiveEffectFormulaChangeService {
       return;
     }
 
-    updates.changes = changes;
-    ActiveEffectFormulaChangeService.#clearFlattenedChangeUpdates(updates, "changes.");
+    ActiveEffectChangesCompatibility.setUpdate(updates, changes, effect);
+    ActiveEffectFormulaChangeService.#clearFlattenedChangeUpdates(
+      updates,
+      ActiveEffectChangesCompatibility.usesSystemPath(updates, effect)
+        ? "system.changes."
+        : "changes."
+    );
   }
 
   static #setChangesForCreate(target, changes, shapeSource) {
@@ -404,7 +572,7 @@ export class ActiveEffectFormulaChangeService {
       return null;
     }
 
-    const changes = foundry.utils.deepClone(effect.changes ?? []);
+    const changes = ActiveEffectChangesCompatibility.clone(effect);
     const indexes = Object.keys(expandedChanges).filter(index => /^\d+$/.test(index));
     if (!indexes.length) {
       return null;
@@ -501,12 +669,9 @@ export class ActiveEffectFormulaChangeService {
 
 
   static #zeroFormulaChangeValues(effect) {
-    const changes = foundry.utils.deepClone(effect.changes ?? []);
-    const formulaChanges = ActiveEffectFormulaChangeService.#getFormulaChanges(effect);
-    for (const index of Object.keys(formulaChanges)) {
-      if (changes[Number(index)]) {
-        changes[Number(index)].value = "0";
-      }
+    const changes = ActiveEffectChangesCompatibility.clone(effect);
+    for (const entry of ActiveEffectFormulaChangeService.getFormulaChangeEntries(effect)) {
+      if (changes[entry.index]) changes[entry.index].value = "0";
     }
     return changes;
   }
@@ -535,7 +700,7 @@ export class ActiveEffectFormulaChangeService {
       return false;
     }
 
-    if (ActiveEffectConditionService.shouldSuppress(effect)) {
+    if (!Dnd5e6ChangeConditionService.isEffectAllowed(effect)) {
       return false;
     }
 
@@ -544,14 +709,20 @@ export class ActiveEffectFormulaChangeService {
       return false;
     }
 
-    const changes = foundry.utils.deepClone(effect.changes ?? []);
+    const changes = ActiveEffectChangesCompatibility.clone(effect);
     const formulaChanges = ActiveEffectFormulaChangeService.#getFormulaChanges(effect);
     let changed = false;
 
+    ActiveEffectFormulaChangeService.#warnAboutOrphanedFormulas(effect);
+
     for (const formulaEntry of formulaEntries) {
       const change = changes[formulaEntry.index];
-      const formulaChange = formulaChanges[formulaEntry.index];
+      const formulaChange = formulaChanges[formulaEntry.storageKey];
       if (!change || !formulaChange) {
+        continue;
+      }
+
+      if (!Dnd5e6ChangeConditionService.isChangeAllowed(effect, change, { actor })) {
         continue;
       }
 
@@ -574,10 +745,29 @@ export class ActiveEffectFormulaChangeService {
       return false;
     }
 
-    const updateData = { changes };
+    const updateData = ActiveEffectChangesCompatibility.buildUpdate(changes, effect);
     ActiveEffectFormulaChangeService.#setFormulaChanges(updateData, formulaChanges);
     await effect.update(updateData, { [Constants.MODULE_ID]: { [ROLL_UPDATE_OPTION]: true } });
     return true;
+  }
+
+  /**
+   * A formula whose change is gone would otherwise be silently dropped, or
+   * worse, rolled against whatever change inherited its position.
+   */
+  static #warnAboutOrphanedFormulas(effect) {
+    const orphaned = ActiveEffectFormulaChangeService.getOrphanedFormulaChanges(effect);
+    if (!orphaned.length) {
+      return;
+    }
+
+    const keys = orphaned.map(entry => entry.key || `#${entry.storedIndex}`).join(", ");
+    console.warn(`[${Constants.MODULE_ID}] formulas with no matching change on "${effect?.name ?? ""}"`, orphaned);
+    ui.notifications?.warn?.(Constants.format(
+      "SCConditionalAE.FormulaChange.OrphanedFormula",
+      { effect: effect?.name ?? "", keys },
+      'Formulas on "{effect}" no longer match a change and were skipped: {keys}.'
+    ));
   }
 
   static async #promptAndRollFormula({ actor, change, effect, formula }) {
@@ -714,49 +904,31 @@ export class ActiveEffectFormulaChangeService {
 
   static #promptFormulaV2(title, content) {
     return foundry.applications.api.DialogV2.wait({
+      rejectClose: false,
       window: { title },
       content,
-      rejectClose: false,
       buttons: [
         {
           action: "roll",
           label: Constants.localize("SCConditionalAE.FormulaChange.RollButton", "Roll"),
           default: true,
-          callback: (_event, _button, dialog) =>
-            dialog.element?.querySelector("input[name='formula']")?.value?.trim() || null
+          callback: (_event, _button, dialog) => ({
+            action: "roll",
+            formula: dialog.element?.querySelector("input[name='formula']")?.value?.trim() ?? ""
+          })
         },
         {
           action: "cancel",
           label: Constants.localize("Cancel", "Cancel"),
-          callback: () => null
+          callback: () => ({ action: "cancel" })
         }
       ]
-    });
-  }
-
-  static #getResponsibleUser(actor) {
-    const activeUsers = game.users?.filter(user => user.active) ?? [];
-    const owner = activeUsers.find(user => (
-      !user.isGM && actor.testUserPermission(user, "OWNER")
+    }).then(result => (
+      result?.action === "roll" && result.formula ? result.formula : null
     ));
-
-    if (owner) {
-      return owner;
-    }
-
-    return game.users?.activeGM ?? activeUsers.find(user => user.isGM) ?? null;
   }
 
   static getActor(effect) {
-    const parent = effect?.parent;
-    if (parent instanceof CONFIG.Actor.documentClass) {
-      return parent;
-    }
-
-    if (parent instanceof CONFIG.Item.documentClass) {
-      return parent.actor ?? parent.parent ?? null;
-    }
-
-    return null;
+    return ActiveEffectContextBuilder.getAffectedActor(effect);
   }
 }

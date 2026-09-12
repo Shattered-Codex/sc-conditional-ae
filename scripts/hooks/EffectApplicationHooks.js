@@ -1,8 +1,9 @@
+import { DebugLog } from "../helpers/DebugLog.js";
 import { Constants } from "../constants/Constants.js";
+import { ActiveEffectChangesCompatibility } from "../compat/ActiveEffectChangesCompatibility.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectTransferMetadataService } from "../services/ActiveEffectTransferMetadataService.js";
-import { ModuleSettings } from "../settings/ModuleSettings.js";
 
 export class EffectApplicationHooks {
   static #PATCH_MARKER = Symbol(`${Constants.MODULE_ID}.effectApplicationPatched`);
@@ -29,6 +30,114 @@ export class EffectApplicationHooks {
 
   static #patchEffectApplication() {
     const elementClass = globalThis.window?.customElements?.get?.("effect-application");
+    // dnd5e 6's chat button runs _onApplyEffects -> _prepareEffectData -> modifyBatch
+    // and never calls _applyEffectToActor, so patching that method would miss the
+    // normal flow entirely. Patch the step both paths share where it exists.
+    if (
+      Constants.isDnd5eAtLeast(6)
+      && typeof elementClass?.prototype?._prepareEffectData === "function"
+    ) {
+      EffectApplicationHooks.#patchPrepareEffectData(elementClass);
+      return;
+    }
+
+    EffectApplicationHooks.#patchApplyEffectToActor(elementClass);
+  }
+
+  static #patchPrepareEffectData(elementClass) {
+    const currentPrepare = elementClass.prototype._prepareEffectData;
+    if (currentPrepare?.[EffectApplicationHooks.#PATCH_MARKER] === true) {
+      return;
+    }
+
+    const originalPrepare = currentPrepare?.[EffectApplicationHooks.#ORIGINAL_APPLY] ?? currentPrepare;
+    EffectApplicationHooks.#debug("patching effect-application _prepareEffectData", {
+      elementClass: elementClass?.name ?? null
+    });
+
+    const patchedPrepare = async function(effect, actor) {
+      const result = await originalPrepare.call(this, effect, actor);
+      if (!(effect instanceof CONFIG.ActiveEffect.documentClass) || !result?.data) {
+        return result;
+      }
+
+      const activity = this.chatMessage?.getAssociatedActivity?.() ?? null;
+      const sourceEffect = EffectApplicationHooks.#resolveSourceEffect(effect, activity);
+      const origin = sourceEffect ?? effect;
+
+      // dnd5e always reuses the effect it applied from this source. "Stack" asks
+      // for a second copy instead, so the update turns into a create.
+      if (result.action === "update"
+        && EffectApplicationHooks.#shouldCreateDuplicateEffect(sourceEffect, effect)) {
+        EffectApplicationHooks.#debug("stacking a duplicate target effect", {
+          actor: actor?.uuid ?? actor?.id ?? null,
+          effect: effect?.uuid ?? null
+        });
+        return {
+          action: "create",
+          data: await EffectApplicationHooks.#buildDuplicateData(this, effect, actor, result.data, activity)
+        };
+      }
+
+      ActiveEffectTransferMetadataService.mergeModuleFlags(origin, result.data, { activity });
+      if (result.action === "create") {
+        foundry.utils.deleteProperty(result.data, Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH);
+      } else if (ActiveEffectFormulaChangeService.hasFormulaChanges(origin)) {
+        // The batch carries no operation options, so the re-application is
+        // announced out of band for prepareUpdateSource to pick up.
+        ActiveEffectFormulaChangeService.markReapplication(result.data._id);
+      }
+
+      EffectApplicationHooks.#debug("prepared target effect data", {
+        actor: actor?.uuid ?? actor?.id ?? null,
+        effect: effect?.uuid ?? null,
+        action: result.action
+      });
+      return result;
+    };
+
+    patchedPrepare[EffectApplicationHooks.#PATCH_MARKER] = true;
+    patchedPrepare[EffectApplicationHooks.#ORIGINAL_APPLY] = originalPrepare;
+    elementClass.prototype._prepareEffectData = patchedPrepare;
+  }
+
+  /**
+   * dnd5e's own create shape, rebuilt from the update payload it just produced.
+   * That payload already carries the activity, concentration and origin data the
+   * system computed, so nothing is derived a second time here.
+   */
+  static async #buildDuplicateData(application, effect, actor, updateData, activity) {
+    const changes = foundry.utils.deepClone(updateData);
+    delete changes._id;
+
+    const sourceKey = effect.inCompendium ? "compendiumSource" : "duplicateSource";
+    const data = foundry.utils.mergeObject({
+      ...effect.toObject(),
+      disabled: false,
+      transfer: false,
+      _stats: {
+        [sourceKey]: effect.uuid,
+        [effect.inCompendium ? "duplicateSource" : "compendiumSource"]: null
+      }
+    }, changes);
+    delete data._id;
+    foundry.utils.deleteProperty(data, Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH);
+
+    const sourceEffect = EffectApplicationHooks.#resolveSourceEffect(effect, activity);
+    ActiveEffectTransferMetadataService.mergeModuleFlags(sourceEffect ?? effect, data, { activity });
+    EffectApplicationHooks.#enforceDuplicateDaeStacking(sourceEffect ?? effect, data);
+
+    const item = application.chatMessage?.getAssociatedItem?.({ scaled: true }) ?? null;
+    const originActor = application.chatMessage?.getAssociatedActor?.() ?? null;
+    data.system.changes = await ActiveEffect.implementation.forApplication(
+      data.system.changes,
+      activity ?? item ?? originActor,
+      actor
+    );
+    return data;
+  }
+
+  static #patchApplyEffectToActor(elementClass) {
     const currentApply = elementClass?.prototype?._applyEffectToActor;
     if (currentApply?.[EffectApplicationHooks.#PATCH_MARKER] === true) {
       return;
@@ -139,6 +248,7 @@ export class EffectApplicationHooks {
     patchedApply[EffectApplicationHooks.#ORIGINAL_APPLY] = originalApply;
     elementClass.prototype._applyEffectToActor = patchedApply;
   }
+
 
   static #getInitialDurationData(effectClass) {
     if (typeof effectClass?.getEffectStart === "function") {
@@ -257,8 +367,12 @@ export class EffectApplicationHooks {
       return false;
     }
 
-    const candidateChanges = ActiveEffectContextBuilder.getChangeSignature(candidate?.changes ?? []);
-    const effectChanges = ActiveEffectContextBuilder.getChangeSignature(effect?.changes ?? []);
+    const candidateChanges = ActiveEffectContextBuilder.getChangeSignature(
+      ActiveEffectChangesCompatibility.get(candidate)
+    );
+    const effectChanges = ActiveEffectContextBuilder.getChangeSignature(
+      ActiveEffectChangesCompatibility.get(effect)
+    );
     if (candidateChanges.length !== effectChanges.length) {
       return false;
     }
@@ -328,16 +442,6 @@ export class EffectApplicationHooks {
   }
 
   static #debug(message, data = undefined) {
-    if (!ModuleSettings.isDebugLoggingEnabled()) {
-      return;
-    }
-
-    const prefix = `[${Constants.MODULE_ID}] ${message}`;
-    if (data === undefined) {
-      console.debug(prefix);
-      return;
-    }
-
-    console.debug(prefix, data);
+    DebugLog.write(message, data);
   }
 }

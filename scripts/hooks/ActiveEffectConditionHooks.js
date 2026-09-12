@@ -1,9 +1,11 @@
 import { Constants } from "../constants/Constants.js";
+import { DebugLog } from "../helpers/DebugLog.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { ActiveEffectFormulaChatCardService } from "../services/ActiveEffectFormulaChatCardService.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 import { ActiveEffectMacroChangeService } from "../services/ActiveEffectMacroChangeService.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { Dnd5e6ChangeConditionService } from "../services/Dnd5e6ChangeConditionService.js";
 import { TokenLightingService } from "../services/TokenLightingService.js";
 import { ActiveEffectTransferHooks } from "./ActiveEffectTransferHooks.js";
 import { ActiveEffectMacroChangeHooks } from "./ActiveEffectMacroChangeHooks.js";
@@ -180,7 +182,7 @@ export class ActiveEffectConditionHooks {
         Constants.MODULE_ID,
         "CONFIG.ActiveEffect.documentClass.applyChange",
         function(wrapped, model, change, options) {
-          if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect, model)) {
+          if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect, change, model)) {
             return {};
           }
 
@@ -196,7 +198,7 @@ export class ActiveEffectConditionHooks {
         Constants.MODULE_ID,
         "CONFIG.ActiveEffect.documentClass.prototype.apply",
         function(wrapped, model, change, ...args) {
-          if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect ?? this, model)) {
+          if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect ?? this, change, model)) {
             return {};
           }
 
@@ -220,7 +222,7 @@ export class ActiveEffectConditionHooks {
     if (typeof CONFIG.ActiveEffect.documentClass.applyChange === "function") {
       const originalApplyChange = CONFIG.ActiveEffect.documentClass.applyChange;
       CONFIG.ActiveEffect.documentClass.applyChange = function(model, change, options) {
-        if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect, model)) {
+        if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect, change, model)) {
           return {};
         }
 
@@ -231,7 +233,7 @@ export class ActiveEffectConditionHooks {
     if (typeof prototype.apply === "function") {
       const originalApply = prototype.apply;
       prototype.apply = function(model, change, ...args) {
-        if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect ?? this, model)) {
+        if (ActiveEffectConditionHooks.#shouldSkipChangeApplication(change?.effect ?? this, change, model)) {
           return {};
         }
 
@@ -499,20 +501,36 @@ export class ActiveEffectConditionHooks {
     let changed = !cachedState;
 
     for (const effect of ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
-      if (!ActiveEffectConditionService.usesLightingContext(effect)) {
+      const usesGlobalLighting = ActiveEffectConditionService.usesLightingContext(effect);
+      const usesChangeLighting = Dnd5e6ChangeConditionService.usesLightingContext(effect);
+      if (!usesGlobalLighting && !usesChangeLighting) {
         continue;
       }
 
-      const previousAvailability = cachedState?.get(effect.uuid);
-      const evaluation = ActiveEffectConditionService.evaluate(effect, {
-        actor,
-        token,
-        lightLevel
-      });
-      const currentAvailability = !evaluation.error && evaluation.available;
-      state.set(effect.uuid, currentAvailability);
-      if (previousAvailability !== currentAvailability) {
-        changed = true;
+      let globalAvailable = cachedState?.get(effect.uuid);
+      if (usesGlobalLighting || globalAvailable === undefined) {
+        const evaluation = ActiveEffectConditionService.evaluate(effect, { actor, token, lightLevel });
+        globalAvailable = !evaluation.error && evaluation.available;
+        if (usesGlobalLighting) {
+          state.set(effect.uuid, globalAvailable);
+          if (cachedState?.get(effect.uuid) !== globalAvailable) changed = true;
+        }
+      }
+
+      if (usesChangeLighting) {
+        for (const { change, changeId } of Dnd5e6ChangeConditionService.getConditionedChanges(effect)) {
+          if (!Dnd5e6ChangeConditionService.usesLightingContext(effect, change)) continue;
+          const key = ActiveEffectConditionHooks.#getChangeConditionStateKey(effect, changeId);
+          const evaluation = Dnd5e6ChangeConditionService.evaluate(effect, change, {
+            actor,
+            token,
+            lightLevel
+          });
+          // Same contract as the cache it is compared against: the change's own layer.
+          const available = Boolean(!evaluation.error && evaluation.available);
+          state.set(key, available);
+          if (cachedState?.get(key) !== available) changed = true;
+        }
       }
     }
 
@@ -712,18 +730,21 @@ export class ActiveEffectConditionHooks {
   static #actorHasLightingConditionedEffects(actor) {
     return ActiveEffectConditionHooks.#getConditionalEffects(actor).some(effect => (
       ActiveEffectConditionService.usesLightingContext(effect)
+      || Dnd5e6ChangeConditionService.usesLightingContext(effect)
     ));
   }
 
   static #actorHasDirectTokenConditionedEffects(actor) {
     return ActiveEffectConditionHooks.#getConditionalEffects(actor).some(effect => (
       ActiveEffectConditionService.usesDirectTokenContext(effect)
+      || Dnd5e6ChangeConditionService.usesDirectTokenContext(effect)
     ));
   }
 
   static #actorHasTokenConditionedEffects(actor) {
     return ActiveEffectConditionHooks.#getConditionalEffects(actor).some(effect => (
       ActiveEffectConditionService.usesTokenContext(effect)
+      || Dnd5e6ChangeConditionService.usesTokenContext(effect)
     ));
   }
 
@@ -773,6 +794,7 @@ export class ActiveEffectConditionHooks {
       (
         ActiveEffectConditionService.hasCondition(effect)
         || ActiveEffectConditionService.isConditionManagedDisabled(effect)
+        || Dnd5e6ChangeConditionService.hasAnyCondition(effect)
       )
       && !ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, actor)
     ));
@@ -829,10 +851,36 @@ export class ActiveEffectConditionHooks {
     const state = new Map();
 
     for (const effect of conditionalEffects ?? ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
-      state.set(effect.uuid, ActiveEffectConditionHooks.#isConditionAvailable(effect, actor));
+      const globalAvailable = ActiveEffectConditionHooks.#isConditionAvailable(effect, actor);
+      state.set(effect.uuid, globalAvailable);
+      // Unconditioned changes are recorded too. A key that is missing then means
+      // the change did not exist, which is what separates "a condition was just
+      // added" from "this change is brand new".
+      //
+      // The value is the change's OWN layer, never folded with the effect-wide
+      // one: folding it would report a per-change transition every time the
+      // effect itself flipped, on top of the effect transition already raised.
+      for (const change of Dnd5e6ChangeConditionService.getChanges(effect)) {
+        const changeId = Dnd5e6ChangeConditionService.getChangeId(change);
+        if (!changeId) continue;
+        state.set(
+          ActiveEffectConditionHooks.#getChangeConditionStateKey(effect, changeId),
+          ActiveEffectConditionHooks.#isChangeConditionAvailable(effect, change, actor)
+        );
+      }
     }
 
     return state;
+  }
+
+  /** A change's own condition layer. Unconditioned changes always allow. */
+  static #isChangeConditionAvailable(effect, change, actor) {
+    if (!Dnd5e6ChangeConditionService.hasCondition(effect, change)) {
+      return true;
+    }
+
+    const evaluation = Dnd5e6ChangeConditionService.evaluate(effect, change, { actor });
+    return Boolean(!evaluation.error && evaluation.available);
   }
 
   static #cacheConditionalEffectState(actor, conditionalEffects = null, state = null) {
@@ -852,9 +900,16 @@ export class ActiveEffectConditionHooks {
       return;
     }
 
-    const currentEffectUuids = new Set(
-      ActiveEffectConditionHooks.#getConditionalEffects(actor).map(effect => effect.uuid)
-    );
+    const currentEffectUuids = new Set();
+    for (const effect of ActiveEffectConditionHooks.#getConditionalEffects(actor)) {
+      currentEffectUuids.add(effect.uuid);
+      for (const change of Dnd5e6ChangeConditionService.getChanges(effect)) {
+        const changeId = Dnd5e6ChangeConditionService.getChangeId(change);
+        if (changeId) {
+          currentEffectUuids.add(ActiveEffectConditionHooks.#getChangeConditionStateKey(effect, changeId));
+        }
+      }
+    }
     for (const effectUuid of cachedState.keys()) {
       if (!currentEffectUuids.has(effectUuid)) {
         cachedState.delete(effectUuid);
@@ -987,19 +1042,84 @@ export class ActiveEffectConditionHooks {
           execute: ActiveEffectMacroChangeService.isResponsibleForExecution(effect)
         });
       }
+
+      // A global transition already executes all currently relevant operations.
+      // Only inspect individual transitions while the global layer stayed available.
+      if (wasAvailable === true && isAvailable === true) {
+        ActiveEffectConditionHooks.#handleChangeConditionTransitions(
+          effect,
+          previousState,
+          nextState,
+          { triggerConditionalActivation }
+        );
+      }
     }
   }
 
-  static #rollActivatedEffectFormula(effect) {
+  static #handleChangeConditionTransitions(effect, previousState, currentState, {
+    triggerConditionalActivation = false
+  } = {}) {
+    const activatedIds = [];
+    const deactivatedIds = [];
+    const activatedFormulaIndexes = [];
+    const indexesById = new Map();
+    const changes = Dnd5e6ChangeConditionService.getChanges(effect);
+    for (let index = 0; index < changes.length; index += 1) {
+      const changeId = Dnd5e6ChangeConditionService.getChangeId(changes[index]);
+      if (changeId) indexesById.set(changeId, index);
+    }
+
+    // Walking only the currently conditioned changes missed three transitions:
+    // adding a condition that reads false (the change was applying until now),
+    // removing a false condition (it starts applying again), and deleting a
+    // change outright (its cleanup still has to run).
+    const prefix = `${effect.uuid}::change::`;
+    const trackedIds = new Set(indexesById.keys());
+    for (const key of previousState.keys()) {
+      if (key.startsWith(prefix)) trackedIds.add(key.slice(prefix.length));
+    }
+
+    for (const changeId of trackedIds) {
+      const key = ActiveEffectConditionHooks.#getChangeConditionStateKey(effect, changeId);
+      const wasAvailable = previousState.get(key);
+      // A change the previous pass never saw is new, not a transition.
+      if (wasAvailable === undefined) continue;
+
+      const index = indexesById.get(changeId);
+      const isAvailable = index === undefined ? false : currentState.get(key) === true;
+      if (!wasAvailable && isAvailable) {
+        activatedIds.push(changeId);
+        if (index !== undefined && ActiveEffectFormulaChangeService.getFormulaForChange(effect, index)) {
+          activatedFormulaIndexes.push(index);
+        }
+      } else if (wasAvailable && !isAvailable) {
+        deactivatedIds.push(changeId);
+      }
+    }
+
+    if (ActiveEffectMacroChangeService.isResponsibleForExecution(effect)) {
+      if (activatedIds.length) {
+        void ActiveEffectMacroChangeService.execute(effect, "on", { changeIds: activatedIds });
+      }
+      if (deactivatedIds.length) {
+        void ActiveEffectMacroChangeService.execute(effect, "off", { changeIds: deactivatedIds });
+      }
+    }
+
+    if (triggerConditionalActivation && activatedFormulaIndexes.length) {
+      ActiveEffectConditionHooks.#rollActivatedEffectFormula(effect, activatedFormulaIndexes);
+    }
+  }
+
+  static #rollActivatedEffectFormula(effect, changeIndexes = null) {
     if (
       !ModuleSettings.isFormulaChangesEnabled()
-      || !ActiveEffectFormulaChangeService.hasFormulaChanges(effect)
-      || !ActiveEffectFormulaChangeService.shouldPromptForCurrentUser(effect)
+      || !ActiveEffectFormulaChangeService.canPromptForRoll(effect)
     ) {
       return;
     }
 
-    ActiveEffectFormulaChatCardService.requestRoll(effect, { reason: "condition" })
+    ActiveEffectFormulaChatCardService.requestRoll(effect, { reason: "condition", changeIndexes })
       .catch(error => console.warn(`[${Constants.MODULE_ID}] active effect condition formula activation failed`, error));
   }
 
@@ -1010,6 +1130,7 @@ export class ActiveEffectConditionHooks {
       if (
         ActiveEffectConditionService.hasCondition(effect)
         || ActiveEffectConditionService.isConditionManagedDisabled(effect)
+        || Dnd5e6ChangeConditionService.hasAnyCondition(effect)
       ) {
         effects.push(effect);
       }
@@ -1021,6 +1142,7 @@ export class ActiveEffectConditionHooks {
           (
             ActiveEffectConditionService.hasCondition(effect)
             || ActiveEffectConditionService.isConditionManagedDisabled(effect)
+            || Dnd5e6ChangeConditionService.hasAnyCondition(effect)
           )
           && !ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, actor)
         ) {
@@ -1032,12 +1154,14 @@ export class ActiveEffectConditionHooks {
     return effects;
   }
 
-  static #shouldSkipChangeApplication(effect, model) {
+  static #shouldSkipChangeApplication(effect, change, model) {
     if (ActiveEffectTransferHooks.shouldSkipTransferredItemApplication(effect, model)) {
       return true;
     }
 
-    if (!ActiveEffectConditionService.hasCondition(effect)) {
+    const hasGlobalCondition = ActiveEffectConditionService.hasCondition(effect);
+    const hasChangeCondition = Dnd5e6ChangeConditionService.hasCondition(effect, change);
+    if (!hasGlobalCondition && !hasChangeCondition) {
       return false;
     }
 
@@ -1048,13 +1172,35 @@ export class ActiveEffectConditionHooks {
     const actor = model instanceof CONFIG.Actor.documentClass
       ? model
       : ActiveEffectContextBuilder.getAffectedActor(effect);
-    const available = ActiveEffectConditionHooks.#resolveConditionAvailability(effect, actor);
+    const globalAvailable = !hasGlobalCondition
+      || ActiveEffectConditionHooks.#resolveConditionAvailability(effect, actor);
+
+    // #getConditionalEffectState caches the combined effect-and-change verdict
+    // under the change key. Prefer it for the same reason the effect-wide gate
+    // does — this runs before derived data exists — and so a sheet with many
+    // conditioned changes does not recompile every condition on each pass.
+    let changeEvaluation = { available: true, error: null };
+    let available = globalAvailable;
+    if (hasChangeCondition) {
+      const changeId = Dnd5e6ChangeConditionService.getChangeId(change);
+      const cached = ActiveEffectConditionHooks.#getCachedConditionAvailability(actor, effect, changeId);
+      if (cached === undefined) {
+        changeEvaluation = Dnd5e6ChangeConditionService.evaluate(effect, change, { actor });
+      } else {
+        changeEvaluation = { available: cached, error: null };
+      }
+      available = Boolean(globalAvailable && changeEvaluation.available);
+    }
 
     ActiveEffectConditionHooks.#debug("evaluated change application gate", {
       effect: effect?.uuid ?? effect?.id ?? null,
       model: model?.uuid ?? model?.id ?? null,
       actor: actor?.uuid ?? actor?.id ?? null,
       actorBonuses: ActiveEffectConditionHooks.#describeActorBonuses(actor),
+      changeId: Dnd5e6ChangeConditionService.getChangeId(change) || null,
+      globalAvailable,
+      changeAvailable: changeEvaluation.available,
+      changeError: changeEvaluation.error?.message ?? null,
       available,
       effectDisabled: effect?.disabled ?? null
     });
@@ -1113,14 +1259,17 @@ export class ActiveEffectConditionHooks {
     return ActiveEffectConditionHooks.#isConditionAvailable(effect, actor);
   }
 
-  static #getCachedConditionAvailability(actor, effect) {
+  static #getCachedConditionAvailability(actor, effect, changeId = null) {
     const actorUuid = actor?.uuid;
     const effectUuid = effect?.uuid;
     if (!actorUuid || !effectUuid) {
       return undefined;
     }
 
-    return ActiveEffectConditionHooks.#cachedConditionAvailability.get(actorUuid)?.get(effectUuid);
+    const key = changeId
+      ? ActiveEffectConditionHooks.#getChangeConditionStateKey(effect, changeId)
+      : effectUuid;
+    return ActiveEffectConditionHooks.#cachedConditionAvailability.get(actorUuid)?.get(key);
   }
 
   static #isConditionAvailable(effect, actor = null) {
@@ -1151,6 +1300,10 @@ export class ActiveEffectConditionHooks {
     }
 
     return false;
+  }
+
+  static #getChangeConditionStateKey(effect, changeId) {
+    return `${effect.uuid}::change::${changeId}`;
   }
 
   static #isEffectDocumentEnabled(effect) {
@@ -1317,16 +1470,6 @@ export class ActiveEffectConditionHooks {
   }
 
   static #debug(message, data = undefined) {
-    if (!ModuleSettings.isDebugLoggingEnabled() && !globalThis[Constants.DEBUG_GLOBAL]) {
-      return;
-    }
-
-    const prefix = `[${Constants.MODULE_ID}] ${message}`;
-    if (data === undefined) {
-      console.debug(prefix);
-      return;
-    }
-
-    console.debug(prefix, data);
+    DebugLog.write(message, data);
   }
 }

@@ -7,12 +7,11 @@ const LEGACY_FORMULA_FIELD_STYLES = Object.freeze({ inline: "column" });
 
 export class ModuleSettings {
   static SETTING_MODULE_SETTINGS_MENU = "moduleSettingsMenu";
-  static SETTING_SUPPORT_MENU = "supportMenu";
-  static SETTING_DOCUMENTATION_MENU = "docsMenu";
   static SETTING_ENABLE_FORMULA_CHANGES = "enableFormulaChanges";
   static SETTING_FORMULA_FIELD_STYLE = "formulaFieldStyle";
   static SETTING_USE_FORMULA_CHAT_CARD = "useFormulaChatCard";
   static SETTING_SHOW_CONDITION_TAB = "showConditionTab";
+  static SETTING_TINT_EFFECT_ICONS = "tintEffectIcons";
   static SETTING_DEBUG_LOGGING = "debugLogging";
 
   static isFormulaChangesEnabled() {
@@ -29,32 +28,16 @@ export class ModuleSettings {
     return FORMULA_FIELD_STYLES.includes(value) ? value : "expand";
   }
 
-  /** 1a — an icon in the row expands a full-width formula field underneath it. */
-  static isFormulaFieldExpandable() {
-    return ModuleSettings.getFormulaFieldStyle() === "expand";
-  }
-
-  /** 1b — an fx button in the row opens the dedicated editor. */
-  static isFormulaFieldPopup() {
-    return ModuleSettings.getFormulaFieldStyle() === "popup";
-  }
-
-  /** 1c — the change's own Value field switches between a number and a formula. */
-  static isFormulaFieldSingle() {
-    return ModuleSettings.getFormulaFieldStyle() === "single";
-  }
-
-  /** The original treatment: a labelled Formula column with a field in every row. */
-  static isFormulaFieldColumn() {
-    return ModuleSettings.getFormulaFieldStyle() === "column";
-  }
-
   static isFormulaChatCardEnabled() {
     return ModuleSettings.#getBoolean(ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD, false);
   }
 
   static isConditionTabEnabled() {
     return ModuleSettings.#getBoolean(ModuleSettings.SETTING_SHOW_CONDITION_TAB, true);
+  }
+
+  static isEffectIconTintEnabled() {
+    return ModuleSettings.#getBoolean(ModuleSettings.SETTING_TINT_EFFECT_ICONS, false);
   }
 
   static isDebugLoggingEnabled() {
