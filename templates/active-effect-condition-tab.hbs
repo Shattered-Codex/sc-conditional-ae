@@ -20,22 +20,25 @@
         </span>
       </div>
 
-      {{#if conditionSummary.isEmpty}}
-      <p class="hint sc-cae-condition-summary__empty">{{ strings.summaryEmpty }}</p>
-      {{else}}
       <ul class="sc-cae-condition-summary__list">
         {{#each conditionSummary.rows}}
         <li class="sc-cae-condition-summary__row" data-state="{{ this.state }}" data-scope="{{ this.scope }}">
-          <i class="fa-solid {{ this.stateIcon }} sc-cae-condition-summary__icon" aria-hidden="true"></i>
           <span class="sc-cae-condition-summary__label"
                 {{~#if this.key}} data-tooltip="{{ this.key }}"{{/if}}>{{ this.label }}</span>
-          <span class="sc-cae-condition-summary__layers">
-            {{#each this.layers}}
-            <span class="sc-cae-condition-summary__layer" data-state="{{ this.state }}"
-                  data-tooltip="{{ this.stateLabel }}">{{ this.label }}</span>
-            {{/each}}
+          {{#if @root.editable}}
+          <button type="button"
+                  class="sc-cae-condition-summary__filter icon fa-solid fa-filter{{#if this.configured}} is-configured{{/if}}"
+                  data-sc-cae-open-condition {{~#if this.changeId}} data-sc-cae-change-id="{{ this.changeId }}"{{/if}}
+                  data-tooltip="{{ this.openHint }}" aria-label="{{ this.openHint }}"></button>
+          {{else}}
+          <span class="sc-cae-condition-summary__filter-slot" aria-hidden="true"></span>
+          {{/if}}
+          <span class="sc-cae-condition-summary__scope" data-scope="{{ this.scope }}">{{ this.scopeLabel }}</span>
+          <span class="sc-cae-condition-summary__state" data-state="{{ this.state }}"
+                {{~#if this.stateTooltip}} data-tooltip="{{ this.stateTooltip }}"{{/if}}>
+            <i class="fa-solid {{ this.stateIcon }}" aria-hidden="true"></i>
+            <span>{{ this.stateLabel }}</span>
           </span>
-          <span class="sc-cae-condition-summary__state">{{ this.stateLabel }}</span>
           {{#if this.message}}
           <span class="sc-cae-condition-summary__message">
             <strong>{{ this.messageLabel }}:</strong> {{ this.message }}
@@ -44,7 +47,6 @@
         </li>
         {{/each}}
       </ul>
-      {{/if}}
     </div>
     {{/if}}
     {{else}}

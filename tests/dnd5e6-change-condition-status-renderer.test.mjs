@@ -213,3 +213,18 @@ test("re-rendering the sheet replaces the badge instead of stacking copies", () 
   const row = root.querySelectorAll("[data-change-id]").find(node => node.dataset.changeId === "first");
   assert.equal(row.querySelectorAll("[data-sc-cae-change-status]").length, 1);
 });
+
+test("a control elsewhere that carries a change id is not badged as a Changes row", () => {
+  const effect = createEffect({ changeConditions: { first: "return false;" } });
+  const root = createSheet(effect);
+
+  // The Condition tab's summary buttons name their change too. Treating one as
+  // a row dropped the status badge inside the button.
+  const stray = element("button", { className: "sc-cae-condition-summary__filter", changeId: "first" });
+  root.append(stray);
+
+  Renderer.render({ document: effect }, root);
+
+  assert.equal(stray.children.length, 0);
+  assert.equal(badgeOf(root, "first").dataset.state, "fail");
+});

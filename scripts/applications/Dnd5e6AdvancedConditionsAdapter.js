@@ -31,16 +31,30 @@ export class Dnd5e6AdvancedConditionsAdapter {
     const target = Dnd5e6AdvancedConditionsAdapter.#getTarget(app, input);
     if (!target) return;
     event.preventDefault();
-    const advanced = this.#getAdvancedCondition(target.effect, target.changeId);
+    Dnd5e6AdvancedConditionsAdapter.openEditor({ ...target, input });
+  }
+
+  /**
+   * Open the conditions editor for the effect (changeId null) or one change.
+   *
+   * `input` is the native filters-input that launched it, when there is one.
+   * Without it — the Condition tab shortcut — the native value is read from and
+   * written back to the document directly.
+   */
+  static openEditor({ effect, changeId = null, input = null }) {
+    if (!Dnd5e6AdvancedConditionsAdapter.isSupported() || !effect) return null;
+    const advanced = this.#getAdvancedCondition(effect, changeId);
     const editor = new Dnd5e6AdvancedConditionsEditor({
-      effect: target.effect,
-      changeId: target.changeId,
-      nativeValue: input.value,
+      effect,
+      changeId,
+      nativeValue: input?.value ?? Dnd5e6ChangeConditionService.getNativeConditionSource(effect, changeId),
       advancedValue: advanced.value,
       advancedMode: advanced.mode,
-      onSave: values => this.#save(target.effect, target.changeId, input, values)
+      onSave: values => this.#save(effect, changeId, input, values)
     });
-    editor.render({ force: true, window: { windowId: input.ownerDocument?.defaultView?.id } });
+    const windowId = input?.ownerDocument?.defaultView?.id;
+    editor.render({ force: true, ...(windowId ? { window: { windowId } } : {}) });
+    return editor;
   }
 
   static #getTarget(app, input) {
@@ -78,6 +92,17 @@ export class Dnd5e6AdvancedConditionsAdapter {
         DaeCompatibility.getCompatibilityMode(existingCondition)
       );
       await effect.update(update);
+      return;
+    }
+
+    if (!input) {
+      // Opened from the Condition tab: no change dialog is holding the native
+      // field, so both layers go to the document in one update.
+      await effect.update(Dnd5e6ChangeConditionService.buildChangeConditionsUpdate(
+        effect,
+        changeId,
+        { nativeValue, advancedValue }
+      ));
       return;
     }
 

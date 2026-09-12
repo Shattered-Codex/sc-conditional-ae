@@ -657,3 +657,57 @@ test("an unbound position keeps its own index as the storage slot", () => {
   assert.equal(ActiveEffectFormulaChangeService.getFormulaStorageIndex(effect, 1), 1);
   assert.equal(ActiveEffectFormulaChangeService.getFormulaForChange(effect, 1), "");
 });
+
+test("the editor reads the stored native filter text for the effect and for a change", () => {
+  const effect = createEffect();
+  effect.system._source = {
+    conditions: '{"k":"attributes.hp.value","o":"gt","v":0}',
+    changes: [
+      { _id: "first", conditions: '{"k":"statuses","o":"has","v":"prone"}' },
+      { _id: "second", conditions: "" }
+    ]
+  };
+
+  assert.equal(Service.getNativeConditionSource(effect), '{"k":"attributes.hp.value","o":"gt","v":0}');
+  assert.equal(Service.getNativeConditionSource(effect, "first"), '{"k":"statuses","o":"has","v":"prone"}');
+  // An empty filter opens as the empty object the builder understands.
+  assert.equal(Service.getNativeConditionSource(effect, "second"), "{}");
+  assert.equal(Service.getNativeConditionSource(effect, "missing"), "{}");
+});
+
+test("saving from the Condition tab writes both layers of a change in one update", () => {
+  const effect = createEffect({ changeConditions: { first: "return true;" } });
+  delete effect.changes;
+  effect.system._source = {
+    changes: effect.system.changes.map(change => ({
+      ...structuredClone(change),
+      conditions: change._id === "first"
+        ? '{"k":"attributes.hp.value","o":"gt","v":0}'
+        : "{}"
+    }))
+  };
+
+  const update = Service.buildChangeConditionsUpdate(effect, "second", {
+    nativeValue: '{"k":"statuses","o":"has","v":"prone"}',
+    advancedValue: "return false;"
+  });
+
+  // No change dialog holds the native field here, so it goes to the document
+  // alongside the SC condition instead of waiting for a submit that never comes.
+  assert.equal(update["system.changes"][1].conditions, '{"k":"statuses","o":"has","v":"prone"}');
+  assert.equal(
+    update["system.changes"][0].conditions,
+    '{"k":"attributes.hp.value","o":"gt","v":0}',
+    "a sibling's serialized filter is left as it was"
+  );
+  assert.equal(update["flags.sc-conditional-ae.changeConditions.second"], "return false;");
+  assert.equal(update["flags.sc-conditional-ae.changeConditions.first"], "return true;");
+});
+
+test("saving a change that no longer exists fails loudly instead of writing nothing", () => {
+  const effect = createEffect();
+  assert.throws(
+    () => Service.buildChangeConditionsUpdate(effect, "missing", { nativeValue: "{}", advancedValue: "" }),
+    /could not be resolved/
+  );
+});

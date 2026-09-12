@@ -145,9 +145,16 @@ export class Dnd5e6FormulaChangeAdapter {
     input.disabled = !editable;
     input.dataset.scCaeV6FormulaInput = "";
     input.placeholder = Constants.localize("SCConditionalAE.FormulaChange.Placeholder", "Optional formula");
+    // Inside the field, the way sc-active-effects-search embeds its key lookup
+    // in the Attribute Key input one row above, so the two read as a pair.
+    fields.classList.add("sc-cae-formula-field");
     const button = ownerDocument.createElement("button");
     button.type = "button";
-    button.className = "icon fa-solid fa-square-root-variable";
+    button.className = "sc-cae-formula-field-btn";
+    const icon = ownerDocument.createElement("i");
+    icon.className = "fa-solid fa-square-root-variable";
+    icon.setAttribute("inert", "");
+    button.append(icon);
     button.dataset.scCaeV6FormulaEdit = "";
     button.disabled = !editable;
     button.dataset.tooltip = Constants.localize(

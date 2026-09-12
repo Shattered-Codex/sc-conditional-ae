@@ -32,7 +32,11 @@
         "SyntaxError": "Erro de sintaxe",
         "RuntimeError": "Erro na avaliação",
         "EffectGate": "A condição geral do efeito está {state}, então esta alteração continua suprimida.",
-        "Empty": "Nenhuma condição configurada neste efeito nem em suas alterações."
+        "ScopeEffect": "Geral",
+        "ScopeChange": "Alteração",
+        "OpenEffectHint": "Abre as condições do Active Effect inteiro.",
+        "OpenChangeHint": "Abre as condições só desta alteração.",
+        "NoCondition": "Sem condição"
       },
       "Wiki": "Abrir wiki",
       "Invalid": "Esta condição contém código inválido.",
@@ -93,8 +97,6 @@
       "AdvancedCodeLabel": "JavaScript",
       "Evaluation": "Avaliação atual",
       "EvaluationTab": "Avaliação",
-      "NativeGlobal": "Condição nativa do efeito",
-      "AdvancedGlobal": "Condição avançada do efeito",
       "Combined": "Todas as condições",
       "Pass": "Atende",
       "Fail": "Não atende",
@@ -154,7 +156,9 @@
           "subsetof": "é subconjunto de",
           "in": "é um de"
         }
-      }
+      },
+      "ScopeThisChange": "Esta alteração",
+      "EvaluationInfo": "O resultado atual de cada camada de condição, avaliada contra o ator atual do efeito. Só se aplica quando todas as linhas atendem; filtros que leem dados de rolagem só são decididos durante a rolagem."
     },
     "MacroChange": {
       "Name": "Macro para executar",

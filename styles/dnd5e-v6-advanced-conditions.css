@@ -536,11 +536,12 @@
   --sc-cae-state-fail: var(--dnd5e-chat-status-failure, var(--color-level-error, #c93b3b));
   --sc-cae-state-error: var(--dnd5e-chat-status-failure, var(--color-level-error, #c93b3b));
   --sc-cae-state-contextual: var(--dnd5e-color-note-warn, #d9a441);
+  --sc-cae-state-none: var(--color-text-secondary);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin-block: 6px 0;
-  padding: 6px 10px 8px;
+  padding: 6px 10px 6px;
   border: var(--dnd5e-border-gold, 1px solid #9f9275);
   border-radius: 4px;
   background: var(--dnd5e-background-card, rgba(0, 0, 0, 0.15));
@@ -577,108 +578,162 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The list owns the columns — name, condition button, scope, verdict — and each
+ * row takes them through subgrid. A row that was its own grid sized its tracks
+ * alone, so the button, scope and verdict drifted from row to row.
+ */
 .sc-cae-condition-summary__list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
   margin: 0;
   padding: 0;
+  column-gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   list-style: none;
 }
 
-/* The label stretches so every state reading lines up on the right. */
 .sc-cae-condition-summary__row {
   display: grid;
+  min-height: 30px;
   align-items: center;
-  gap: 2px 8px;
   padding-block: 3px;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  row-gap: 2px;
   font-size: var(--font-size-12);
+  grid-column: 1 / -1;
+  /* Fixed tracks first: a browser without subgrid keeps these and still aligns. */
+  grid-template-columns: minmax(0, 1fr) 24px 5.5rem 8rem;
+  grid-template-columns: subgrid;
 }
 
 .sc-cae-condition-summary__row + .sc-cae-condition-summary__row {
   border-top: var(--dnd5e-border-separator-faint, 1px solid rgba(255, 255, 255, 0.1));
 }
 
-.sc-cae-condition-summary__row[data-scope="effect"] .sc-cae-condition-summary__label {
-  font-weight: bold;
-}
-
-.sc-cae-condition-summary__row[data-scope="change"] .sc-cae-condition-summary__label {
-  padding-inline-start: 8px;
-  border-inline-start: 2px solid var(--dnd5e-color-gold, #9f9275);
-}
-
 .sc-cae-condition-summary__label {
   overflow: hidden;
+  min-width: 0;
+  color: var(--color-text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sc-cae-condition-summary__layers {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.sc-cae-condition-summary__row[data-scope="effect"] .sc-cae-condition-summary__label {
+  font-weight: bold;
 }
 
-.sc-cae-condition-summary__layer {
-  padding: 1px 5px;
+/* Same square filter control dnd5e puts beside a filters-input. */
+.sc-cae-condition-summary__filter {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
   border: var(--pill-border, 1px solid #666);
+  border-radius: 3px;
+  background: var(--dnd5e-background-25, rgba(0, 0, 0, 0.25));
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-10);
+  line-height: 1;
+  place-content: center;
+  cursor: pointer;
+}
+
+/* A condition is set on this row: the control reads as active. */
+.sc-cae-condition-summary__filter.is-configured {
+  border-color: var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-gold, #9f9275);
+}
+
+.sc-cae-condition-summary__filter:is(:hover, :focus-visible) {
+  border-color: var(--dnd5e-color-gold, #9f9275);
+  box-shadow: 0 0 4px var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-gold, #9f9275);
+  outline: none;
+}
+
+.sc-cae-condition-summary__filter-slot {
+  width: 24px;
+}
+
+.sc-cae-condition-summary__scope {
+  padding: 2px 6px;
   border-radius: 3px;
   font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
   font-size: var(--font-size-10);
   font-weight: bold;
+  justify-self: stretch;
   letter-spacing: 0.04em;
+  text-align: center;
   text-transform: uppercase;
-}
-
-.sc-cae-condition-summary__state {
-  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
   white-space: nowrap;
 }
 
-/* The message wraps under the row, spanning label through state. */
-.sc-cae-condition-summary__message {
-  grid-column: 2 / -1;
-  color: var(--sc-cae-state-error);
+.sc-cae-condition-summary__scope[data-scope="effect"] {
+  border: 1px solid var(--dnd5e-color-gold, #9f9275);
+  background: var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-black, #000);
+}
+
+.sc-cae-condition-summary__scope[data-scope="change"] {
+  border: 1px solid var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-gold, #9f9275);
+}
+
+.sc-cae-condition-summary__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.sc-cae-condition-summary__state > i {
+  margin: 0;
   font-size: var(--font-size-11);
 }
 
-.sc-cae-condition-summary__empty {
-  margin: 0;
+.sc-cae-condition-summary__message {
+  color: var(--sc-cae-state-error);
   font-size: var(--font-size-11);
+  grid-column: 1 / -1;
 }
 
 /* ---------------------------------- */
 /*  Shared state colours              */
 /* ---------------------------------- */
 
-.sc-cae-condition-summary [data-state="pass"],
-.sc-cae-condition-summary__row[data-state="pass"] .sc-cae-condition-summary__icon,
-.sc-cae-condition-summary__row[data-state="pass"] .sc-cae-condition-summary__state,
+/*
+ * Only the verdict and the counts take the colour. Colouring the whole row
+ * turned every change name green or red.
+ */
+.sc-cae-condition-summary__state[data-state="pass"],
+.sc-cae-condition-summary__count[data-state="pass"],
 .sc-cae-change-status[data-state="pass"] {
   color: var(--sc-cae-state-pass, #3ba55d);
 }
 
-.sc-cae-condition-summary [data-state="fail"],
-.sc-cae-condition-summary__row[data-state="fail"] .sc-cae-condition-summary__icon,
-.sc-cae-condition-summary__row[data-state="fail"] .sc-cae-condition-summary__state,
+.sc-cae-condition-summary__state[data-state="fail"],
+.sc-cae-condition-summary__count[data-state="fail"],
 .sc-cae-change-status[data-state="fail"] {
   color: var(--sc-cae-state-fail, #c93b3b);
 }
 
-.sc-cae-condition-summary [data-state="error"],
-.sc-cae-condition-summary__row[data-state="error"] .sc-cae-condition-summary__icon,
-.sc-cae-condition-summary__row[data-state="error"] .sc-cae-condition-summary__state,
+.sc-cae-condition-summary__state[data-state="error"],
+.sc-cae-condition-summary__count[data-state="error"],
 .sc-cae-change-status[data-state="error"] {
   color: var(--sc-cae-state-error, #c93b3b);
 }
 
-.sc-cae-condition-summary [data-state="contextual"],
-.sc-cae-condition-summary__row[data-state="contextual"] .sc-cae-condition-summary__icon,
-.sc-cae-condition-summary__row[data-state="contextual"] .sc-cae-condition-summary__state,
+.sc-cae-condition-summary__state[data-state="contextual"],
+.sc-cae-condition-summary__count[data-state="contextual"],
 .sc-cae-change-status[data-state="contextual"] {
   color: var(--sc-cae-state-contextual, #d9a441);
+}
+
+.sc-cae-condition-summary__state[data-state="none"] {
+  color: var(--sc-cae-state-none, var(--color-text-secondary));
 }
 
 /* ---------------------------------- */
@@ -744,4 +799,112 @@
 
 .sc-cae-v6-conditions-editor .sc-cae-v6-toolbar__title .sc-cae-help-link:hover {
   text-shadow: 0 0 6px var(--dnd5e-color-gold);
+}
+
+/* ---------------------------------- */
+/*  Evaluation scope groups           */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-group {
+  margin-top: 6px;
+  padding-bottom: 2px;
+  color: var(--dnd5e-color-gold, #9f9275);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-10);
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-group:first-of-type {
+  margin-top: 2px;
+}
+
+/* The layer rows sit under their scope heading, indented as its members. */
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-group ~ .sc-cae-v6-evaluation-row:not(.sc-cae-v6-combined-status) {
+  padding-inline-start: 10px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-info {
+  margin-inline-start: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-11);
+  letter-spacing: 0;
+  cursor: help;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-info:is(:hover, :focus-visible) {
+  color: var(--dnd5e-color-gold, #9f9275);
+  outline: none;
+}
+
+/* ---------------------------------- */
+/*  Formula field (change dialog)     */
+/* ---------------------------------- */
+
+/*
+ * Mirrors sc-active-effects-search's .sc-aes__key-field: the editor button sits
+ * inside the input's right edge behind a hairline divider, so Formula matches
+ * the Attribute Key field directly above it.
+ */
+.form-fields.sc-cae-formula-field {
+  --sc-cae-formula-accent: var(--dnd5e-color-gold, var(--color-border-highlight));
+  --sc-cae-formula-button-size: calc(var(--input-height, 2rem) - 2px);
+  position: relative;
+}
+
+.form-fields.sc-cae-formula-field > input {
+  padding-inline-end: calc(var(--sc-cae-formula-button-size) + 0.35rem);
+}
+
+.form-fields.sc-cae-formula-field:has(> .sc-cae-formula-field-btn:hover) > input {
+  border-color: var(--input-hover-border-color, var(--sc-cae-formula-accent));
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn {
+  position: absolute;
+  display: flex;
+  width: var(--sc-cae-formula-button-size);
+  height: auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-12, 0.75rem);
+  inset-block: 1px;
+  inset-inline-end: 1px;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn::before {
+  position: absolute;
+  width: 1px;
+  background: currentColor;
+  content: "";
+  inset-block: 25%;
+  inset-inline-start: 0;
+  opacity: 0.25;
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--sc-cae-formula-accent) 14%, transparent);
+  box-shadow: none;
+  color: var(--sc-cae-formula-accent);
+  outline: none;
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--sc-cae-formula-accent);
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
 }

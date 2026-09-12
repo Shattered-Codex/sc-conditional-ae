@@ -22,7 +22,10 @@ export class Dnd5e6ChangeConditionStatusRenderer {
     if (!effect?.system) return;
 
     const root = ApplicationRoot.resolve(app, html);
-    const rows = Array.from(root?.querySelectorAll?.("[data-change-id]") ?? []);
+    // Only real Changes-tab rows. Anything else carrying a change id — the
+    // Condition tab's summary controls, say — must not be badged as a row.
+    const rows = Array.from(root?.querySelectorAll?.("[data-change-id]") ?? [])
+      .filter(row => row.tagName === "LI" || row.classList?.contains?.("item"));
     if (!rows.length) return;
 
     const summary = Dnd5e6ChangeConditionService.summarize(effect);

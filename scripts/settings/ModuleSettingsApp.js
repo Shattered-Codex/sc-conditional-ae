@@ -1,5 +1,4 @@
 import { Constants } from "../constants/Constants.js";
-import { CommunityLinks } from "./CommunityLinks.js";
 import { ModuleSettings } from "./ModuleSettings.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry?.applications?.api ?? {};
@@ -12,9 +11,11 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     id: `${Constants.MODULE_ID}-settings-app`,
     classes: ["sc-cae-settings-app"],
     tag: "form",
+    // A fixed box, as SocketsConfigApp uses. With "auto" the rail's own height
+    // decided the window's, so a short panel left everything cramped.
     position: {
-      width: 680,
-      height: "auto"
+      width: 900,
+      height: 640
     },
     window: {
       title: Constants.localize("SCConditionalAE.Settings.App.Title", "SC - Conditional AE Settings"),
@@ -40,7 +41,6 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
           "Configure conditional Active Effect behavior, formula support, and module diagnostics."
         )
       },
-      links: CommunityLinks.links(),
       sections: [
         {
           id: "behavior",

@@ -1,103 +1,98 @@
 <section class="sc-cae-settings-shell" data-theme="verdant" data-screen-label="{{header.title}}" data-application-part="main">
-  <nav class="sc-cae-settings-rail" role="tablist" aria-label="{{header.title}}">
-    {{#each sections}}
-      <button
-        type="button"
-        role="tab"
-        class="sc-cae-settings-tab {{#if @first}}is-active{{/if}}"
-        data-sc-cae-settings-tab="{{this.id}}"
-        aria-controls="sc-cae-settings-panel-{{this.id}}"
-        aria-selected="{{#if @first}}true{{else}}false{{/if}}"
-        tabindex="{{#if @first}}0{{else}}-1{{/if}}"
-      >
-        <i class="fa-solid {{this.icon}}" aria-hidden="true"></i>
-        <span class="sc-cae-settings-tab__label">{{this.title}}</span>
-      </button>
-    {{/each}}
-  </nav>
+  <div class="sc-cae-settings-main">
+    <nav class="sc-cae-settings-rail" role="tablist" aria-label="{{header.title}}">
+      {{#each sections}}
+        <button
+          type="button"
+          role="tab"
+          class="sc-cae-settings-tab {{#if @first}}is-active{{/if}}"
+          data-sc-cae-settings-tab="{{this.id}}"
+          aria-controls="sc-cae-settings-panel-{{this.id}}"
+          aria-selected="{{#if @first}}true{{else}}false{{/if}}"
+          tabindex="{{#if @first}}0{{else}}-1{{/if}}"
+        >
+          <i class="fa-solid {{this.icon}}" aria-hidden="true"></i>
+          <span class="sc-cae-settings-tab__label">{{this.title}}</span>
+        </button>
+      {{/each}}
+    </nav>
 
-  <div class="sc-cae-settings-body">
-    {{#each sections}}
-      <section
-        id="sc-cae-settings-panel-{{this.id}}"
-        role="tabpanel"
-        class="sc-cae-settings-panel {{#if @first}}is-active{{/if}}"
-        data-sc-cae-settings-panel="{{this.id}}"
-        {{#unless @first}}hidden{{/unless}}
-      >
-        <header class="sc-cae-settings-section__header">
-          <h3 class="sc-cae-settings-section__title">{{this.title}}</h3>
-          {{#if this.description}}
-            <p class="sc-cae-settings-section__hint">{{this.description}}</p>
-          {{/if}}
-          {{#if this.permissionNote}}
-            <p class="sc-cae-settings-section__lock">
-              <i class="fa-solid fa-lock" aria-hidden="true"></i>
-              <span>{{this.permissionNote}}</span>
-            </p>
-          {{/if}}
-        </header>
-
-        {{#if this.notice}}
-          <aside class="sc-cae-settings-note" role="note">
-            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-            <div>
-              <strong>{{this.notice.title}}</strong>
-              <p>{{this.notice.text}}</p>
-            </div>
-          </aside>
-        {{/if}}
-
-        <div class="sc-cae-settings-rows">
-          {{#each this.fields}}
-            {{#if this.isSelect}}
-              <div class="sc-cae-settings-row sc-cae-settings-row--select {{#if this.disabled}}is-disabled{{/if}}">
-                <span class="sc-cae-settings-row__copy">
-                  <span class="sc-cae-settings-row__label">{{this.name}}</span>
-                  {{#if this.hint}}
-                    <span class="sc-cae-settings-row__hint">{{this.hint}}</span>
-                  {{/if}}
-                </span>
-
-                <select name="{{this.key}}" {{#if this.disabled}}disabled{{/if}}>
-                  {{#each this.options}}
-                    <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
-                  {{/each}}
-                </select>
-              </div>
-            {{else}}
-              <label class="sc-cae-settings-row {{#if this.disabled}}is-disabled{{/if}}">
-                <span class="sc-cae-settings-row__copy">
-                  <span class="sc-cae-settings-row__label">{{this.name}}</span>
-                  {{#if this.hint}}
-                    <span class="sc-cae-settings-row__hint">{{this.hint}}</span>
-                  {{/if}}
-                </span>
-
-                <input
-                  type="checkbox"
-                  name="{{this.key}}"
-                  {{#if this.checked}}checked{{/if}}
-                  {{#if this.disabled}}disabled{{/if}}
-                >
-                <span class="sc-cae-settings-check" aria-hidden="true"></span>
-              </label>
+    <div class="sc-cae-settings-body">
+      {{#each sections}}
+        <section
+          id="sc-cae-settings-panel-{{this.id}}"
+          role="tabpanel"
+          class="sc-cae-settings-panel {{#if @first}}is-active{{/if}}"
+          data-sc-cae-settings-panel="{{this.id}}"
+          {{#unless @first}}hidden{{/unless}}
+        >
+          <header class="sc-cae-settings-section__header">
+            <h3 class="sc-cae-settings-section__title">{{this.title}}</h3>
+            {{#if this.description}}
+              <p class="sc-cae-settings-section__hint">{{this.description}}</p>
             {{/if}}
-          {{/each}}
-        </div>
-      </section>
-    {{/each}}
+            {{#if this.permissionNote}}
+              <p class="sc-cae-settings-section__lock">
+                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                <span>{{this.permissionNote}}</span>
+              </p>
+            {{/if}}
+          </header>
+
+          {{#if this.notice}}
+            <aside class="sc-cae-settings-note" role="note">
+              <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+              <div>
+                <strong>{{this.notice.title}}</strong>
+                <p>{{this.notice.text}}</p>
+              </div>
+            </aside>
+          {{/if}}
+
+          <div class="sc-cae-settings-rows">
+            {{#each this.fields}}
+              {{#if this.isSelect}}
+                <div class="sc-cae-settings-row sc-cae-settings-row--select {{#if this.disabled}}is-disabled{{/if}}">
+                  <span class="sc-cae-settings-row__copy">
+                    <span class="sc-cae-settings-row__label">{{this.name}}</span>
+                    {{#if this.hint}}
+                      <span class="sc-cae-settings-row__hint">{{this.hint}}</span>
+                    {{/if}}
+                  </span>
+
+                  <select name="{{this.key}}" {{#if this.disabled}}disabled{{/if}}>
+                    {{#each this.options}}
+                      <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                    {{/each}}
+                  </select>
+                </div>
+              {{else}}
+                <label class="sc-cae-settings-row {{#if this.disabled}}is-disabled{{/if}}">
+                  <span class="sc-cae-settings-row__copy">
+                    <span class="sc-cae-settings-row__label">{{this.name}}</span>
+                    {{#if this.hint}}
+                      <span class="sc-cae-settings-row__hint">{{this.hint}}</span>
+                    {{/if}}
+                  </span>
+
+                  <input
+                    type="checkbox"
+                    name="{{this.key}}"
+                    {{#if this.checked}}checked{{/if}}
+                    {{#if this.disabled}}disabled{{/if}}
+                  >
+                  <span class="sc-cae-settings-check" aria-hidden="true"></span>
+                </label>
+              {{/if}}
+            {{/each}}
+          </div>
+        </section>
+      {{/each}}
+    </div>
   </div>
 
   <footer class="sc-cae-settings-footer">
-    <div class="sc-cae-settings-footer__links">
-      {{#each links}}
-        <a class="sc-cae-settings-link" href="{{this.url}}" target="_blank" rel="noopener">
-          <i class="{{this.icon}}" aria-hidden="true"></i>
-          <span>{{this.label}}</span>
-        </a>
-      {{/each}}
-    </div>
+    <span class="sc-cae-settings-footer__spacer"></span>
 
     <div class="sc-cae-settings-footer__actions">
       <button type="button" class="sc-cae-settings-button sc-cae-settings-button--ghost" data-action="cancel">

@@ -334,8 +334,14 @@ export class Dnd5e6AdvancedConditionsEditor extends HandlebarsApplicationMixin(A
       evaluation: Constants.localize("SCConditionalAE.AdvancedConditions.Evaluation", "Current evaluation"),
       evaluationTab: Constants.localize("SCConditionalAE.AdvancedConditions.EvaluationTab", "Evaluation"),
       wiki: Constants.localize("SCConditionalAE.ConditionTab.Wiki", "Open wiki"),
-      nativeGlobal: Constants.localize("SCConditionalAE.AdvancedConditions.NativeGlobal", "Native effect condition"),
-      advancedGlobal: Constants.localize("SCConditionalAE.AdvancedConditions.AdvancedGlobal", "Advanced effect condition"),
+      scopeGeneral: Constants.localize("SCConditionalAE.ConditionTab.Summary.ScopeEffect", "General"),
+      scopeThisChange: Constants.localize("SCConditionalAE.AdvancedConditions.ScopeThisChange", "This change"),
+      layerNative: Constants.localize("SCConditionalAE.ConditionTab.Summary.LayerNative", "Native"),
+      layerAdvanced: Constants.localize("SCConditionalAE.ConditionTab.Summary.LayerAdvanced", "JavaScript"),
+      evaluationInfo: Constants.localize(
+        "SCConditionalAE.AdvancedConditions.EvaluationInfo",
+        "What each condition layer resolves to right now, against the effect's current actor. It only applies when every row is met; filters that read roll data can only be decided during a roll."
+      ),
       combined: Constants.localize("SCConditionalAE.AdvancedConditions.Combined", "All conditions"),
       insertVariable: Constants.localize("SCConditionalAE.ConditionTab.InsertVariable", "Insert variable"),
       variableSearch: Constants.localize("SCConditionalAE.ConditionTab.VariableSearchPlaceholder", "Search variables..."),

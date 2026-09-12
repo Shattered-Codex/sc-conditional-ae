@@ -94,25 +94,35 @@
            data-sc-cae-panel="evaluation" role="tabpanel" aria-labelledby="sc-cae-v6-tab-evaluation"
            tabindex="0" hidden>
     <fieldset class="sc-cae-v6-condition-evaluation card">
-      <legend>{{ strings.evaluation }}</legend>
+      <legend>
+        {{ strings.evaluation }}
+        <i class="fa-solid fa-circle-info sc-cae-v6-info" tabindex="0"
+           data-tooltip="{{ strings.evaluationInfo }}" aria-label="{{ strings.evaluationInfo }}"></i>
+      </legend>
       {{#if evaluation.nativeGlobal}}
+      <div class="sc-cae-v6-evaluation-group">{{ strings.scopeGeneral }}</div>
       <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="nativeGlobal"
            data-state="{{ evaluation.nativeGlobal.state }}">
-        <span class="sc-cae-v6-evaluation-row__label">{{ strings.nativeGlobal }}</span>
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.layerNative }}</span>
         <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.nativeGlobal.label }}</strong></span>
       </div>
       <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="advancedGlobal"
            data-state="{{ evaluation.advancedGlobal.state }}">
-        <span class="sc-cae-v6-evaluation-row__label">{{ strings.advancedGlobal }}</span>
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.layerAdvanced }}</span>
         <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.advancedGlobal.label }}</strong></span>
       </div>
+      <div class="sc-cae-v6-evaluation-group">{{ strings.scopeThisChange }}</div>
+      {{else}}
+      <div class="sc-cae-v6-evaluation-group">{{ strings.scopeGeneral }}</div>
       {{/if}}
-      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="native" data-state="{{ evaluation.native.state }}">
-        <span class="sc-cae-v6-evaluation-row__label">{{ strings.native }}</span>
+      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="native"
+           data-state="{{ evaluation.native.state }}">
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.layerNative }}</span>
         <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.native.label }}</strong></span>
       </div>
-      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="advanced" data-state="{{ evaluation.advanced.state }}">
-        <span class="sc-cae-v6-evaluation-row__label">{{ strings.advanced }}</span>
+      <div class="sc-cae-v6-evaluation-row" data-sc-cae-evaluation-row="advanced"
+           data-state="{{ evaluation.advanced.state }}">
+        <span class="sc-cae-v6-evaluation-row__label">{{ strings.layerAdvanced }}</span>
         <span class="sc-cae-v6-evaluation-state"><strong data-sc-cae-evaluation-value>{{ evaluation.advanced.label }}</strong></span>
       </div>
       <div class="sc-cae-v6-evaluation-row sc-cae-v6-combined-status" data-sc-cae-combined-status

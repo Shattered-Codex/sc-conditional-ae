@@ -116,10 +116,6 @@ export class ConditionTabContextBuilder {
           "SCConditionalAE.ConditionTab.Summary.Heading",
           "Condition status"
         ),
-        summaryEmpty: Constants.localize(
-          "SCConditionalAE.ConditionTab.Summary.Empty",
-          "No condition configured on this effect or on any of its changes."
-        ),
         advancedEditorHint: Constants.localize(
           "SCConditionalAE.AdvancedConditions.OpenFromNative",
           "Edit the JavaScript condition from the Advanced Conditions tab in the native condition editor."
@@ -232,8 +228,9 @@ export class ConditionTabContextBuilder {
   }
 
   /**
-   * The at-a-glance panel for dnd5e 6: what each condition layer resolves to
-   * right now, for the effect and for every change that carries one.
+   * The at-a-glance panel for dnd5e 6: one row for the effect and one for every
+   * change — conditioned or not, since the row's filter button is also how a
+   * condition gets added to a change that has none yet.
    */
   static #buildConditionSummary(sheet) {
     const summary = Dnd5e6ChangeConditionService.summarize(sheet?.document);
@@ -248,50 +245,51 @@ export class ConditionTabContextBuilder {
         Constants.localize("SCConditionalAE.ConditionTab.Summary.Effect", "Active Effect"),
         actor
       ),
-      ...summary.changes
-        .filter(entry => entry.configured)
-        .map(entry => ConditionTabContextBuilder.#buildSummaryRow(entry, "", actor))
+      ...summary.changes.map(entry => ConditionTabContextBuilder.#buildSummaryRow(entry, "", actor))
     ];
 
     return {
       state: summary.combined.state,
-      stateLabel: ConditionStateLabels.label(summary.combined.state),
-      stateIcon: ConditionStateLabels.icon(summary.combined.state),
       rows,
-      counts: ConditionTabContextBuilder.#buildSummaryCounts(summary.totals),
-      hasIssues: summary.totals.error > 0,
-      configuredCount: summary.totals.configured,
-      isEmpty: !rows.some(row => row.configured)
+      counts: ConditionTabContextBuilder.#buildSummaryCounts(rows)
     };
   }
 
   static #buildSummaryRow(entry, fallbackLabel, actor) {
-    const label = fallbackLabel
-      || Dnd5e6AttributeLabel.resolve(entry.key, { actor })
-      || entry.key
-      || Constants.localize("SCConditionalAE.ConditionTab.Summary.UnnamedChange", "Unnamed change");
+    const isEffect = entry.scope === "effect";
+    const configured = Boolean(entry.configured);
+    // With nothing configured the change simply always applies; calling that
+    // "Met" would claim a condition that does not exist.
+    const state = configured ? entry.state : "none";
 
     return {
       scope: entry.scope,
+      scopeLabel: isEffect
+        ? Constants.localize("SCConditionalAE.ConditionTab.Summary.ScopeEffect", "General")
+        : Constants.localize("SCConditionalAE.ConditionTab.Summary.ScopeChange", "Change"),
+      openHint: isEffect
+        ? Constants.localize(
+          "SCConditionalAE.ConditionTab.Summary.OpenEffectHint",
+          "Open the conditions for the whole Active Effect."
+        )
+        : Constants.localize(
+          "SCConditionalAE.ConditionTab.Summary.OpenChangeHint",
+          "Open the conditions for this change only."
+        ),
       changeId: entry.changeId ?? "",
       key: entry.key,
-      label,
-      state: entry.state,
-      stateLabel: ConditionStateLabels.label(entry.state),
-      stateIcon: ConditionStateLabels.icon(entry.state),
-      configured: entry.configured,
-      layers: [
-        ConditionTabContextBuilder.#buildSummaryLayer(
-          entry.native,
-          "SCConditionalAE.ConditionTab.Summary.LayerNative",
-          "Native"
-        ),
-        ConditionTabContextBuilder.#buildSummaryLayer(
-          entry.advanced,
-          "SCConditionalAE.ConditionTab.Summary.LayerAdvanced",
-          "JavaScript"
-        )
-      ].filter(Boolean),
+      label: fallbackLabel
+        || Dnd5e6AttributeLabel.resolve(entry.key, { actor })
+        || entry.key
+        || Constants.localize("SCConditionalAE.ConditionTab.Summary.UnnamedChange", "Unnamed change"),
+      configured,
+      state,
+      stateLabel: configured
+        ? ConditionStateLabels.label(state)
+        : Constants.localize("SCConditionalAE.ConditionTab.Summary.NoCondition", "No condition"),
+      stateIcon: configured ? ConditionStateLabels.icon(state) : "fa-minus",
+      // The layer breakdown lives in the tooltip so the row stays one line.
+      stateTooltip: configured ? ConditionStateLabels.describe(entry) : "",
       message: entry.message,
       messageLabel: entry.message
         ? Constants.localize(
@@ -304,26 +302,15 @@ export class ConditionTabContextBuilder {
     };
   }
 
-  static #buildSummaryLayer(stage, key, fallback) {
-    if (!stage?.configured) {
-      return null;
-    }
-
-    return {
-      label: Constants.localize(key, fallback),
-      state: stage.state,
-      stateLabel: ConditionStateLabels.label(stage.state)
-    };
-  }
-
-  static #buildSummaryCounts(totals) {
+  /** Only rows that carry a condition are counted as met or not met. */
+  static #buildSummaryCounts(rows) {
     return ConditionStateLabels.STATES
-      .filter(state => totals[state] > 0)
-      .map(state => ({
-        state,
-        count: totals[state],
-        icon: ConditionStateLabels.icon(state),
-        label: ConditionStateLabels.label(state)
+      .map(state => ({ state, count: rows.filter(row => row.configured && row.state === state).length }))
+      .filter(entry => entry.count > 0)
+      .map(entry => ({
+        ...entry,
+        icon: ConditionStateLabels.icon(entry.state),
+        label: ConditionStateLabels.label(entry.state)
       }));
   }
 

@@ -32,7 +32,11 @@
         "SyntaxError": "Syntax error",
         "RuntimeError": "Evaluation error",
         "EffectGate": "The effect-wide condition is {state}, so this change stays suppressed.",
-        "Empty": "No condition configured on this effect or on any of its changes."
+        "ScopeEffect": "General",
+        "ScopeChange": "Change",
+        "OpenEffectHint": "Open the conditions for the whole Active Effect.",
+        "OpenChangeHint": "Open the conditions for this change only.",
+        "NoCondition": "No condition"
       },
       "Wiki": "Open wiki",
       "Invalid": "This condition has invalid code.",
@@ -93,8 +97,6 @@
       "AdvancedCodeLabel": "JavaScript",
       "Evaluation": "Current evaluation",
       "EvaluationTab": "Evaluation",
-      "NativeGlobal": "Native effect condition",
-      "AdvancedGlobal": "Advanced effect condition",
       "Combined": "All conditions",
       "Pass": "Met",
       "Fail": "Not met",
@@ -154,7 +156,9 @@
           "subsetof": "is a subset of",
           "in": "is one of"
         }
-      }
+      },
+      "ScopeThisChange": "This change",
+      "EvaluationInfo": "What each condition layer resolves to right now, against the effect's current actor. It only applies when every row is met; filters that read roll data can only be decided during a roll."
     },
     "MacroChange": {
       "Name": "Macro to Execute",

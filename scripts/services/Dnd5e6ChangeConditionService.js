@@ -441,6 +441,53 @@ export class Dnd5e6ChangeConditionService {
     };
   }
 
+  /**
+   * The stored native filter as the JSON text the editor works on.
+   *
+   * The initialized Filter hides its definition, so the editor reads the
+   * source data instead — the same string dnd5e's own filters-input carries.
+   */
+  static getNativeConditionSource(effect, changeOrId = null) {
+    const changeId = Dnd5e6ChangeConditionService.getChangeId(changeOrId);
+    const source = changeId
+      ? effect?.system?._source?.changes?.find(candidate => (
+        Dnd5e6ChangeConditionService.getChangeId(candidate) === changeId
+      ))?.conditions
+      : effect?.system?._source?.conditions;
+
+    if (typeof source === "string") {
+      return source.trim() || "{}";
+    }
+    return source && typeof source === "object" ? JSON.stringify(source) : "{}";
+  }
+
+  /**
+   * One update carrying a change's native filter and its SC condition together.
+   *
+   * Used when the editor is opened from the Condition tab, where no change
+   * dialog exists to hold the native field until its own submit.
+   */
+  static buildChangeConditionsUpdate(effect, changeOrId, { nativeValue, advancedValue }) {
+    const changeId = Dnd5e6ChangeConditionService.getChangeId(changeOrId);
+    // Preserve the serialized JSON strings of every sibling condition. The
+    // prepared `system.changes` array contains initialized Filter instances,
+    // which are not the document source shape expected by an update.
+    const sourceChanges = effect?.system?._source?.changes
+      ?? effect?.system?.toObject?.().changes
+      ?? ActiveEffectChangesCompatibility.get(effect);
+    const changes = foundry.utils.deepClone(sourceChanges);
+    const change = changes.find(candidate => Dnd5e6ChangeConditionService.getChangeId(candidate) === changeId);
+    if (!change) {
+      throw new Error("The Active Effect change could not be resolved by its stable ID.");
+    }
+
+    change.conditions = String(nativeValue ?? "").trim() || "{}";
+    return {
+      ...ActiveEffectChangesCompatibility.buildUpdate(changes, effect),
+      ...Dnd5e6ChangeConditionService.buildUpdate(effect, changeId, advancedValue)
+    };
+  }
+
   static #getNativeConditionForDiagnostics(effect, change) {
     const changeId = Dnd5e6ChangeConditionService.getChangeId(change);
     const source = changeId
