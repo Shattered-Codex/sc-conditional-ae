@@ -23,6 +23,21 @@
         "Context": "Evaluated against",
         "EffectState": "Effect state"
       },
+      "Summary": {
+        "Heading": "Condition status",
+        "Effect": "Active Effect",
+        "UnnamedChange": "Unnamed change",
+        "LayerNative": "Native",
+        "LayerAdvanced": "JavaScript",
+        "SyntaxError": "Syntax error",
+        "RuntimeError": "Evaluation error",
+        "EffectGate": "The effect-wide condition is {state}, so this change stays suppressed.",
+        "ScopeEffect": "General",
+        "ScopeChange": "Change",
+        "OpenEffectHint": "Open the conditions for the whole Active Effect.",
+        "OpenChangeHint": "Open the conditions for this change only.",
+        "NoCondition": "No condition"
+      },
       "Wiki": "Open wiki",
       "Invalid": "This condition has invalid code.",
       "BadgeLabel": "Condition badge label",
@@ -51,6 +66,8 @@
       "VariableSearchEmpty": "No variable matches this search.",
       "VariableDescription": {
         "effect": "The Active Effect being evaluated.",
+        "change": "The individual Active Effect change, or null for an effect-wide condition.",
+        "changeId": "The stable ID of the individual change, or null for an effect-wide condition.",
         "actor": "The actor that owns the Active Effect.",
         "targetActor": "Alias of the affected actor.",
         "token": "The affected actor's canvas token, or null when unavailable.",
@@ -71,6 +88,77 @@
         "function": "function",
         "string": "string"
       }
+    },
+    "AdvancedConditions": {
+      "Title": "Active Effect Conditions",
+      "TabsLabel": "Condition editors",
+      "Native": "Native Conditions",
+      "Advanced": "Advanced Conditions",
+      "AdvancedCodeLabel": "JavaScript",
+      "Evaluation": "Current evaluation",
+      "EvaluationTab": "Evaluation",
+      "Combined": "All conditions",
+      "Pass": "Met",
+      "Fail": "Not met",
+      "Error": "Invalid or errored",
+      "Contextual": "Depends on roll context",
+      "Invalid": "Correct the invalid condition before saving.",
+      "SaveFailed": "The conditions could not be saved.",
+      "OpenFromNative": "Edit the JavaScript condition from the Advanced Conditions tab in the native condition editor.",
+      "Builder": {
+        "Builder": "Builder",
+        "Json": "JSON",
+        "AddCondition": "Add condition",
+        "AddGroup": "Add group",
+        "Remove": "Remove",
+        "Empty": "No conditions. The filter passes.",
+        "KeyPlaceholder": "e.g. attributes.hp.value",
+        "ValuePlaceholder": "e.g. 5, true, \"fire\"",
+        "GroupOperator": "Group operator",
+        "ComparisonOperator": "Comparison operator",
+        "ValueHint": "Values accept JSON literals. Strings are shown in quotes so values such as \"5\" remain text; unquoted 5 is a number.",
+        "InvalidJson": "Correct the JSON before opening the visual builder.",
+        "ViewLabel": "Filter view",
+        "FilterLabel": "Filter",
+        "MatchLabel": "Match",
+        "AttributeColumn": "Attribute",
+        "OperatorColumn": "Operator",
+        "ValueColumn": "Value",
+        "GroupOperators": {
+          "AND": "Match all",
+          "NAND": "Fail at least one",
+          "OR": "Match any",
+          "NOR": "Match none",
+          "XOR": "Match exactly one",
+          "NOT": "Invert the single child"
+        },
+        "OperatorCategories": {
+          "value": "Value",
+          "text": "Text",
+          "collection": "Collection"
+        },
+        "Operators": {
+          "exact": "is exactly",
+          "gt": "is greater than",
+          "gte": "is at least",
+          "lt": "is less than",
+          "lte": "is at most",
+          "empty": "is empty",
+          "contains": "contains",
+          "icontains": "contains (ignore case)",
+          "startswith": "starts with",
+          "istartswith": "starts with (ignore case)",
+          "endswith": "ends with",
+          "iendswith": "ends with (ignore case)",
+          "has": "has",
+          "hasany": "has any of",
+          "hasall": "has all of",
+          "subsetof": "is a subset of",
+          "in": "is one of"
+        }
+      },
+      "ScopeThisChange": "This change",
+      "EvaluationInfo": "What each condition layer resolves to right now, against the effect's current actor. It only applies when every row is met; filters that read roll data can only be decided during a roll."
     },
     "MacroChange": {
       "Name": "Macro to Execute",
@@ -93,15 +181,19 @@
       "ChatCardCurrentValueLabel": "Current Value",
       "ChatCardFormulaLabel": "Formula",
       "ChatCardUnnamedKey": "Change",
+      "ChatCardRolledButton": "Rolled",
+      "ChatCardAllRolledButton": "All formulas rolled",
       "RollAllLabel": "Roll all formulas",
       "RollAllUnavailableLabel": "Formulas unavailable right now",
       "RollFlavor": "Active Effect formula roll",
       "InvalidFormula": "Invalid Active Effect formula.",
+      "SaveFailed": "The formula could not be saved.",
       "Column": "Formula",
       "ColumnHint": "Formula rolled when this Active Effect is activated.",
       "Placeholder": "Optional formula",
       "EditorTitle": "Formula editor",
       "EditorOpen": "Edit formula",
+      "EditorOpenHint": "Open the formula editor to browse the available variables.",
       "EditorSave": "Save formula",
       "EditorHint": "Formula rolled when this Active Effect is activated. Leave it blank to remove the formula.",
       "ColumnShort": "fx",
@@ -113,7 +205,9 @@
       "PreviewResult": "Result on this actor: {value}",
       "PreviewRange": "Result on this actor: {minimum} to {maximum}",
       "PreviewNoActor": "This Active Effect has no actor yet, so roll data is unavailable here.",
-      "ToggleValueMode": "Switch between a fixed value and a formula."
+      "ToggleValueMode": "Switch between a fixed value and a formula.",
+      "OrphanedFormula": "Formulas on \"{effect}\" no longer match a change and were skipped: {keys}.",
+      "OrphanedFormulaHint": "Some formulas on this effect no longer match a change and will be skipped: {keys}."
     },
     "Settings": {
       "EnableFormulaChanges": {
@@ -128,6 +222,10 @@
         "Name": "Show condition tab",
         "Hint": "Adds the Condition tab to Active Effect configuration sheets.",
         "DaeNotice": "If you use Dynamic Active Effects (DAE) with the condition tab enabled, a libWrapper conflict warning may appear in the browser console. This is expected — the module intentionally blocks effect application when a condition is not met, which also skips DAE's wrapper for those effects. You can safely ignore this warning."
+      },
+      "TintEffectIcons": {
+        "Name": "Tint effect icons",
+        "Hint": "Paints each Active Effect's Icon Tint Color onto its icon in effect lists. Effects left at the default white are unchanged."
       },
       "DebugLogging": {
         "Name": "Enable debug logging",
@@ -177,6 +275,13 @@
         "Expand": "Expanding row — full-width field under the change",
         "Single": "Single field — the Value field switches to a formula",
         "Column": "Formula column — a labelled column always in view"
+      },
+      "DiscordLink": {
+        "Label": "Discord",
+        "Hint": "Join the Shattered Codex Discord server."
+      },
+      "CommunityLinks": {
+        "Aria": "Community links"
       }
     }
   }

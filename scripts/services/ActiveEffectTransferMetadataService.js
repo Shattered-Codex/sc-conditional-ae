@@ -1,4 +1,6 @@
 import { Constants } from "../constants/Constants.js";
+import { DebugLog } from "../helpers/DebugLog.js";
+import { ActiveEffectChangesCompatibility } from "../compat/ActiveEffectChangesCompatibility.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 
 export class ActiveEffectTransferMetadataService {
@@ -51,7 +53,7 @@ export class ActiveEffectTransferMetadataService {
     const moduleFlags = foundry.utils.deepClone(
       foundry.utils.getProperty(data, `flags.${Constants.MODULE_ID}`) ?? {}
     );
-    Constants.debug("ActiveEffectTransferMetadataService.syncModuleFlagsFromOrigin", { sourceEffect, moduleFlags });
+    DebugLog.write("ActiveEffectTransferMetadataService.syncModuleFlagsFromOrigin", { sourceEffect, moduleFlags });
     if (!foundry.utils.isEmpty(moduleFlags)) {
       effect.updateSource({ flags: { [Constants.MODULE_ID]: moduleFlags } });
     }
@@ -89,8 +91,13 @@ export class ActiveEffectTransferMetadataService {
       return false;
     }
 
-    const targetChanges = ActiveEffectContextBuilder.getChangeSignature(data?.changes ?? effect?.changes ?? []);
-    const candidateChanges = ActiveEffectContextBuilder.getChangeSignature(candidate?.changes ?? []);
+    const targetSource = ActiveEffectChangesCompatibility.hasExplicitChanges(data) ? data : effect;
+    const targetChanges = ActiveEffectContextBuilder.getChangeSignature(
+      ActiveEffectChangesCompatibility.get(targetSource)
+    );
+    const candidateChanges = ActiveEffectContextBuilder.getChangeSignature(
+      ActiveEffectChangesCompatibility.get(candidate)
+    );
 
     if (targetChanges.length !== candidateChanges.length) {
       return false;
@@ -224,15 +231,7 @@ export class ActiveEffectTransferMetadataService {
   }
 
   static #getChangesArray(source) {
-    if (Array.isArray(source?.changes)) {
-      return source.changes;
-    }
-
-    if (Array.isArray(source?.system?.changes)) {
-      return source.system.changes;
-    }
-
-    return [];
+    return ActiveEffectChangesCompatibility.get(source);
   }
 
   static #getActivityEffectReferences(entry) {

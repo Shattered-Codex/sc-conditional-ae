@@ -14,6 +14,20 @@ export class ActiveEffectContextBuilder {
     return null;
   }
 
+  /**
+   * An item effect that actually reaches its owning actor. `transfer` has been
+   * spelled several ways across dnd5e versions, so every falsy-but-not-false
+   * shape is treated as "not configured", i.e. transferring.
+   */
+  static isTransferredOwnedItemEffect(effect) {
+    return effect?.parent instanceof CONFIG.Item.documentClass
+      && effect.parent.actor instanceof CONFIG.Actor.documentClass
+      && effect.transfer !== false
+      && effect.transfer !== 0
+      && effect.transfer !== null
+      && effect.transfer !== undefined;
+  }
+
   static getOrigin(effect) {
     const originUuid = effect?.origin ?? foundry.utils.getProperty(effect ?? {}, "origin");
     if (!originUuid || typeof fromUuidSync !== "function") {
@@ -103,8 +117,37 @@ export class ActiveEffectContextBuilder {
 
     return changes.map(change => ({
       key: String(change?.key ?? "").trim(),
-      mode: Number(change?.mode ?? 0)
+      mode: ActiveEffectContextBuilder.#normalizeChangeMode(change)
     }));
+  }
+
+  /**
+   * Signatures are compared across shapes: raw source data from a compendium or
+   * socket payload still carries the numeric `mode`, while a live dnd5e 6
+   * document carries the string `type`. Both are reduced to the same name, or a
+   * legacy payload would never match the document it describes.
+   */
+  static #normalizeChangeMode(change) {
+    const type = String(change?.type ?? "").trim().toLowerCase();
+    if (type) {
+      return type;
+    }
+
+    const mode = change?.mode;
+    if (mode === undefined || mode === null || mode === "") {
+      return "";
+    }
+
+    const numeric = Number(mode);
+    if (Number.isFinite(numeric)) {
+      const name = Object.entries(globalThis.CONST?.ACTIVE_EFFECT_MODES ?? {})
+        .find(([, value]) => value === numeric)?.[0];
+      if (name) {
+        return name.toLowerCase();
+      }
+    }
+
+    return String(mode).trim().toLowerCase();
   }
 
   static extractEffectId(reference) {

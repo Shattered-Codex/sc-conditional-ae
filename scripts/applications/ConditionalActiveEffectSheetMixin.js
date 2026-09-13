@@ -1,6 +1,7 @@
 import { Constants } from "../constants/Constants.js";
 import { ConditionTabContextBuilder } from "./ConditionTabContextBuilder.js";
 import { ConditionVariablePopover } from "./ConditionVariablePopover.js";
+import { Dnd5e6AdvancedConditionsAdapter } from "./Dnd5e6AdvancedConditionsAdapter.js";
 import { EffectSheetSubmitDataHandler } from "./EffectSheetSubmitDataHandler.js";
 import { FormulaColumnRenderer } from "./FormulaColumnRenderer.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -48,11 +49,13 @@ export function ConditionalActiveEffectSheetMixin(ActiveEffectSheet) {
         : this.document.update(EffectSheetSubmitDataHandler.findSubmitDataArgument(args));
     }
 
-    _onRender(...args) {
-      super._onRender?.(...args);
+    async _onRender(...args) {
+      await super._onRender?.(...args);
+      Dnd5e6AdvancedConditionsAdapter.bind(this);
       activateBadgeLabelCounter(this);
       activateApplyBehaviorHint(this);
       activateConditionVariablePopover(this);
+      activateConditionShortcuts(this);
       if (ModuleSettings.isFormulaChangesEnabled()) {
         FormulaColumnRenderer.scheduleRender(this);
         FormulaColumnRenderer.activateObserver(this);
@@ -168,6 +171,28 @@ function activateApplyBehaviorHint(sheet) {
 
   select.dataset.scCaeApplyBehaviorHintBound = "true";
   select.addEventListener("change", syncHint);
+}
+
+/**
+ * The status rows open the same conditions editor the native filter field
+ * does: the general row for the whole effect, a change row for that change.
+ */
+function activateConditionShortcuts(sheet) {
+  const root = FormulaColumnRenderer.getSheetRoot(sheet) ?? sheet.element;
+  if (!root?.querySelectorAll) return;
+
+  for (const control of root.querySelectorAll("[data-sc-cae-open-condition]")) {
+    if (control.dataset.scCaeOpenBound === "true") continue;
+    control.dataset.scCaeOpenBound = "true";
+    control.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      Dnd5e6AdvancedConditionsAdapter.openEditor({
+        effect: sheet.document,
+        changeId: control.dataset.scCaeChangeId || null
+      });
+    });
+  }
 }
 
 function activateConditionVariablePopover(sheet) {

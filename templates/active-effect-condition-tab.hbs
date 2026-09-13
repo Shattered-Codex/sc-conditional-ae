@@ -1,6 +1,55 @@
 <section class="tab scrollable {{#if tab.active}}active{{/if}} sc-cae-condition-tab" data-tab="{{ tab.id }}" data-group="{{ tab.group }}">
   <fieldset>
     <legend>{{ strings.heading }}</legend>
+    {{#if useNativeAdvancedEditor}}
+    <p class="note info">
+      <i class="fa-solid fa-filter"></i>
+      {{ strings.advancedEditorHint }}
+    </p>
+
+    {{#if conditionSummary}}
+    <div class="sc-cae-condition-summary" data-state="{{ conditionSummary.state }}">
+      <div class="sc-cae-condition-summary__header">
+        <span class="sc-cae-condition-summary__title">{{ strings.summaryHeading }}</span>
+        <span class="sc-cae-condition-summary__counts">
+          {{#each conditionSummary.counts}}
+          <span class="sc-cae-condition-summary__count" data-state="{{ this.state }}" data-tooltip="{{ this.label }}">
+            <i class="fa-solid {{ this.icon }}" aria-hidden="true"></i>{{ this.count }}
+          </span>
+          {{/each}}
+        </span>
+      </div>
+
+      <ul class="sc-cae-condition-summary__list">
+        {{#each conditionSummary.rows}}
+        <li class="sc-cae-condition-summary__row" data-state="{{ this.state }}" data-scope="{{ this.scope }}">
+          <span class="sc-cae-condition-summary__label"
+                {{~#if this.key}} data-tooltip="{{ this.key }}"{{/if}}>{{ this.label }}</span>
+          {{#if @root.editable}}
+          <button type="button"
+                  class="sc-cae-condition-summary__filter icon fa-solid fa-filter{{#if this.configured}} is-configured{{/if}}"
+                  data-sc-cae-open-condition {{~#if this.changeId}} data-sc-cae-change-id="{{ this.changeId }}"{{/if}}
+                  data-tooltip="{{ this.openHint }}" aria-label="{{ this.openHint }}"></button>
+          {{else}}
+          <span class="sc-cae-condition-summary__filter-slot" aria-hidden="true"></span>
+          {{/if}}
+          <span class="sc-cae-condition-summary__scope" data-scope="{{ this.scope }}">{{ this.scopeLabel }}</span>
+          <span class="sc-cae-condition-summary__state" data-state="{{ this.state }}"
+                {{~#if this.stateTooltip}} data-tooltip="{{ this.stateTooltip }}"{{/if}}>
+            <i class="fa-solid {{ this.stateIcon }}" aria-hidden="true"></i>
+            <span>{{ this.stateLabel }}</span>
+          </span>
+          {{#if this.message}}
+          <span class="sc-cae-condition-summary__message">
+            <strong>{{ this.messageLabel }}:</strong> {{ this.message }}
+          </span>
+          {{/if}}
+        </li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
+    {{else}}
     {{#if strings.compatibilityHint}}
     <p class="hint sc-cae-compatibility-hint">
       <i class="fas fa-wand-magic-sparkles"></i>
@@ -53,6 +102,7 @@
       {{/if}}
       </div>
     </details>
+    {{/if}}
 
     <div class="form-group">
       <label>{{ strings.conditionBehavior }}</label>
@@ -125,6 +175,7 @@
       <p class="hint" data-sc-cae-apply-behavior-hint>{{ applyBehaviorDescription }}</p>
     </div>
 
+    {{#unless useNativeAdvancedEditor}}
     <div class="sc-cae-code-header">
       <div class="sc-cae-code-header-title">
         <span>{{ strings.label }}</span>
@@ -213,5 +264,6 @@
       placeholder="{{ strings.placeholder }}"
       disabled>{{ conditionInputValue }}</textarea>
     {{/if}}
+    {{/unless}}
   </fieldset>
 </section>

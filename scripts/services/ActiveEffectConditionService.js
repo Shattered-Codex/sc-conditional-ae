@@ -1,7 +1,7 @@
+import { DebugLog } from "../helpers/DebugLog.js";
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { DaeCompatibility } from "../compat/DaeCompatibility.js";
-import { ModuleSettings } from "../settings/ModuleSettings.js";
 import { ConditionSourceInspector } from "../helpers/ConditionSourceInspector.js";
 import { ConditionVariableRegistry } from "../helpers/ConditionVariableRegistry.js";
 import { TokenLightingService } from "./TokenLightingService.js";
@@ -89,6 +89,15 @@ export class ActiveEffectConditionService {
     }
   }
 
+  /** Whether the effect is enabled, not suppressed, and its condition passes. */
+  static isEffectActive(effect) {
+    const evaluation = ActiveEffectConditionService.evaluate(effect);
+    return effect?.active !== false
+      && effect?.disabled !== true
+      && !evaluation.error
+      && Boolean(evaluation.available);
+  }
+
   static shouldSuppress(effect) {
     const evaluation = ActiveEffectConditionService.evaluate(effect);
     return evaluation.error ? true : !evaluation.available;
@@ -96,6 +105,19 @@ export class ActiveEffectConditionService {
 
   static evaluate(effect, options = {}) {
     const rawCode = ActiveEffectConditionService.getCondition(effect);
+    return ActiveEffectConditionService.evaluateCode(effect, rawCode, options);
+  }
+
+  /**
+   * Evaluate an SC condition source against an Active Effect context.
+   *
+   * This public entry point is also used by the dnd5e 6 adapter for conditions
+   * attached to an individual change. Keeping compilation and context building
+   * here guarantees that change conditions expose the same variables (including
+   * token and lightLevel) as the effect-wide condition.
+   */
+  static evaluateCode(effect, code, options = {}) {
+    const rawCode = String(code ?? "");
     if (!rawCode.trim().length) {
       return { available: true, error: null, result: true };
     }
@@ -213,6 +235,8 @@ ${body}`
       actor: affectedActor,
       deepClone: foundry.utils.deepClone.bind(foundry.utils),
       effect: effect ?? null,
+      change: options.change ?? null,
+      changeId: options.change?._id ?? options.change?.id ?? options.changeId ?? null,
       game,
       getProperty: foundry.utils.getProperty.bind(foundry.utils),
       hasProperty: foundry.utils.hasProperty.bind(foundry.utils),
@@ -279,17 +303,7 @@ ${body}`
   }
 
   static #debug(message, data = undefined) {
-    if (!ModuleSettings.isDebugLoggingEnabled() && !globalThis[Constants.DEBUG_GLOBAL]) {
-      return;
-    }
-
-    const prefix = `[${Constants.MODULE_ID}] ${message}`;
-    if (data === undefined) {
-      console.debug(prefix);
-      return;
-    }
-
-    console.debug(prefix, data);
+    DebugLog.write(message, data);
   }
 
   static #describeEffect(effect) {

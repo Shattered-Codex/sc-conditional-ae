@@ -1,5 +1,7 @@
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectConditionService } from "../services/ActiveEffectConditionService.js";
+import { EffectIconTint } from "../helpers/EffectIconTint.js";
+import { ModuleSettings } from "../settings/ModuleSettings.js";
 import { ActiveEffectFormulaChangeService } from "../services/ActiveEffectFormulaChangeService.js";
 
 export class EffectListFormulaRollButtonRenderer {
@@ -142,6 +144,7 @@ export class EffectListFormulaRollButtonRenderer {
       const effect = EffectListFormulaRollButtonRenderer.#resolveEffect(app, row);
 
       EffectListFormulaRollButtonRenderer.#updateConditionBadge(row, effect);
+      EffectListFormulaRollButtonRenderer.#updateIconTint(row, effect);
 
       if (
         !EffectListFormulaRollButtonRenderer.#formulaControlsEnabled
@@ -172,6 +175,12 @@ export class EffectListFormulaRollButtonRenderer {
         }
       }
     }
+  }
+
+  static #updateIconTint(row, effect) {
+    const icon = row.querySelector(".item-image, .effect-name img, .effect-name dnd5e-icon");
+    const tint = ModuleSettings.isEffectIconTintEnabled() ? EffectIconTint.resolve(effect) : null;
+    EffectIconTint.paint(icon, tint);
   }
 
   static #updateConditionBadge(row, effect) {

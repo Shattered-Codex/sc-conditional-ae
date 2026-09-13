@@ -14,6 +14,7 @@ export class EffectSheetSubmitDataHandler {
       EffectSheetSubmitDataHandler.#hasSubmittedDaeConditionChange(sheet.document, target)
     );
     for (const target of targets) {
+      EffectSheetSubmitDataHandler.#restoreOmittedChangeFields(sheet.document, target);
       EffectSheetSubmitDataHandler.#collectCustomFields(sheet, target);
       EffectSheetSubmitDataHandler.#syncDaeStacking(target);
       EffectSheetSubmitDataHandler.#cleanCondition(sheet, target, daeConditionWasEdited);
@@ -51,6 +52,34 @@ export class EffectSheetSubmitDataHandler {
     }
 
     return {};
+  }
+
+  // Core-based effect sheets (DAE's among them) render only key, type, value,
+  // phase and priority for each change. Foundry replaces array entries whole,
+  // so dnd5e 6's per-change _id, native filter and replacement would reset on
+  // every submit. Fill whatever a row omits from the stored change it edits.
+  static #restoreOmittedChangeFields(effect, submitData) {
+    const submittedChanges = submitData?.system?.changes;
+    if (!submittedChanges || typeof submittedChanges !== "object" || Array.isArray(submittedChanges)) {
+      return;
+    }
+
+    const sourceChanges = effect?._source?.system?.changes;
+    if (!Array.isArray(sourceChanges)) {
+      return;
+    }
+
+    const changesById = new Map(sourceChanges.map(change => [change._id, change]));
+    for (const [index, change] of Object.entries(submittedChanges)) {
+      if (!/^\d+$/.test(index) || !change || typeof change !== "object") {
+        continue;
+      }
+      // An explicit ID takes precedence over position after a reorder. A new
+      // ID must not inherit the filter of the row that occupied its position.
+      const sourceChange = change._id ? changesById.get(change._id) : sourceChanges[Number(index)];
+      if (!sourceChange) continue;
+      submittedChanges[index] = { ...foundry.utils.deepClone(sourceChange), ...change };
+    }
   }
 
   static #cleanCondition(sheet, submitData, daeConditionWasEdited) {

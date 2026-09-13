@@ -612,6 +612,75 @@
   width: 100%;
 }
 
+/* --------------------------------------------------------------------------
+ * Changes tab — third-party column adapter
+ *
+ * On dnd5e 5.3 the Changes tab is Foundry's own grid: the row container
+ * declares a fixed track list and each row is `display: contents`, so every
+ * cell takes one track. ChangesGridLayoutAdapter rewrites that track list
+ * inline from the cells actually present (DAE's Phase column, this module's
+ * formula cell, anything a future module adds) and marks the section below.
+ *
+ * These rules only keep third-party minimum widths from pushing the recomputed
+ * tracks past the sheet. `!important` is needed because DAE declares those
+ * minimums with an equally specific selector, so source order would decide.
+ * ------------------------------------------------------------------------ */
+
+/*
+ * DAE sizes the header and the row container to `max-content`. With
+ * proportional tracks that makes the rows as wide as DAE's unwrapped field
+ * descriptions, while the header, whose labels are short, keeps the sheet's
+ * width, so every cell drifts away from its label and off the right edge.
+ */
+.sc-cae-changes-grid > header,
+.sc-cae-changes-grid > ol {
+  min-width: 0 !important;
+}
+
+/*
+ * The row container reserves a stable scrollbar gutter; DAE pads the header by
+ * a fixed 14px to match it. Proportional tracks turn any difference into a
+ * drift that grows towards the last column, so the header reserves the very
+ * same gutter instead and keeps core's 2px padding.
+ */
+.sc-cae-changes-grid > header {
+  padding-right: 2px !important;
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+.sc-cae-changes-grid > header > *,
+.sc-cae-changes-grid > ol > li > * {
+  min-width: 0 !important;
+}
+
+/*
+ * DAE writes the key's description under its input, but a module that turns
+ * the key cell into a flex row lays it beside the input, where a long
+ * description takes the whole track and collapses the input. It is sent back
+ * to its own line.
+ */
+.sc-cae-changes-grid > ol > li > .key {
+  flex-wrap: wrap;
+}
+
+.sc-cae-changes-grid > ol > li > .key > .dae-field-info {
+  flex: 1 0 100%;
+  min-width: 0;
+}
+
+.sc-cae-changes-grid > ol > li > * > input,
+.sc-cae-changes-grid > ol > li > * > select,
+.sc-cae-changes-grid > ol > li > * > textarea {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+.sc-cae-changes-spacer {
+  min-width: 0;
+}
+
 .sc-cae-formula-editor__subtitle {
   margin: 0 0 0.25rem;
   font-weight: 700;
@@ -920,19 +989,139 @@
   box-shadow: none;
 }
 
+/*
+ * The SocketsConfigApp layout: a column that fills the fixed-size window, a
+ * grid row holding the rail and the scrolling panel, and the footer pinned
+ * below it. height: 100% is what lets the column take the window's height
+ * instead of shrinking to its content.
+ */
 .sc-cae-settings-shell {
   display: flex;
-  flex-direction: column;
   flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
+
+.sc-cae-settings-main {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: 200px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.sc-cae-settings-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border-right: 1px solid var(--sc-border);
+  background: var(--sc-bg-1);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sc-bg-3) transparent;
+}
+
+.sc-cae-settings-tab {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--sc-radius);
+  background: transparent;
+  color: var(--sc-text-dim);
+  font: 600 12px/1.2 var(--sc-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+
+.sc-cae-settings-tab:hover {
+  background: var(--sc-bg-hover);
+  color: var(--sc-text);
+}
+
+.sc-cae-settings-tab:focus-visible {
+  border-color: var(--sc-accent);
+  outline: none;
+}
+
+.sc-cae-settings-tab.is-active {
+  border-color: var(--sc-accent);
+  background: var(--sc-accent-soft);
+  color: var(--sc-accent);
+}
+
+.sc-cae-settings-tab > i {
+  width: 14px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.sc-cae-settings-tab__label {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-cae-settings-footer__spacer {
+  flex: 1 1 auto;
+}
+
+.sc-cae-settings-footer__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * The strip Foundry's own settings sheet gets, at the end of this module's
+ * section. It replaces three registered menus, each of which Foundry rendered
+ * as a full label + hint + button row.
+ */
+.sc-cae-community-links {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-light-tertiary, rgba(255, 255, 255, 0.1));
+}
+
+.sc-cae-community-links .sc-cae-community-link {
+  display: inline-flex;
+  width: auto;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.sc-cae-community-links .sc-cae-community-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-cae-community-links .sc-cae-community-link--wiki i { color: #3cba54; }
+.sc-cae-community-links .sc-cae-community-link--patreon i { color: #ff6b5a; }
+.sc-cae-community-links .sc-cae-community-link--discord i { color: #7d8cf5; }
+.sc-cae-community-links .sc-cae-community-link:hover i { filter: brightness(1.25); }
 
 .sc-cae-settings-body {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   gap: calc(18px * var(--sc-density));
+  min-width: 0;
   min-height: 0;
   padding: calc(16px * var(--sc-density)) calc(18px * var(--sc-density));
   overflow-y: auto;
@@ -1149,9 +1338,6 @@
   background: var(--sc-bg-1);
 }
 
-.sc-cae-settings-footer__spacer {
-  flex: 1;
-}
 
 .sc-cae-settings-button {
   display: inline-flex;
@@ -1265,10 +1451,18 @@
   animation: sc-cae-spin 1s linear infinite;
 }
 
+/*
+ * Formula roll chat card.
+ *
+ * dnd5e 6 paints chat messages in the active theme, so the card can no longer
+ * assume the parchment background dnd5e 5.x always used. Text inherits the
+ * message colour and every tint is mixed from it (or from the system gold),
+ * which keeps the card legible on light and dark messages alike.
+ */
 .sc-cae-formula-request-card .card-content {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .sc-cae-formula-request-card .card-content p {
@@ -1278,90 +1472,113 @@
 
 .sc-cae-formula-request-intro {
   font-weight: 600;
-  color: var(--color-text-dark-primary, #1f1b18);
 }
 
 .sc-cae-formula-request-reason {
-  padding: 0.5rem 0.625rem;
+  padding: 0.375rem 0.5rem;
   border-left: 3px solid var(--dnd5e-color-gold, #d4b66a);
-  border-radius: 0 8px 8px 0;
-  background: linear-gradient(90deg, rgba(212, 182, 106, 0.16), rgba(255, 255, 255, 0.55));
-  color: var(--color-text-dark-secondary, #5d5347);
+  border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, var(--dnd5e-color-gold, #d4b66a) 14%, transparent);
   font-size: var(--font-size-12, 12px);
 }
 
 .sc-cae-formula-request-prompt {
-  font-size: var(--font-size-13, 13px);
-  font-weight: 500;
-  color: var(--color-text-dark-primary, #2e261f);
+  font-size: var(--font-size-12, 12px);
+  opacity: 0.8;
 }
 
 .sc-cae-formula-request-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
+/*
+ * The key and the formula are the long values, so neither shares its row with
+ * much: the key sits beside the Roll button and the formula gets the whole card
+ * width. The current value is short and reads as one inline line between them.
+ */
 .sc-cae-formula-request-entry {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 0.75rem;
-  padding: 0.625rem;
-  border: 1px solid rgba(95, 76, 54, 0.12);
-  border-radius: 10px;
-  background:
-    linear-gradient(135deg, rgba(212, 182, 106, 0.12), rgba(255, 255, 255, 0.72));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  gap: 0.375rem 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--dnd5e-color-gold, #d4b66a) 45%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
 }
 
 .sc-cae-formula-request-entry-copy {
-  display: grid;
-  grid-template-columns: minmax(92px, 110px) minmax(0, 1fr);
-  gap: 0.35rem 0.625rem;
+  display: contents;
+}
+
+.sc-cae-formula-request-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
   min-width: 0;
-  align-items: start;
+  grid-column: 1 / -1;
+}
+
+.sc-cae-formula-request-field--key {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.sc-cae-formula-request-field--current {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+/* Rolled from this card already: kept for reference, but it cannot roll again. */
+.sc-cae-formula-request-entry--rolled {
+  border-style: dashed;
+}
+
+.sc-cae-formula-request-entry--rolled .sc-cae-formula-request-field {
+  opacity: 0.6;
 }
 
 .sc-cae-formula-request-entry-label {
-  color: #7a6d5f;
-  font-size: var(--font-size-11, 11px);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: var(--font-size-10, 10px);
   font-weight: 700;
-  line-height: 1.8;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 
 .sc-cae-formula-request-entry-key {
-  display: block;
-  min-width: 0;
-  font-weight: 600;
-  color: var(--color-text-dark-primary, #221d18);
-  overflow-wrap: anywhere;
-  line-height: 1.35;
-  padding: 0.1rem 0;
-}
-
-.sc-cae-formula-request-entry-value {
-  display: inline-flex;
-  align-items: center;
   max-width: 100%;
-  min-height: 28px;
-  padding: 0.2rem 0.5rem;
-  border: 1px solid rgba(80, 67, 53, 0.12);
-  border-radius: 6px;
-  color: var(--color-text-dark-primary, #2b241d);
-  background: rgba(255, 255, 255, 0.7);
-  box-sizing: border-box;
+  font-family: var(--font-monospace, monospace);
+  font-size: var(--font-size-12, 12px);
+  font-weight: 600;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.sc-cae-formula-request-entry-value--current {
-  background: rgba(255, 255, 255, 0.82);
+.sc-cae-formula-request-card .sc-cae-formula-request-entry-value {
+  max-width: 100%;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
+  font-family: var(--font-monospace, monospace);
+  font-size: var(--font-size-12, 12px);
+  line-height: 1.4;
+  box-sizing: border-box;
+  /* Foundry keeps inline code on one line, which pushed long formulas out of the card. */
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
-.sc-cae-formula-request-entry-value--formula {
-  background: rgba(157, 140, 122, 0.24);
+.sc-cae-formula-request-card .sc-cae-formula-request-entry-value--formula {
+  border-color: color-mix(in srgb, var(--dnd5e-color-gold, #d4b66a) 55%, transparent);
+  background: color-mix(in srgb, var(--dnd5e-color-gold, #d4b66a) 16%, transparent);
   font-weight: 600;
 }
 
@@ -1369,19 +1586,21 @@
   align-self: flex-start;
 }
 
+/* Full width, like the buttons on dnd5e's own item cards. */
 .sc-cae-formula-request-actions {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
 }
 
 .sc-cae-formula-request-actions .sc-cae-formula-request-button {
-  align-self: auto;
+  align-self: stretch;
 }
 
 .sc-cae-formula-request-button--inline {
+  grid-column: 2;
+  grid-row: 1;
   align-self: start;
   flex-shrink: 0;
-  margin-top: 0.15rem;
 }
 
 .sc-cae-formula-request-button.loading::after {
@@ -1396,4 +1615,41 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* A formula whose change no longer exists: it is skipped, so say so. */
+.sc-cae-formula-orphan-warning {
+  color: var(--dnd5e-color-note-warn, #d9a441);
+}
+
+/*
+ * Active Effect icon tint.
+ *
+ * Multiplying the image by the colour is what Foundry does when it tints the
+ * same texture on a token, so the list icon and the token icon agree. The
+ * wrapper only exists because a replaced element cannot carry a blended overlay
+ * of its own; it inherits the icon's box so dnd5e's sizing rules still apply.
+ */
+.sc-cae-effect-icon-tint {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  line-height: 0;
+  isolation: isolate;
+}
+
+.sc-cae-effect-icon-tint::after {
+  position: absolute;
+  border-radius: inherit;
+  background: var(--sc-cae-effect-tint);
+  content: "";
+  inset: 0;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* A formula Foundry cannot parse, flagged while typing instead of at roll time. */
+.sc-cae-formula-invalid {
+  border-color: var(--dnd5e-color-failure, #c93b3b);
+  outline: 1px solid var(--dnd5e-color-failure, #c93b3b);
 }

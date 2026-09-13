@@ -11,9 +11,11 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
     id: `${Constants.MODULE_ID}-settings-app`,
     classes: ["sc-cae-settings-app"],
     tag: "form",
+    // A fixed box, as SocketsConfigApp uses. With "auto" the rail's own height
+    // decided the window's, so a short panel left everything cramped.
     position: {
-      width: 680,
-      height: "auto"
+      width: 900,
+      height: 640
     },
     window: {
       title: Constants.localize("SCConditionalAE.Settings.App.Title", "SC - Conditional AE Settings"),
@@ -39,15 +41,10 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
           "Configure conditional Active Effect behavior, formula support, and module diagnostics."
         )
       },
-      daeWarning: Constants.isDaeActive() ? {
-        title: Constants.localize("SCConditionalAE.Settings.App.DaeWarningTitle", "DAE compatibility warning"),
-        text: Constants.localize(
-          "SCConditionalAE.Settings.App.DaeWarning",
-          "This libWrapper message is only a warning. When DAE is active, both modules touch the same Active Effect pipeline, so the browser console may report a potential conflict even when behavior is working normally."
-        )
-      } : null,
       sections: [
         {
+          id: "behavior",
+          icon: "fa-wand-magic-sparkles",
           title: Constants.localize("SCConditionalAE.Settings.App.WorldSection.Title", "Effect behavior"),
           description: Constants.localize(
             "SCConditionalAE.Settings.App.WorldSection.Description",
@@ -78,6 +75,8 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
           ]
         },
         {
+          id: "interface",
+          icon: "fa-sliders",
           title: Constants.localize("SCConditionalAE.Settings.App.InterfaceSection.Title", "Interface"),
           description: Constants.localize(
             "SCConditionalAE.Settings.App.InterfaceSection.Description",
@@ -90,10 +89,24 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
               ModuleSettings.getFormulaFieldStyle(),
               ModuleSettings.FORMULA_FIELD_STYLES,
               false
+            ),
+            ModuleSettingsApp.#createCheckboxField(
+              ModuleSettings.SETTING_TINT_EFFECT_ICONS,
+              ModuleSettings.isEffectIconTintEnabled(),
+              !canEditWorldSettings
             )
           ]
         },
         {
+          id: "diagnostics",
+          icon: "fa-stethoscope",
+          notice: Constants.isDaeActive() ? {
+            title: Constants.localize("SCConditionalAE.Settings.App.DaeWarningTitle", "DAE compatibility warning"),
+            text: Constants.localize(
+              "SCConditionalAE.Settings.App.DaeWarning",
+              "This libWrapper message is only a warning. When DAE is active, both modules touch the same Active Effect pipeline, so the browser console may report a potential conflict even when behavior is working normally."
+            )
+          } : null,
           title: Constants.localize("SCConditionalAE.Settings.App.ClientSection.Title", "Diagnostics"),
           description: Constants.localize(
             "SCConditionalAE.Settings.App.ClientSection.Description",
@@ -134,6 +147,30 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       event.preventDefault();
       void this.close();
     });
+
+    // The rail switches panels in place; every panel stays in the form so a save
+    // still submits the fields of the sections the user never opened.
+    for (const tab of form.querySelectorAll("[data-sc-cae-settings-tab]")) {
+      tab.addEventListener("click", event => {
+        event.preventDefault();
+        ModuleSettingsApp.#activateTab(form, tab.dataset.scCaeSettingsTab);
+      });
+    }
+  }
+
+  static #activateTab(form, id) {
+    for (const tab of form.querySelectorAll("[data-sc-cae-settings-tab]")) {
+      const active = tab.dataset.scCaeSettingsTab === id;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", String(active));
+      tab.tabIndex = active ? 0 : -1;
+    }
+
+    for (const panel of form.querySelectorAll("[data-sc-cae-settings-panel]")) {
+      const active = panel.dataset.scCaeSettingsPanel === id;
+      panel.classList.toggle("is-active", active);
+      panel.hidden = !active;
+    }
   }
 
   static #createCheckboxField(key, checked, disabled) {
@@ -177,6 +214,7 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       [ModuleSettings.SETTING_FORMULA_FIELD_STYLE]: "SCConditionalAE.Settings.FormulaFieldStyle.Name",
       [ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD]: "SCConditionalAE.Settings.UseFormulaChatCard.Name",
       [ModuleSettings.SETTING_SHOW_CONDITION_TAB]: "SCConditionalAE.Settings.ShowConditionTab.Name",
+      [ModuleSettings.SETTING_TINT_EFFECT_ICONS]: "SCConditionalAE.Settings.TintEffectIcons.Name",
       [ModuleSettings.SETTING_DEBUG_LOGGING]: "SCConditionalAE.Settings.DebugLogging.Name"
     };
 
@@ -189,6 +227,7 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       [ModuleSettings.SETTING_FORMULA_FIELD_STYLE]: "SCConditionalAE.Settings.FormulaFieldStyle.Hint",
       [ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD]: "SCConditionalAE.Settings.UseFormulaChatCard.Hint",
       [ModuleSettings.SETTING_SHOW_CONDITION_TAB]: "SCConditionalAE.Settings.ShowConditionTab.Hint",
+      [ModuleSettings.SETTING_TINT_EFFECT_ICONS]: "SCConditionalAE.Settings.TintEffectIcons.Hint",
       [ModuleSettings.SETTING_DEBUG_LOGGING]: "SCConditionalAE.Settings.DebugLogging.Hint"
     };
 
@@ -233,6 +272,13 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
 
     this.#queueUpdate(
       updates,
+      ModuleSettings.SETTING_TINT_EFFECT_ICONS,
+      current.tintEffectIcons,
+      submitted.tintEffectIcons
+    );
+
+    this.#queueUpdate(
+      updates,
       ModuleSettings.SETTING_DEBUG_LOGGING,
       current.debugLogging,
       submitted.debugLogging
@@ -267,6 +313,7 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       formulaFieldStyle: ModuleSettings.getFormulaFieldStyle(),
       useFormulaChatCard: ModuleSettings.isFormulaChatCardEnabled(),
       showConditionTab: ModuleSettings.isConditionTabEnabled(),
+      tintEffectIcons: ModuleSettings.isEffectIconTintEnabled(),
       debugLogging: ModuleSettings.isDebugLoggingEnabled()
     };
   }
@@ -279,6 +326,7 @@ export class ModuleSettingsApp extends HandlebarsApplicationMixin(ApplicationV2)
       formulaFieldStyle: String(formData.get(ModuleSettings.SETTING_FORMULA_FIELD_STYLE) ?? "expand"),
       useFormulaChatCard: formData.has(ModuleSettings.SETTING_USE_FORMULA_CHAT_CARD),
       showConditionTab: formData.has(ModuleSettings.SETTING_SHOW_CONDITION_TAB),
+      tintEffectIcons: formData.has(ModuleSettings.SETTING_TINT_EFFECT_ICONS),
       debugLogging: formData.has(ModuleSettings.SETTING_DEBUG_LOGGING)
     };
   }

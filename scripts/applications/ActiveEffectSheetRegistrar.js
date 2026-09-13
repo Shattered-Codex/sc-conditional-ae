@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { DebugLog } from "../helpers/DebugLog.js";
 import { ConditionalActiveEffectSheetMixin } from "./ConditionalActiveEffectSheetMixin.js";
 
 export class ActiveEffectSheetRegistrar {
@@ -10,7 +11,7 @@ export class ActiveEffectSheetRegistrar {
     }
 
     const types = Array.from(ActiveEffectSheetRegistrar.#getActiveEffectTypes());
-    Constants.debug("registering Active Effect sheets", {
+    DebugLog.write("registering Active Effect sheets", {
       types,
       foundryVersion: game.version,
       system: game.system?.id,
@@ -25,7 +26,7 @@ export class ActiveEffectSheetRegistrar {
       ActiveEffectSheetRegistrar.#registerSheet(type);
     }
 
-    Constants.debug("finished Active Effect sheet registration", {
+    DebugLog.write("finished Active Effect sheet registration", {
       after: ActiveEffectSheetRegistrar.#getSheetSummary()
     });
   }
@@ -33,7 +34,7 @@ export class ActiveEffectSheetRegistrar {
   static #registerSheet(type) {
     const baseSheet = ActiveEffectSheetRegistrar.#getDefaultSheetClass(type);
     const sheetClass = ActiveEffectSheetRegistrar.#getMixedSheet(baseSheet);
-    Constants.debug(`registering sheet for ActiveEffect type "${type}"`, {
+    DebugLog.write(`registering sheet for ActiveEffect type "${type}"`, {
       baseSheet: baseSheet?.name,
       mixedSheet: sheetClass?.name,
       parts: Object.keys(sheetClass?.PARTS ?? {}),
@@ -96,13 +97,13 @@ export class ActiveEffectSheetRegistrar {
   static #forceDefaultSheet(type, sheetClass) {
     const sheetConfigs = CONFIG.ActiveEffect?.sheetClasses?.[type];
     if (!sheetConfigs) {
-      Constants.debug(`could not force default for "${type}": no sheet config found`);
+      DebugLog.write(`could not force default for "${type}": no sheet config found`);
       return;
     }
 
     const registeredSheet = Object.values(sheetConfigs).find(sheet => sheet.cls === sheetClass);
     if (!registeredSheet) {
-      Constants.debug(`could not force default for "${type}": registered sheet not found`, {
+      DebugLog.write(`could not force default for "${type}": registered sheet not found`, {
         expectedClass: sheetClass?.name,
         available: Object.values(sheetConfigs).map(sheet => ({
           id: sheet.id,
@@ -118,7 +119,7 @@ export class ActiveEffectSheetRegistrar {
       sheet.default = false;
     }
     registeredSheet.default = true;
-    Constants.debug(`forced default sheet for "${type}"`, {
+    DebugLog.write(`forced default sheet for "${type}"`, {
       id: registeredSheet.id,
       label: registeredSheet.label,
       className: registeredSheet.cls?.name

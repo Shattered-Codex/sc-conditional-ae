@@ -67,6 +67,8 @@ test("does not change a readonly editor", () => {
 test("exposes every documented condition variable once", () => {
   assert.deepEqual(ConditionVariableInserter.variables, [
     "effect",
+    "change",
+    "changeId",
     "actor",
     "targetActor",
     "token",

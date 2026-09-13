@@ -1,20 +1,27 @@
+import { ResponsibleUser } from "../helpers/ResponsibleUser.js";
+import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { Constants } from "../constants/Constants.js";
-import { ActiveEffectConditionService } from "./ActiveEffectConditionService.js";
+import { ActiveEffectChangesCompatibility } from "../compat/ActiveEffectChangesCompatibility.js";
+import { Dnd5e6ChangeConditionService } from "./Dnd5e6ChangeConditionService.js";
 
 export class ActiveEffectMacroChangeService {
   static normalizeChanges(source) {
-    const changes = source?.changes;
-    if (!Array.isArray(changes)) {
+    if (!ActiveEffectChangesCompatibility.hasExplicitChanges(source)) {
       return false;
     }
+    const changes = ActiveEffectChangesCompatibility.get(source);
 
     let changed = false;
+    const usesSystemChanges = ActiveEffectChangesCompatibility.usesSystemPath(source);
     for (const change of changes) {
-      if (!ActiveEffectMacroChangeService.#isExecutableChange(change)) {
+      if (!ActiveEffectMacroChangeService.isExecutableChange(change)) {
         continue;
       }
 
-      if (change.mode !== CONST.ACTIVE_EFFECT_MODES.CUSTOM) {
+      if (usesSystemChanges && change.type !== "custom") {
+        change.type = "custom";
+        changed = true;
+      } else if (!usesSystemChanges && change.mode !== CONST.ACTIVE_EFFECT_MODES.CUSTOM) {
         change.mode = CONST.ACTIVE_EFFECT_MODES.CUSTOM;
         changed = true;
       }
@@ -27,12 +34,12 @@ export class ActiveEffectMacroChangeService {
     return ActiveEffectMacroChangeService.#getExecutableChanges(effect).length > 0;
   }
 
-  static async execute(effect, action) {
+  static async execute(effect, action, { changeIds = null } = {}) {
     if (!ActiveEffectMacroChangeService.hasExecutableMacro(effect)) {
       return;
     }
 
-    if (action === "on" && ActiveEffectConditionService.shouldSuppress(effect)) {
+    if (action === "on" && !Dnd5e6ChangeConditionService.isEffectAllowed(effect)) {
       return;
     }
 
@@ -41,17 +48,57 @@ export class ActiveEffectMacroChangeService {
       return;
     }
 
+    const selectedIds = changeIds === null
+      ? null
+      : new Set(Array.from(changeIds, value => String(value)));
     for (const change of ActiveEffectMacroChangeService.#getExecutableChanges(effect)) {
+      if (
+        selectedIds
+        && !selectedIds.has(Dnd5e6ChangeConditionService.getChangeId(change))
+      ) {
+        continue;
+      }
+      // An explicitly targeted `off` still runs with a false condition: the
+      // transition handler names the change precisely so its macro can clean up
+      // work done while it was available. A blanket `off` must skip those, or a
+      // change whose own condition already fired `off` cleans up twice when the
+      // effect-wide condition later turns off too.
+      if (
+        (action === "on" || selectedIds === null)
+        && !Dnd5e6ChangeConditionService.isChangeAllowed(effect, change, { actor })
+      ) {
+        continue;
+      }
+
+      await ActiveEffectMacroChangeService.#executeChange({ actor, change, effect, action });
+    }
+  }
+
+  /**
+   * Run an action for change objects supplied by the caller.
+   *
+   * A change that was deleted is no longer readable from the effect, so its
+   * cleanup has to be driven from the snapshot taken before the update.
+   */
+  static async executeForChanges(effect, action, changes) {
+    const actor = ActiveEffectMacroChangeService.#getActor(effect);
+    if (!actor) {
+      return;
+    }
+
+    for (const change of changes ?? []) {
+      if (!ActiveEffectMacroChangeService.isExecutableChange(change)) continue;
       await ActiveEffectMacroChangeService.#executeChange({ actor, change, effect, action });
     }
   }
 
   static #getExecutableChanges(effect) {
-    return (effect?.changes ?? [])
-      .filter(change => ActiveEffectMacroChangeService.#isExecutableChange(change));
+    const changes = ActiveEffectChangesCompatibility.get(effect);
+    return changes
+      .filter(change => ActiveEffectMacroChangeService.isExecutableChange(change));
   }
 
-  static #isExecutableChange(change) {
+  static isExecutableChange(change) {
     if (!change?.key) {
       return false;
     }
@@ -199,38 +246,17 @@ export class ActiveEffectMacroChangeService {
       return false;
     }
 
-    return ActiveEffectMacroChangeService.#getResponsibleUser(actor)?.id === game.user?.id;
+    return ResponsibleUser.isCurrentUser(actor);
   }
 
   static #getActor(effect) {
-    const parent = effect?.parent;
-    if (parent instanceof CONFIG.Actor.documentClass) {
-      return parent;
+    // A non-transferring item effect never reaches the actor, so its macros
+    // have no actor to run against.
+    if (effect?.transfer === false && effect?.parent instanceof CONFIG.Item.documentClass) {
+      return null;
     }
 
-    if (parent instanceof CONFIG.Item.documentClass) {
-      if (effect?.transfer === false) {
-        return null;
-      }
-      return parent.actor ?? parent.parent ?? null;
-    }
-
-    return null;
-  }
-
-  // Mirrors ActiveEffectFormulaChangeService#getResponsibleUser so condition-driven macros
-  // execute on a single client (the active owner, else the active GM) instead of every client.
-  static #getResponsibleUser(actor) {
-    const activeUsers = game.users?.filter(user => user.active) ?? [];
-    const owner = activeUsers.find(user => (
-      !user.isGM && actor.testUserPermission(user, "OWNER")
-    ));
-
-    if (owner) {
-      return owner;
-    }
-
-    return game.users?.activeGM ?? activeUsers.find(user => user.isGM) ?? null;
+    return ActiveEffectContextBuilder.getAffectedActor(effect);
   }
 
   static #getToken(actor) {
@@ -259,15 +285,6 @@ export class ActiveEffectMacroChangeService {
   }
 
   static #getOrigin(effect) {
-    const originUuid = effect?.origin ?? null;
-    if (!originUuid || typeof fromUuidSync !== "function") {
-      return null;
-    }
-
-    try {
-      return fromUuidSync(originUuid) ?? null;
-    } catch {
-      return null;
-    }
+    return ActiveEffectContextBuilder.getOrigin(effect);
   }
 }

@@ -1,0 +1,910 @@
+/* ------------------------------------------------------------------ */
+/*  Advanced Conditions editor                                        */
+/*  Built on the dnd5e 6 application shell: gold rules, Roboto Slab   */
+/*  section titles, card surfaces, and the filter glyphs the system   */
+/*  already prints in its native <filters-input> breakdown.           */
+/* ------------------------------------------------------------------ */
+
+.sc-cae-v6-conditions-editor {
+  /* Re-skin the shared variable popover to the system palette. */
+  --sc-cae-accent: var(--dnd5e-color-gold, #9f9275);
+  --sc-cae-v6-pass: var(--dnd5e-chat-status-success, var(--color-level-success, #3ba55d));
+  --sc-cae-v6-fail: var(--dnd5e-chat-status-failure, var(--color-level-error, #c93b3b));
+  --sc-cae-v6-warn: var(--dnd5e-color-note-warn, #d9a441);
+  --sc-cae-v6-control: 24px;
+}
+
+/*
+ * The part renders one root element, as HandlebarsApplicationMixin requires, so
+ * this wrapper stands in for .window-content as the editor's layout column.
+ */
+.sc-cae-v6-conditions-editor .sc-cae-v6-conditions-editor__content {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------------------------------- */
+/*  Tabs                              */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-tabs {
+  flex: 0 0 auto;
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs {
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 0 0 4px;
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item {
+  display: flex;
+  width: auto;
+  height: auto;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  font-family: var(--dnd5e-font-roboto, sans-serif);
+  font-size: var(--font-size-13);
+  font-weight: bold;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item > i {
+  margin: 0;
+  color: var(--dnd5e-color-gold);
+  font-size: var(--font-size-12);
+  line-height: 1;
+}
+
+/*
+ * The transparent border reserves the underline's space so the row never shifts.
+ * The icon carries the same reserve, or the flex centring would push it below
+ * the label by exactly the underline's height.
+ */
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item > span,
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item > i {
+  padding-bottom: 2px;
+  border-bottom: 3px solid transparent;
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item:hover,
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item:focus-visible {
+  color: var(--color-text-primary);
+  text-shadow: none;
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item.active {
+  color: var(--color-text-primary);
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item.active > span {
+  border-bottom-color: var(--dnd5e-color-gold);
+}
+
+/* ---------------------------------- */
+/*  Panels                            */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-condition-panel {
+  display: none;
+}
+
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-condition-panel.active {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-toolbar__title {
+  color: var(--color-text-secondary);
+  font-family: var(--dnd5e-font-roboto-slab, serif);
+  font-size: var(--font-size-11);
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-footnote {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-11);
+}
+
+/* ---------------------------------- */
+/*  Builder / JSON toggle             */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: var(--dnd5e-border-gold);
+  border-radius: 4px;
+  background: var(--dnd5e-background-25);
+}
+
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-segmented > button {
+  display: inline-flex;
+  width: auto;
+  height: 22px;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0 8px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-11);
+  font-weight: bold;
+  line-height: 22px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-segmented > button > i {
+  margin: 0;
+  font-size: var(--font-size-11);
+}
+
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-segmented > button:hover {
+  background: var(--dnd5e-highlight-10);
+  color: var(--color-text-primary);
+}
+
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-segmented > button.active {
+  background: var(--dnd5e-color-gold);
+  color: var(--dnd5e-color-black);
+}
+
+/* ---------------------------------- */
+/*  Native filter builder             */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor .sc-cae-native-builder {
+  min-height: 150px;
+  flex: 1 1 auto;
+  padding: 8px;
+  border: var(--dnd5e-border-gold);
+  border-radius: 4px;
+  background: var(--dnd5e-background-card);
+  box-shadow: 0 0 6px var(--dnd5e-shadow-45);
+  overflow: auto;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-native-json:not([hidden]) {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-native-json code-mirror,
+.sc-cae-v6-conditions-editor.application .sc-cae-v6-condition-panel > code-mirror {
+  min-height: 160px;
+  flex: 1 1 auto;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-native-builder input,
+.sc-cae-v6-conditions-editor .sc-cae-native-builder select {
+  width: 100%;
+  min-width: 0;
+  height: var(--sc-cae-v6-control);
+  margin: 0;
+  font-size: var(--font-size-12);
+}
+
+/* Key, operator, value and the row control line up across every sibling row. */
+.sc-cae-v6-conditions-editor .sc-cae-filter-row {
+  display: grid;
+  align-items: center;
+  gap: 4px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.25fr) minmax(0, 1fr) var(--sc-cae-v6-control);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-columns {
+  padding: 2px 5px 0;
+  color: var(--color-text-secondary);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-10);
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-condition {
+  padding: 3px 4px;
+  border: var(--pill-border, 1px solid #666);
+  border-radius: 3px;
+  background: var(--dnd5e-background-5);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-cell--actions {
+  align-items: center;
+}
+
+/* Second grid row, under the key, so it never changes the inputs' alignment. */
+.sc-cae-v6-conditions-editor .sc-cae-filter-key__label {
+  overflow: hidden;
+  padding-inline-start: 2px;
+  color: var(--color-text-secondary);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-10);
+  grid-column: 1;
+  grid-row: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-group__match {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-group__match-label {
+  color: var(--color-text-secondary);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-10);
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-group__match > select {
+  width: 12rem;
+  flex: 0 0 12rem;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-group__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* The gold rail is the nesting cue, standing in for dnd5e's ⟨ ⟩ breakdown brackets. */
+.sc-cae-v6-conditions-editor .sc-cae-filter-group__children {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--dnd5e-color-gold);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-node--group {
+  padding: 4px 0 2px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-empty {
+  margin: 2px 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-11);
+  font-style: italic;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-control {
+  display: grid;
+  width: var(--sc-cae-v6-control);
+  height: var(--sc-cae-v6-control);
+  flex: 0 0 var(--sc-cae-v6-control);
+  margin: 0;
+  padding: 0;
+  border: var(--pill-border, 1px solid #666);
+  border-radius: 3px;
+  background: var(--dnd5e-background-25);
+  box-shadow: none;
+  color: var(--control-button-text-color, var(--dnd5e-color-gold));
+  font-size: var(--font-size-11);
+  line-height: 1;
+  place-content: center;
+  cursor: pointer;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-control:hover:not(:disabled),
+.sc-cae-v6-conditions-editor .sc-cae-filter-control:focus-visible:not(:disabled) {
+  border-color: var(--dnd5e-color-gold);
+  box-shadow: 0 0 4px var(--dnd5e-color-gold);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-control--danger:hover:not(:disabled) {
+  border-color: var(--dnd5e-color-red);
+  box-shadow: 0 0 4px var(--dnd5e-color-red);
+  color: var(--dnd5e-color-red);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-filter-control:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+/* ---------------------------------- */
+/*  Variable popover                  */
+/* ---------------------------------- */
+
+/* Anchored to the toolbar's right edge, so it cannot run past the window. */
+.sc-cae-v6-conditions-editor .sc-cae-v6-toolbar .sc-cae-variable-panel {
+  left: auto;
+  width: 340px;
+  max-width: none;
+  right: 0;
+}
+
+/* ---------------------------------- */
+/*  Evaluation card                   */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-condition-evaluation {
+  display: grid;
+  flex: 0 0 auto;
+  align-content: start;
+  gap: 0;
+  margin: 0;
+  padding: 2px 10px 8px;
+  border: var(--dnd5e-border-gold);
+  border-radius: 4px;
+  background: var(--dnd5e-background-card);
+  box-shadow: 0 0 6px var(--dnd5e-shadow-45);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-condition-evaluation > legend {
+  padding-inline: 4px;
+  color: var(--fieldset-legend-color, var(--dnd5e-color-gold));
+  font-family: var(--dnd5e-font-roboto-slab, serif);
+  font-size: var(--font-size-11);
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-row {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--font-size-12);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-row + .sc-cae-v6-evaluation-row {
+  border-top: var(--dnd5e-border-separator-faint, 1px solid rgba(255, 255, 255, 0.1));
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-row__label {
+  color: var(--color-text-secondary);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-state::before {
+  font-family: var(--font-awesome);
+  font-size: var(--font-size-11);
+  font-weight: 900;
+}
+
+.sc-cae-v6-conditions-editor [data-state="pass"] .sc-cae-v6-evaluation-state {
+  color: var(--sc-cae-v6-pass);
+}
+
+.sc-cae-v6-conditions-editor [data-state="pass"] .sc-cae-v6-evaluation-state::before {
+  content: "\f058";
+}
+
+.sc-cae-v6-conditions-editor [data-state="fail"] .sc-cae-v6-evaluation-state {
+  color: var(--sc-cae-v6-fail);
+}
+
+.sc-cae-v6-conditions-editor [data-state="fail"] .sc-cae-v6-evaluation-state::before {
+  content: "\f057";
+}
+
+.sc-cae-v6-conditions-editor [data-state="error"] .sc-cae-v6-evaluation-state {
+  color: var(--sc-cae-v6-fail);
+}
+
+.sc-cae-v6-conditions-editor [data-state="error"] .sc-cae-v6-evaluation-state::before {
+  content: "\f06a";
+}
+
+.sc-cae-v6-conditions-editor [data-state="contextual"] .sc-cae-v6-evaluation-state {
+  color: var(--sc-cae-v6-warn);
+}
+
+.sc-cae-v6-conditions-editor [data-state="contextual"] .sc-cae-v6-evaluation-state::before {
+  content: "\f059";
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-row.sc-cae-v6-combined-status {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--dnd5e-color-gold);
+  font-family: var(--dnd5e-font-roboto, sans-serif);
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-combined-status .sc-cae-v6-evaluation-row__label {
+  color: var(--color-text-primary);
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* ---------------------------------- */
+/*  Footer                            */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor.application .form-footer {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  margin: 0;
+}
+
+.sc-cae-v6-conditions-editor.application .form-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.sc-cae-v6-conditions-editor.application .form-footer button > i {
+  margin: 0;
+}
+
+/* The save action borrows dnd5e's gold-button treatment. */
+.sc-cae-v6-conditions-editor.application .form-footer .sc-cae-v6-submit {
+  position: relative;
+  border: none;
+  border-radius: 4px;
+  background: var(--dnd5e-color-black);
+  box-shadow: 0 0 6px var(--dnd5e-shadow-45);
+  color: var(--dnd5e-color-gold);
+}
+
+.sc-cae-v6-conditions-editor.application .form-footer .sc-cae-v6-submit::after {
+  position: absolute;
+  border: 1px solid var(--dnd5e-color-gold);
+  border-radius: 3px;
+  content: "";
+  inset: 3px;
+}
+
+.sc-cae-v6-conditions-editor.application .form-footer .sc-cae-v6-submit:not(:disabled):is(:hover, :focus) {
+  background: var(--dnd5e-color-black);
+  box-shadow: 0 0 6px var(--dnd5e-color-gold);
+  color: var(--dnd5e-color-gold);
+}
+
+/* ---------------------------------- */
+/*  Formula change row (v6 sheets)    */
+/* ---------------------------------- */
+
+.sc-cae-v6-formula-change .form-fields input {
+  flex: 1;
+}
+
+/* ---------------------------------- */
+/*  Condition summary (Condition tab) */
+/* ---------------------------------- */
+
+.sc-cae-condition-summary {
+  --sc-cae-state-pass: var(--dnd5e-chat-status-success, var(--color-level-success, #3ba55d));
+  --sc-cae-state-fail: var(--dnd5e-chat-status-failure, var(--color-level-error, #c93b3b));
+  --sc-cae-state-error: var(--dnd5e-chat-status-failure, var(--color-level-error, #c93b3b));
+  --sc-cae-state-contextual: var(--dnd5e-color-note-warn, #d9a441);
+  --sc-cae-state-none: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-block: 6px 0;
+  padding: 6px 10px 6px;
+  border: var(--dnd5e-border-gold, 1px solid #9f9275);
+  border-radius: 4px;
+  background: var(--dnd5e-background-card, rgba(0, 0, 0, 0.15));
+  box-shadow: 0 0 6px var(--dnd5e-shadow-45, rgba(0, 0, 0, 0.45));
+}
+
+.sc-cae-condition-summary__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sc-cae-condition-summary__title {
+  color: var(--fieldset-legend-color, var(--dnd5e-color-gold, #9f9275));
+  font-family: var(--dnd5e-font-roboto-slab, serif);
+  font-size: var(--font-size-11);
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sc-cae-condition-summary__counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sc-cae-condition-summary__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--font-size-11);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The list owns the columns — name, condition button, scope, verdict — and each
+ * row takes them through subgrid. A row that was its own grid sized its tracks
+ * alone, so the button, scope and verdict drifted from row to row.
+ */
+.sc-cae-condition-summary__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  column-gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  list-style: none;
+}
+
+.sc-cae-condition-summary__row {
+  display: grid;
+  min-height: 30px;
+  align-items: center;
+  padding-block: 3px;
+  row-gap: 2px;
+  font-size: var(--font-size-12);
+  grid-column: 1 / -1;
+  /* Fixed tracks first: a browser without subgrid keeps these and still aligns. */
+  grid-template-columns: minmax(0, 1fr) 24px 5.5rem 8rem;
+  grid-template-columns: subgrid;
+}
+
+.sc-cae-condition-summary__row + .sc-cae-condition-summary__row {
+  border-top: var(--dnd5e-border-separator-faint, 1px solid rgba(255, 255, 255, 0.1));
+}
+
+.sc-cae-condition-summary__label {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-cae-condition-summary__row[data-scope="effect"] .sc-cae-condition-summary__label {
+  font-weight: bold;
+}
+
+/* Same square filter control dnd5e puts beside a filters-input. */
+.sc-cae-condition-summary__filter {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: var(--pill-border, 1px solid #666);
+  border-radius: 3px;
+  background: var(--dnd5e-background-25, rgba(0, 0, 0, 0.25));
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-10);
+  line-height: 1;
+  place-content: center;
+  cursor: pointer;
+}
+
+/* A condition is set on this row: the control reads as active. */
+.sc-cae-condition-summary__filter.is-configured {
+  border-color: var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-gold, #9f9275);
+}
+
+.sc-cae-condition-summary__filter:is(:hover, :focus-visible) {
+  border-color: var(--dnd5e-color-gold, #9f9275);
+  box-shadow: 0 0 4px var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-gold, #9f9275);
+  outline: none;
+}
+
+.sc-cae-condition-summary__filter-slot {
+  width: 24px;
+}
+
+.sc-cae-condition-summary__scope {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-10);
+  font-weight: bold;
+  justify-self: stretch;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sc-cae-condition-summary__scope[data-scope="effect"] {
+  border: 1px solid var(--dnd5e-color-gold, #9f9275);
+  background: var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-black, #000);
+}
+
+.sc-cae-condition-summary__scope[data-scope="change"] {
+  border: 1px solid var(--dnd5e-color-gold, #9f9275);
+  color: var(--dnd5e-color-gold, #9f9275);
+}
+
+.sc-cae-condition-summary__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.sc-cae-condition-summary__state > i {
+  margin: 0;
+  font-size: var(--font-size-11);
+}
+
+.sc-cae-condition-summary__message {
+  color: var(--sc-cae-state-error);
+  font-size: var(--font-size-11);
+  grid-column: 1 / -1;
+}
+
+/* ---------------------------------- */
+/*  Shared state colours              */
+/* ---------------------------------- */
+
+/*
+ * Only the verdict and the counts take the colour. Colouring the whole row
+ * turned every change name green or red.
+ */
+.sc-cae-condition-summary__state[data-state="pass"],
+.sc-cae-condition-summary__count[data-state="pass"],
+.sc-cae-change-status[data-state="pass"] {
+  color: var(--sc-cae-state-pass, #3ba55d);
+}
+
+.sc-cae-condition-summary__state[data-state="fail"],
+.sc-cae-condition-summary__count[data-state="fail"],
+.sc-cae-change-status[data-state="fail"] {
+  color: var(--sc-cae-state-fail, #c93b3b);
+}
+
+.sc-cae-condition-summary__state[data-state="error"],
+.sc-cae-condition-summary__count[data-state="error"],
+.sc-cae-change-status[data-state="error"] {
+  color: var(--sc-cae-state-error, #c93b3b);
+}
+
+.sc-cae-condition-summary__state[data-state="contextual"],
+.sc-cae-condition-summary__count[data-state="contextual"],
+.sc-cae-change-status[data-state="contextual"] {
+  color: var(--sc-cae-state-contextual, #d9a441);
+}
+
+.sc-cae-condition-summary__state[data-state="none"] {
+  color: var(--sc-cae-state-none, var(--color-text-secondary));
+}
+
+/* ---------------------------------- */
+/*  Change status badge (Changes tab) */
+/* ---------------------------------- */
+
+.sc-cae-change-status {
+  --sc-cae-state-pass: var(--dnd5e-chat-status-success, var(--color-level-success, #3ba55d));
+  --sc-cae-state-fail: var(--dnd5e-chat-status-failure, var(--color-level-error, #c93b3b));
+  --sc-cae-state-error: var(--dnd5e-chat-status-failure, var(--color-level-error, #c93b3b));
+  --sc-cae-state-contextual: var(--dnd5e-color-note-warn, #d9a441);
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  font-size: var(--font-size-12);
+  line-height: 1;
+  place-content: center;
+}
+
+.sc-cae-change-status > i {
+  margin: 0;
+  line-height: 1;
+}
+
+/* ---------------------------------- */
+/*  Evaluation tab indicator          */
+/* ---------------------------------- */
+
+/*
+ * The tab icon is the verdict, so the current state still reads at a glance
+ * from the two editing tabs.
+ */
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item > i.sc-cae-v6-tab-state[data-state="pass"] {
+  color: var(--sc-cae-v6-pass);
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item > i.sc-cae-v6-tab-state[data-state="fail"],
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item > i.sc-cae-v6-tab-state[data-state="error"] {
+  color: var(--sc-cae-v6-fail);
+}
+
+.sc-cae-v6-conditions-editor.application .sheet-tabs > .item > i.sc-cae-v6-tab-state[data-state="contextual"] {
+  color: var(--sc-cae-v6-warn);
+}
+
+/* The wiki link rides along with the panel title without inheriting its caps. */
+.sc-cae-v6-conditions-editor .sc-cae-v6-toolbar__title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-toolbar__title .sc-cae-help-link {
+  color: var(--dnd5e-color-gold);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-11);
+  font-weight: normal;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-toolbar__title .sc-cae-help-link:hover {
+  text-shadow: 0 0 6px var(--dnd5e-color-gold);
+}
+
+/* ---------------------------------- */
+/*  Evaluation scope groups           */
+/* ---------------------------------- */
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-group {
+  margin-top: 6px;
+  padding-bottom: 2px;
+  color: var(--dnd5e-color-gold, #9f9275);
+  font-family: var(--dnd5e-font-roboto-condensed, sans-serif);
+  font-size: var(--font-size-10);
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-group:first-of-type {
+  margin-top: 2px;
+}
+
+/* The layer rows sit under their scope heading, indented as its members. */
+.sc-cae-v6-conditions-editor .sc-cae-v6-evaluation-group ~ .sc-cae-v6-evaluation-row:not(.sc-cae-v6-combined-status) {
+  padding-inline-start: 10px;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-info {
+  margin-inline-start: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-11);
+  letter-spacing: 0;
+  cursor: help;
+}
+
+.sc-cae-v6-conditions-editor .sc-cae-v6-info:is(:hover, :focus-visible) {
+  color: var(--dnd5e-color-gold, #9f9275);
+  outline: none;
+}
+
+/* ---------------------------------- */
+/*  Formula field (change dialog)     */
+/* ---------------------------------- */
+
+/*
+ * Mirrors sc-active-effects-search's .sc-aes__key-field: the editor button sits
+ * inside the input's right edge behind a hairline divider, so Formula matches
+ * the Attribute Key field directly above it.
+ */
+.form-fields.sc-cae-formula-field {
+  --sc-cae-formula-accent: var(--dnd5e-color-gold, var(--color-border-highlight));
+  --sc-cae-formula-button-size: calc(var(--input-height, 2rem) - 2px);
+  position: relative;
+}
+
+.form-fields.sc-cae-formula-field > input {
+  padding-inline-end: calc(var(--sc-cae-formula-button-size) + 0.35rem);
+}
+
+.form-fields.sc-cae-formula-field:has(> .sc-cae-formula-field-btn:hover) > input {
+  border-color: var(--input-hover-border-color, var(--sc-cae-formula-accent));
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn {
+  position: absolute;
+  display: flex;
+  width: var(--sc-cae-formula-button-size);
+  height: auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-12, 0.75rem);
+  inset-block: 1px;
+  inset-inline-end: 1px;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn::before {
+  position: absolute;
+  width: 1px;
+  background: currentColor;
+  content: "";
+  inset-block: 25%;
+  inset-inline-start: 0;
+  opacity: 0.25;
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--sc-cae-formula-accent) 14%, transparent);
+  box-shadow: none;
+  color: var(--sc-cae-formula-accent);
+  outline: none;
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--sc-cae-formula-accent);
+}
+
+.form-fields.sc-cae-formula-field > button.sc-cae-formula-field-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
