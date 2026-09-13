@@ -88,9 +88,7 @@ export class Dnd5e6NativeFilterBuilderView {
     const matchLabel = this.#element("span", "sc-cae-filter-group__match-label");
     matchLabel.textContent = this.#strings.matchLabel;
     const operator = this.#groupSelect(node.operator, value => {
-      node.operator = value;
-      if (value === "NOT" && node.children.length > 1) node.children.splice(1);
-      node.empty = false;
+      FilterModel.setGroupOperator(node, value);
       this.#sync();
       this.#render();
     });
@@ -100,15 +98,11 @@ export class Dnd5e6NativeFilterBuilderView {
     const controls = this.#element("div", "sc-cae-filter-group__controls");
     controls.append(
       this.#actionButton("fa-plus", this.#strings.addCondition, () => {
-        if (node.operator === "NOT") node.children.splice(0);
-        node.children.push(FilterModel.createCondition());
-        node.empty = false;
+        FilterModel.addChild(node, FilterModel.createCondition());
         this.#syncAndRender();
       }),
       this.#actionButton("fa-folder-plus", this.#strings.addGroup, () => {
-        if (node.operator === "NOT") node.children.splice(0);
-        node.children.push(FilterModel.createGroup());
-        node.empty = false;
+        FilterModel.addChild(node, FilterModel.createGroup());
         this.#syncAndRender();
       })
     );

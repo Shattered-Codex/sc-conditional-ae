@@ -110,6 +110,28 @@ export class Dnd5e6NativeFilterBuilderModel {
     return { kind: "group", operator, children: [], empty: false };
   }
 
+  static setGroupOperator(group, operator) {
+    if (operator === "NOT" && group.children.length > 1) {
+      // NOT accepts one child: negate the existing group without dropping its
+      // conditions or changing how they were combined.
+      group.children = [{ ...group }];
+    }
+    group.operator = operator;
+    group.empty = false;
+  }
+
+  static addChild(group, child) {
+    if (group.operator === "NOT" && group.children.length) {
+      group.children = [{
+        ...Dnd5e6NativeFilterBuilderModel.createGroup(),
+        children: [...group.children, child]
+      }];
+    } else {
+      group.children.push(child);
+    }
+    group.empty = false;
+  }
+
   static normalizeValueForOperator(operator, value) {
     return operator === "empty" && value === "" ? true : value;
   }

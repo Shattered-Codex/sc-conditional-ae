@@ -330,6 +330,15 @@ export class ActiveEffectFormulaChangeService {
   }
 
   static async rollFormulaChanges(effect, { changeIndexes = null } = {}) {
+    const rolledIndexes = await ActiveEffectFormulaChangeService.rollFormulaChangeIndexes(effect, { changeIndexes });
+    return rolledIndexes.length > 0;
+  }
+
+  /**
+   * Rolls the selected formulas and reports which change indexes were actually
+   * rolled. A cancelled dialog or a change whose condition is false is left out.
+   */
+  static async rollFormulaChangeIndexes(effect, { changeIndexes = null } = {}) {
     const selectedIndexes = changeIndexes === null
       ? null
       : new Set(Array.from(changeIndexes, value => Number(value)));
@@ -346,11 +355,7 @@ export class ActiveEffectFormulaChangeService {
       return false;
     }
 
-    return ActiveEffectFormulaChangeService.#rollFormulaEntries(
-      effect,
-      ActiveEffectFormulaChangeService.getFormulaChangeEntries(effect)
-        .filter(formulaChange => formulaChange.index === normalizedIndex)
-    );
+    return ActiveEffectFormulaChangeService.rollFormulaChanges(effect, { changeIndexes: [normalizedIndex] });
   }
 
   static #prepareChanges(source, formulaChangeSources = {}) {
@@ -697,21 +702,21 @@ export class ActiveEffectFormulaChangeService {
 
   static async #rollFormulaEntries(effect, formulaEntries) {
     if (!formulaEntries.length || !ActiveEffectFormulaChangeService.hasFormulaChanges(effect)) {
-      return false;
+      return [];
     }
 
     if (!Dnd5e6ChangeConditionService.isEffectAllowed(effect)) {
-      return false;
+      return [];
     }
 
     const actor = ActiveEffectFormulaChangeService.getActor(effect);
     if (!actor) {
-      return false;
+      return [];
     }
 
     const changes = ActiveEffectChangesCompatibility.clone(effect);
     const formulaChanges = ActiveEffectFormulaChangeService.#getFormulaChanges(effect);
-    let changed = false;
+    const rolledIndexes = [];
 
     ActiveEffectFormulaChangeService.#warnAboutOrphanedFormulas(effect);
 
@@ -738,17 +743,17 @@ export class ActiveEffectFormulaChangeService {
       }
 
       change.value = String(rollResult.total);
-      changed = true;
+      rolledIndexes.push(formulaEntry.index);
     }
 
-    if (!changed) {
-      return false;
+    if (!rolledIndexes.length) {
+      return [];
     }
 
     const updateData = ActiveEffectChangesCompatibility.buildUpdate(changes, effect);
     ActiveEffectFormulaChangeService.#setFormulaChanges(updateData, formulaChanges);
     await effect.update(updateData, { [Constants.MODULE_ID]: { [ROLL_UPDATE_OPTION]: true } });
-    return true;
+    return rolledIndexes;
   }
 
   /**

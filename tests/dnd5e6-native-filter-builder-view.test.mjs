@@ -157,3 +157,30 @@ test("a group holding only nested groups prints no column header", () => {
   const { builder } = build('{"o":"AND","v":[{"o":"OR","v":[]}]}');
   assert.equal(builder.querySelectorAll(".sc-cae-filter-columns").length, 0);
 });
+
+test("changing Match to NOT keeps every visible condition in the saved JSON", () => {
+  const definition = { o: "OR", v: [{ k: "a", v: 1 }, { k: "b", v: 2 }] };
+  const { builder, rawEditor } = build(JSON.stringify(definition));
+  const select = builder.querySelector(".sc-cae-filter-operator--group");
+  select.value = "NOT";
+  for (const handler of select.listeners.get("change")) handler();
+
+  assert.equal(builder.querySelectorAll(".sc-cae-filter-condition").length, 2);
+  assert.deepEqual(JSON.parse(rawEditor.value), {
+    o: "NOT", v: { o: "OR", v: [{ k: "a", o: "exact", v: 1 }, { k: "b", o: "exact", v: 2 }] }
+  });
+});
+
+test("the add buttons in NOT never replace the existing condition", () => {
+  const original = { k: "attributes.hp.value", o: "lt", v: 10 };
+  for (const label of [STRINGS.addCondition, STRINGS.addGroup]) {
+    const { builder, rawEditor } = build(JSON.stringify({ o: "NOT", v: original }));
+    const button = findAll(builder, "BUTTON").find(button => button.getAttribute("aria-label") === label);
+    for (const handler of button.listeners.get("click")) handler({ preventDefault() {} });
+
+    const definition = JSON.parse(rawEditor.value);
+    assert.deepEqual(definition.v.v[0], original);
+    assert.equal(definition.v.v.length, 2);
+    assert.equal(builder.querySelectorAll(".sc-cae-filter-key")[0].value, original.k);
+  }
+});

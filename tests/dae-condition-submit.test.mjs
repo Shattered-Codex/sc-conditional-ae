@@ -468,3 +468,99 @@ test("conditional suppression does not mutate the document disabled state", () =
   assert.equal(effect.isSuppressed, true);
   assert.equal(effect.disabled, false);
 });
+
+test("a core-based sheet submit keeps each change's dnd5e 6 id, native filter and replacement", () => {
+  const document = new FakeActiveEffect();
+  const storedFilter = '{"k":"attributes.hp.value","o":"gte","v":5}';
+  document._source = {
+    system: {
+      changes: [
+        {
+          _id: "aaaaaaaaaaaaaaaa",
+          key: "system.attributes.ac.bonus",
+          type: "add",
+          value: "1",
+          phase: "initial",
+          priority: null,
+          conditions: storedFilter,
+          replacement: "origin"
+        }
+      ]
+    }
+  };
+  // Core's change row only renders these inputs; row 1 is a change added in the form.
+  const submitData = {
+    system: {
+      changes: {
+        0: { key: "system.attributes.ac.bonus", type: "add", value: "2", phase: "initial", priority: null },
+        1: { key: "system.bonuses.mwak.damage", type: "add", value: "1d4", phase: "initial", priority: null }
+      }
+    }
+  };
+
+  EffectSheetSubmitDataHandler.clean(buildSheet("", document), submitData);
+
+  assert.deepEqual(submitData.system.changes[0], {
+    _id: "aaaaaaaaaaaaaaaa",
+    key: "system.attributes.ac.bonus",
+    type: "add",
+    value: "2",
+    phase: "initial",
+    priority: null,
+    conditions: storedFilter,
+    replacement: "origin"
+  });
+  assert.deepEqual(submitData.system.changes[1], {
+    key: "system.bonuses.mwak.damage",
+    type: "add",
+    value: "1d4",
+    phase: "initial",
+    priority: null
+  });
+});
+
+test("restoring omitted fields follows explicit IDs and honors edited or cleared filters", () => {
+  const document = new FakeActiveEffect();
+  document._source = { system: { changes: [
+    { _id: "first", key: "a", conditions: "first filter", replacement: "origin" },
+    { _id: "second", key: "b", conditions: "second filter", replacement: "target" }
+  ] } };
+  const submitData = { system: { changes: {
+    0: { _id: "second", value: "2" },
+    1: { _id: "first", conditions: "{}", replacement: "target" },
+    2: { _id: "new", key: "c", value: "3" }
+  } } };
+
+  EffectSheetSubmitDataHandler.clean(buildSheet("", document), submitData);
+
+  assert.equal(submitData.system.changes[0].conditions, "second filter");
+  assert.equal(submitData.system.changes[0].key, "b");
+  assert.equal(submitData.system.changes[1].conditions, "{}");
+  assert.equal(submitData.system.changes[1].replacement, "target");
+  assert.deepEqual(submitData.system.changes[2], { _id: "new", key: "c", value: "3" });
+  assert.equal(document._source.system.changes[0].conditions, "first filter");
+});
+
+test("a new explicit change ID never inherits the filter at its former position", () => {
+  const document = new FakeActiveEffect();
+  document._source = { system: { changes: [{ _id: "old", conditions: "old filter" }] } };
+  const submitData = { system: { changes: { 0: { _id: "new", key: "a" } } } };
+
+  EffectSheetSubmitDataHandler.clean(buildSheet("", document), submitData);
+
+  assert.deepEqual(submitData.system.changes[0], { _id: "new", key: "a" });
+});
+
+test("an explicit replacement array can delete rows or clear all changes", () => {
+  const document = new FakeActiveEffect();
+  document._source = { system: { changes: [
+    { _id: "first", conditions: "first filter" },
+    { _id: "second", conditions: "second filter" }
+  ] } };
+  for (const changes of [[document._source.system.changes[1]], []]) {
+    const expected = structuredClone(changes);
+    const submitData = { system: { changes } };
+    EffectSheetSubmitDataHandler.clean(buildSheet("", document), submitData);
+    assert.deepEqual(submitData.system.changes, expected);
+  }
+});

@@ -181,6 +181,8 @@
       "ChatCardCurrentValueLabel": "Current Value",
       "ChatCardFormulaLabel": "Formula",
       "ChatCardUnnamedKey": "Change",
+      "ChatCardRolledButton": "Rolled",
+      "ChatCardAllRolledButton": "All formulas rolled",
       "RollAllLabel": "Roll all formulas",
       "RollAllUnavailableLabel": "Formulas unavailable right now",
       "RollFlavor": "Active Effect formula roll",

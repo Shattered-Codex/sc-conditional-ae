@@ -1,5 +1,6 @@
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { Constants } from "../constants/Constants.js";
+import { FormulaChatCardRollLock } from "../helpers/FormulaChatCardRollLock.js";
 import { HtmlHelpers } from "../helpers/HtmlHelpers.js";
 import { ActiveEffectFormulaChangeService } from "./ActiveEffectFormulaChangeService.js";
 import { ModuleSettings } from "../settings/ModuleSettings.js";
@@ -14,6 +15,7 @@ export class ActiveEffectFormulaChatCardService {
 
     ActiveEffectFormulaChatCardService.#registered = true;
     document.addEventListener("click", ActiveEffectFormulaChatCardService.#onDocumentClick);
+    Hooks.on("renderChatMessageHTML", ActiveEffectFormulaChatCardService.#onRenderChatMessage);
   }
 
   static async requestRoll(effect, { reason = "activation", changeIndexes = null } = {}) {
@@ -30,6 +32,18 @@ export class ActiveEffectFormulaChatCardService {
     }
 
     await ActiveEffectFormulaChatCardService.#postChatCard(effect, reason, changeIndexes);
+  }
+
+  static #onRenderChatMessage(message, html) {
+    if (!FormulaChatCardRollLock.isRequestCard(message)) {
+      return;
+    }
+
+    const rolledIndexes = FormulaChatCardRollLock.getRolledIndexes(message);
+    const card = html?.querySelector?.(".sc-cae-formula-request-card");
+    if (card && rolledIndexes.length) {
+      FormulaChatCardRollLock.apply(card, rolledIndexes);
+    }
   }
 
   static async #onDocumentClick(event) {
@@ -50,51 +64,51 @@ export class ActiveEffectFormulaChatCardService {
       return;
     }
 
+    const card = button.closest(".sc-cae-formula-request-card");
+    const message = game.messages?.get(button.closest("[data-message-id]")?.dataset.messageId);
     const effectUuid = button.dataset.effectUuid;
-    if (!effectUuid) {
+    if (!card || !message || !effectUuid) {
       return;
     }
 
-    const effect = await fromUuid(effectUuid);
-    if (
-      !(effect instanceof CONFIG.ActiveEffect.documentClass)
-      || !ActiveEffectFormulaChangeService.canPromptForRoll(effect)
-    ) {
-      return;
-    }
-
+    // The card only lists the changes it was posted for, so the button that
+    // rolls "all" must mean all of those, not every formula on the effect. A
+    // card raised by one change condition would otherwise roll formulas whose
+    // own conditions never fired. Either way, what the card already rolled stays
+    // rolled.
     const changeIndex = button.dataset.changeIndex;
-    button.disabled = true;
+    let rolledIndexes = FormulaChatCardRollLock.getRolledIndexes(message);
+    const pendingIndexes = FormulaChatCardRollLock.getPendingIndexes(
+      changeIndex === undefined ? FormulaChatCardRollLock.getCardIndexes(card) : [Number(changeIndex)],
+      rolledIndexes
+    );
+    if (!pendingIndexes.length) {
+      FormulaChatCardRollLock.apply(card, rolledIndexes);
+      return;
+    }
+
+    FormulaChatCardRollLock.setBusy(card);
     button.classList.add("loading");
 
     try {
-      await (
-        changeIndex === undefined
-          // The card only lists the changes it was posted for, so the button
-          // that rolls "all" must mean all of those, not every formula on the
-          // effect. A card raised by one change condition would otherwise roll
-          // formulas whose own conditions never fired.
-          ? ActiveEffectFormulaChangeService.rollFormulaChanges(effect, {
-            changeIndexes: ActiveEffectFormulaChatCardService.#parseChangeIndexes(button)
-          })
-          : ActiveEffectFormulaChangeService.rollFormulaChange(effect, changeIndex)
-      );
+      const effect = await fromUuid(effectUuid);
+      if (
+        effect instanceof CONFIG.ActiveEffect.documentClass
+        && ActiveEffectFormulaChangeService.canPromptForRoll(effect)
+      ) {
+        const rolled = await ActiveEffectFormulaChangeService.rollFormulaChangeIndexes(effect, {
+          changeIndexes: pendingIndexes
+        });
+        if (rolled.length) {
+          rolledIndexes = await FormulaChatCardRollLock.markRolled(message, rolled);
+        }
+      }
     } catch (error) {
       console.warn(`[${Constants.MODULE_ID}] formula chat card roll failed`, error);
     } finally {
-      button.disabled = false;
       button.classList.remove("loading");
+      FormulaChatCardRollLock.apply(card, rolledIndexes);
     }
-  }
-
-  static #parseChangeIndexes(button) {
-    const raw = button.dataset.changeIndexes;
-    if (raw === undefined) {
-      return null;
-    }
-
-    const indexes = String(raw).split(",").map(value => Number(value)).filter(Number.isInteger);
-    return indexes.length ? indexes : null;
   }
 
   static async #postChatCard(effect, reason, changeIndexes = null) {
@@ -198,12 +212,18 @@ export class ActiveEffectFormulaChatCardService {
     return `
       <div class="sc-cae-formula-request-entry" role="listitem">
         <div class="sc-cae-formula-request-entry-copy">
-          <span class="sc-cae-formula-request-entry-label">${keyLabel}</span>
-          <span class="sc-cae-formula-request-entry-key">${displayKey}</span>
-          <span class="sc-cae-formula-request-entry-label">${currentValueLabel}</span>
-          <code class="sc-cae-formula-request-entry-value sc-cae-formula-request-entry-value--current">${currentValue}</code>
-          <span class="sc-cae-formula-request-entry-label">${formulaLabel}</span>
-          <code class="sc-cae-formula-request-entry-value sc-cae-formula-request-entry-value--formula">${formula}</code>
+          <div class="sc-cae-formula-request-field sc-cae-formula-request-field--key">
+            <span class="sc-cae-formula-request-entry-label">${keyLabel}</span>
+            <span class="sc-cae-formula-request-entry-key">${displayKey}</span>
+          </div>
+          <div class="sc-cae-formula-request-field sc-cae-formula-request-field--current">
+            <span class="sc-cae-formula-request-entry-label">${currentValueLabel}</span>
+            <code class="sc-cae-formula-request-entry-value sc-cae-formula-request-entry-value--current">${currentValue}</code>
+          </div>
+          <div class="sc-cae-formula-request-field sc-cae-formula-request-field--formula">
+            <span class="sc-cae-formula-request-entry-label">${formulaLabel}</span>
+            <code class="sc-cae-formula-request-entry-value sc-cae-formula-request-entry-value--formula">${formula}</code>
+          </div>
         </div>
         <button
           type="button"

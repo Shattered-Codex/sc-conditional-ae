@@ -38,8 +38,8 @@ export class Dnd5e6AdvancedConditionsAdapter {
    * Open the conditions editor for the effect (changeId null) or one change.
    *
    * `input` is the native filters-input that launched it, when there is one.
-   * Without it — the Condition tab shortcut — the native value is read from and
-   * written back to the document directly.
+   * Without it — the Condition tab shortcut — the native value is read from the
+   * document. Saving always persists both condition layers together.
    */
   static openEditor({ effect, changeId = null, input = null }) {
     if (!Dnd5e6AdvancedConditionsAdapter.isSupported() || !effect) return null;
@@ -95,21 +95,13 @@ export class Dnd5e6AdvancedConditionsAdapter {
       return;
     }
 
-    if (!input) {
-      // Opened from the Condition tab: no change dialog is holding the native
-      // field, so both layers go to the document in one update.
-      await effect.update(Dnd5e6ChangeConditionService.buildChangeConditionsUpdate(
-        effect,
-        changeId,
-        { nativeValue, advancedValue }
-      ));
-      return;
-    }
-
-    // The native change dialog owns all of the change fields. Mirror the
-    // FiltersEditor contract by updating its input, then persist only our
-    // independent flag so unsaved key/value/type edits remain untouched.
-    input.value = nativeValue;
-    await effect.update(Dnd5e6ChangeConditionService.buildUpdate(effect, changeId, advancedValue));
+    await effect.update(Dnd5e6ChangeConditionService.buildChangeConditionsUpdate(
+      effect,
+      changeId,
+      { nativeValue, advancedValue }
+    ));
+    // Keep the change dialog's later submit from restoring its old filter.
+    // Its other unsaved fields remain owned by that dialog.
+    if (input) input.value = nativeValue;
   }
 }

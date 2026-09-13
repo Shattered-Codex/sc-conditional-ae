@@ -464,8 +464,8 @@ export class Dnd5e6ChangeConditionService {
   /**
    * One update carrying a change's native filter and its SC condition together.
    *
-   * Used when the editor is opened from the Condition tab, where no change
-   * dialog exists to hold the native field until its own submit.
+   * Persist only the selected change's conditions, retaining stored fields and
+   * sibling filters even when a separate change dialog has unsaved edits.
    */
   static buildChangeConditionsUpdate(effect, changeOrId, { nativeValue, advancedValue }) {
     const changeId = Dnd5e6ChangeConditionService.getChangeId(changeOrId);

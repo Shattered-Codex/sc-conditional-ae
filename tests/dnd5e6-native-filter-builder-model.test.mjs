@@ -102,3 +102,30 @@ test("emptying a nested group keeps it, since an empty OR is not an absent filte
   assert.equal(Model.removeChild(group, group.children[0], { isRoot: false }), true);
   assert.deepEqual(Model.toDefinition(root, true), { o: "AND", v: [{ o: "OR", v: [] }] });
 });
+
+test("switching a multi-condition group to NOT preserves the entire original group", () => {
+  for (const operator of ["AND", "OR", "NAND", "NOR", "XOR"]) {
+    const definition = {
+      o: operator,
+      v: [{ k: "a", o: "exact", v: 1 }, { k: "b", o: "lt", v: 10 }]
+    };
+    const root = Model.parse(definition);
+    Model.setGroupOperator(root, "NOT");
+    assert.deepEqual(JSON.parse(Model.stringify(root)), { o: "NOT", v: definition });
+
+    Model.setGroupOperator(root, "AND");
+    assert.deepEqual(JSON.parse(Model.stringify(root)), { o: "AND", v: [definition] });
+  }
+});
+
+test("adding a condition or group inside NOT retains its existing child", () => {
+  const original = { k: "attributes.hp.value", o: "lt", v: 10 };
+  for (const child of [Model.createCondition(), Model.createGroup("OR")]) {
+    const root = Model.parse({ o: "NOT", v: original });
+    Model.addChild(root, child);
+    assert.deepEqual(JSON.parse(Model.stringify(root)), {
+      o: "NOT",
+      v: { o: "AND", v: [original, Model.toDefinition(child)] }
+    });
+  }
+});

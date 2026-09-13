@@ -12,7 +12,10 @@ export class ActiveEffectChangesCompatibility {
   }
 
   static clone(source) {
-    return foundry.utils.deepClone(ActiveEffectChangesCompatibility.get(source));
+    // Clones are written back to the document. A Document's prepared changes
+    // hold dnd5e 6 Filter instances in `conditions`, which serialize to "{}",
+    // so start from the stored source or every per-change native filter is lost.
+    return foundry.utils.deepClone(ActiveEffectChangesCompatibility.get(source?._source ?? source));
   }
 
   static hasExplicitChanges(source) {
