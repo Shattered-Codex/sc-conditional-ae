@@ -1,4 +1,5 @@
 import { DebugLog } from "../helpers/DebugLog.js";
+import { DocumentDeletionCompatibility } from "../compat/DocumentDeletionCompatibility.js";
 import { Constants } from "../constants/Constants.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { ActiveEffectTransferContextService } from "../services/ActiveEffectTransferContextService.js";
@@ -72,9 +73,7 @@ export class ActiveEffectTransferHooks {
   static #onPreCreateActiveEffect(effect, data, _options, userId) {
     if (effect?.parent instanceof CONFIG.Actor.documentClass) {
       foundry.utils.deleteProperty(data, Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH);
-      effect.updateSource({
-        [`flags.${Constants.MODULE_ID}.-=${Constants.FLAG_CONDITION_MANAGED_DISABLED}`]: null
-      });
+      effect.updateSource(DocumentDeletionCompatibility.buildUpdate(Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH));
     }
 
     const handledTidyTransfer = ActiveEffectTransferHooks.#syncModuleFlagsFromTidyTransfer(effect, data, userId);

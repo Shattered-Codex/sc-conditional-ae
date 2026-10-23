@@ -21,8 +21,8 @@ export class ActiveEffectMacroChangeService {
       if (usesSystemChanges && change.type !== "custom") {
         change.type = "custom";
         changed = true;
-      } else if (!usesSystemChanges && change.mode !== CONST.ACTIVE_EFFECT_MODES.CUSTOM) {
-        change.mode = CONST.ACTIVE_EFFECT_MODES.CUSTOM;
+      } else if (!usesSystemChanges && change.mode !== Constants.LEGACY_CUSTOM_CHANGE_MODE) {
+        change.mode = Constants.LEGACY_CUSTOM_CHANGE_MODE;
         changed = true;
       }
     }

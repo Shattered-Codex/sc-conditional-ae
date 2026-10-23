@@ -5,6 +5,8 @@ import { ConditionVariableRegistry } from "../helpers/ConditionVariableRegistry.
 import { Dnd5e6ConditionEvaluationService } from "./Dnd5e6ConditionEvaluationService.js";
 import { Dnd5e6NativeFilterBuilderModel } from "../models/Dnd5e6NativeFilterBuilderModel.js";
 import { Dnd5e6NativeFilterBuilderView } from "./Dnd5e6NativeFilterBuilderView.js";
+import { Dnd5e6NativeFilterKeyPicker } from "./Dnd5e6NativeFilterKeyPicker.js";
+import { Dnd5e6NativeFilterKeys } from "../helpers/Dnd5e6NativeFilterKeys.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const TEMPLATE = `modules/${Constants.MODULE_ID}/templates/dnd5e-v6-advanced-conditions-editor.hbs`;
@@ -82,6 +84,8 @@ export class Dnd5e6AdvancedConditionsEditor extends HandlebarsApplicationMixin(A
   #activeTab = "native";
   #variablePopover = null;
   #nativeBuilder = null;
+  #keyPicker = null;
+  #keyTree = null;
   #nativeView = "builder";
   #renderAbortController = null;
   #saving = false;
@@ -117,6 +121,7 @@ export class Dnd5e6AdvancedConditionsEditor extends HandlebarsApplicationMixin(A
     this.#variablePopover?.destroy?.();
     this.#variablePopover = null;
     this.#nativeBuilder = null;
+    this.#keyPicker = this.#createKeyPicker(this.#renderAbortController.signal);
     this.#activateTab(this.#activeTab);
     this.element.querySelectorAll("[data-sc-cae-tab]").forEach(button => {
       button.addEventListener("click", event => {
@@ -158,6 +163,8 @@ export class Dnd5e6AdvancedConditionsEditor extends HandlebarsApplicationMixin(A
     this.#variablePopover?.destroy?.();
     this.#variablePopover = null;
     this.#nativeBuilder = null;
+    this.#keyPicker = null;
+    this.#keyTree = null;
     this.#renderAbortController?.abort();
     this.#renderAbortController = null;
     return super._onClose(options);
@@ -227,6 +234,7 @@ export class Dnd5e6AdvancedConditionsEditor extends HandlebarsApplicationMixin(A
         source: rawEditor.value,
         strings: this.#getStrings().builder,
         actor: this.#getActor(),
+        keyPicker: this.#keyPicker,
         onChange: () => this.#scheduleRefresh?.()
       });
       return true;
@@ -234,6 +242,23 @@ export class Dnd5e6AdvancedConditionsEditor extends HandlebarsApplicationMixin(A
       this.#nativeBuilder = null;
       return false;
     }
+  }
+
+  #createKeyPicker(signal) {
+    const popup = this.element.querySelector("[data-sc-cae-key-picker]");
+    if (!popup) return null;
+    return new Dnd5e6NativeFilterKeyPicker({
+      popup,
+      signal,
+      strings: this.#getStrings().builder.picker,
+      // Read again each time the list opens, so the values beside the keys are current.
+      tree: ({ fresh } = {}) => {
+        if (fresh || !this.#keyTree) {
+          this.#keyTree = Dnd5e6NativeFilterKeys.buildTree({ effect: this.options.effect, actor: this.#getActor() });
+        }
+        return this.#keyTree;
+      }
+    });
   }
 
   /** The actor dnd5e uses to resolve attribute labels; an item-owned effect resolves through its item. */
@@ -376,6 +401,17 @@ export class Dnd5e6AdvancedConditionsEditor extends HandlebarsApplicationMixin(A
         valuePlaceholder: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.ValuePlaceholder", "e.g. 5, true, \"fire\""),
         groupOperator: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.GroupOperator", "Group operator"),
         comparisonOperator: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.ComparisonOperator", "Comparison operator"),
+        picker: {
+          label: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.Picker.Label", "Attributes"),
+          common: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.Picker.Common", "Common"),
+          keys: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.Picker.Keys", "Attributes"),
+          matches: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.Picker.Matches", "Elsewhere"),
+          more: Constants.localize(
+            "SCConditionalAE.AdvancedConditions.Builder.Picker.More",
+            "{count} more: keep typing to narrow the list."
+          ),
+          empty: Constants.localize("SCConditionalAE.AdvancedConditions.Builder.Picker.Empty", "No attribute matches.")
+        },
         valueHint: Constants.localize(
           "SCConditionalAE.AdvancedConditions.Builder.ValueHint",
           "Values accept text or JSON literals such as 5, true, null, or [\"fire\", \"cold\"]."

@@ -5,6 +5,20 @@ const hookCallbacks = new Map();
 const timerQueue = [];
 let nextId = 1;
 
+function FakeForcedDeletion() {}
+
+function applyDeletion(target, path, value) {
+  if (value instanceof FakeForcedDeletion) {
+    deleteProperty(target, path);
+    return true;
+  }
+  const deletion = path.match(/^(.*)\.-=([^.]+)$/);
+  if (!deletion) return false;
+  assert.notEqual(game.release.generation, 14, "v14 must not receive legacy deletion keys");
+  deleteProperty(target, `${deletion[1]}.${deletion[2]}`);
+  return true;
+}
+
 class FakeActor {
   constructor({ conditionAvailable = false, ownerId = "owner" } = {}) {
     this.id = `actor-${nextId++}`;
@@ -110,11 +124,7 @@ class FakeActiveEffect {
         continue;
       }
 
-      const deletion = path.match(/^(.*)\.-=([^.]+)$/);
-      if (deletion) {
-        deleteProperty(this, `${deletion[1]}.${deletion[2]}`);
-        continue;
-      }
+      if (applyDeletion(this, path, value)) continue;
 
       setProperty(this, path, value);
     }
@@ -128,11 +138,7 @@ class FakeActiveEffect {
 
   updateSource(updates) {
     for (const [path, value] of Object.entries(updates ?? {})) {
-      const deletion = path.match(/^(.*)\.-=([^.]+)$/);
-      if (deletion) {
-        deleteProperty(this, `${deletion[1]}.${deletion[2]}`);
-        continue;
-      }
+      if (applyDeletion(this, path, value)) continue;
 
       setProperty(this, path, value);
     }
@@ -548,4 +554,38 @@ test("actor-embedded preCreate strips a managed marker from a pre-populated clon
     ActiveEffectConditionService.isConditionManagedDisabled(effect),
     false
   );
+});
+
+test("v14 clears managed markers during creation and condition reactivation without legacy keys", async () => {
+  game.release.generation = 14;
+  foundry.data = { operators: { ForcedDeletion: FakeForcedDeletion } };
+  try {
+    const actor = new FakeActor({ conditionAvailable: true });
+    const clone = new FakeActiveEffect(actor, {
+      behavior: Constants.CONDITION_BEHAVIOR_DISABLE,
+      managedDisabled: true
+    });
+    const createData = clone.toObject();
+    ActiveEffectTransferHooks.activate();
+    for (const callback of hookCallbacks.get("preCreateActiveEffect") ?? []) {
+      callback(clone, createData, {}, game.user?.id);
+    }
+    assert.equal(getProperty(createData, Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH), undefined);
+    assert.equal(ActiveEffectConditionService.isConditionManagedDisabled(clone), false);
+    assert.equal(getProperty(clone, Constants.CONDITION_BEHAVIOR_FLAG_PATH), Constants.CONDITION_BEHAVIOR_DISABLE);
+
+    const effect = new FakeActiveEffect(actor, {
+      behavior: Constants.CONDITION_BEHAVIOR_DISABLE,
+      disabled: true,
+      managedDisabled: true
+    });
+    await refresh(actor);
+    assert.equal(effect.disabled, false);
+    assert.equal(ActiveEffectConditionService.isConditionManagedDisabled(effect), false);
+    assert.equal(effect.updateCalls.length, 1);
+    assert.ok(Object.hasOwn(effect.updateCalls[0].updates, Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH));
+  } finally {
+    game.release.generation = 13;
+    delete foundry.data;
+  }
 });

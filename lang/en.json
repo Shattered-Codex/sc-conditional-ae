@@ -113,6 +113,14 @@
         "Remove": "Remove",
         "Empty": "No conditions. The filter passes.",
         "KeyPlaceholder": "e.g. attributes.hp.value",
+        "Picker": {
+          "Label": "Attributes",
+          "Common": "Common",
+          "Keys": "Attributes",
+          "Matches": "Elsewhere",
+          "More": "{count} more: keep typing to narrow the list.",
+          "Empty": "No attribute matches."
+        },
         "ValuePlaceholder": "e.g. 5, true, \"fire\"",
         "GroupOperator": "Group operator",
         "ComparisonOperator": "Comparison operator",

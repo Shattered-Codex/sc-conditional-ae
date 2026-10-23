@@ -140,10 +140,11 @@ export class ActiveEffectContextBuilder {
 
     const numeric = Number(mode);
     if (Number.isFinite(numeric)) {
-      const name = Object.entries(globalThis.CONST?.ACTIVE_EFFECT_MODES ?? {})
-        .find(([, value]) => value === numeric)?.[0];
+      // Legacy modes are fixed persisted values; reading their deprecated
+      // Foundry constant emits a compatibility warning on v14.
+      const name = ({ 0: "custom", 1: "multiply", 2: "add", 3: "downgrade", 4: "upgrade", 5: "override" })[numeric];
       if (name) {
-        return name.toLowerCase();
+        return name;
       }
     }
 
@@ -156,9 +157,7 @@ export class ActiveEffectContextBuilder {
   }
 
   static isCustomChange(change) {
-    return Number(change.mode) === CONST.ACTIVE_EFFECT_MODES.CUSTOM
-      || String(change.mode ?? "").toLowerCase() === "custom"
-      || String(change.type ?? "").toLowerCase() === "custom";
+    return ActiveEffectContextBuilder.#normalizeChangeMode(change) === "custom";
   }
 
   static isFormulaEligibleChange(change) {
