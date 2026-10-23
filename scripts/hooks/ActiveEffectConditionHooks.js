@@ -1,4 +1,5 @@
 import { Constants } from "../constants/Constants.js";
+import { DocumentDeletionCompatibility } from "../compat/DocumentDeletionCompatibility.js";
 import { DebugLog } from "../helpers/DebugLog.js";
 import { ActiveEffectContextBuilder } from "../helpers/ActiveEffectContextBuilder.js";
 import { ActiveEffectFormulaChatCardService } from "../services/ActiveEffectFormulaChatCardService.js";
@@ -1344,7 +1345,7 @@ export class ActiveEffectConditionHooks {
       if (managedDisabled && (!hasCondition || !usesDisableBehavior || available)) {
         updateData = {
           disabled: false,
-          [`flags.${Constants.MODULE_ID}.-=${Constants.FLAG_CONDITION_MANAGED_DISABLED}`]: null
+          ...DocumentDeletionCompatibility.buildUpdate(Constants.CONDITION_MANAGED_DISABLED_FLAG_PATH)
         };
         action = "reenable";
       } else if (

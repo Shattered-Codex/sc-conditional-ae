@@ -8,13 +8,15 @@ export class Dnd5e6NativeFilterBuilderView {
   #strings;
   #onChange;
   #actor;
+  #keyPicker;
 
-  constructor({ builder, rawEditor, source, strings, onChange, actor = null }) {
+  constructor({ builder, rawEditor, source, strings, onChange, actor = null, keyPicker = null }) {
     this.#builder = builder;
     this.#rawEditor = rawEditor;
     this.#strings = strings;
     this.#onChange = onChange;
     this.#actor = actor;
+    this.#keyPicker = keyPicker;
     this.#root = FilterModel.parse(source);
     this.#render();
   }
@@ -25,6 +27,8 @@ export class Dnd5e6NativeFilterBuilderView {
   }
 
   #render() {
+    // The key fields are about to be replaced; a list left open would follow a dead one.
+    this.#keyPicker?.release(this.#builder);
     this.#builder.replaceChildren(this.#buildNode(this.#root, null));
   }
 
@@ -46,6 +50,7 @@ export class Dnd5e6NativeFilterBuilderView {
     });
     key.classList.add("sc-cae-filter-key");
     key.setAttribute("aria-label", this.#strings.attributeColumn);
+    this.#keyPicker?.attach(key);
     keyCell.append(key);
 
     const operatorCell = this.#element("div", "sc-cae-filter-cell sc-cae-filter-cell--operator");

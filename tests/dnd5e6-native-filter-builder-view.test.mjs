@@ -184,3 +184,15 @@ test("the add buttons in NOT never replace the existing condition", () => {
     assert.equal(builder.querySelectorAll(".sc-cae-filter-key")[0].value, original.k);
   }
 });
+
+test("each key field is handed to the key picker, and a redraw releases the list first", () => {
+  const builder = new FakeElement("div", ownerDocument);
+  const calls = [];
+  const keyPicker = { attach: input => calls.push(["attach", input.value]), release: () => calls.push(["release"]) };
+  const source = '[{"k":"attributes.hp.value","o":"gte","v":5},{"k":"details.level","o":"exact","v":3}]';
+  const view = new View({ builder, rawEditor: { value: source }, source, strings: STRINGS, onChange: () => {}, keyPicker });
+
+  assert.deepEqual(calls, [["release"], ["attach", "attributes.hp.value"], ["attach", "details.level"]]);
+  view.showBuilder();
+  assert.equal(calls.length, 6);
+});

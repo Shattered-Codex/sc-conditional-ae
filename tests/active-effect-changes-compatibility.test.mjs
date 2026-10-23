@@ -73,6 +73,38 @@ test("a change with neither mode nor type still yields a comparable signature", 
   );
 });
 
+test("formula eligibility and legacy signatures never access the v14 deprecated modes constant", () => {
+  const previous = globalThis.CONST;
+  globalThis.CONST = Object.defineProperty({}, "ACTIVE_EFFECT_MODES", {
+    get() { throw new Error("Deprecated ACTIVE_EFFECT_MODES was accessed"); }
+  });
+  try {
+    for (const change of [
+      { type: "add", value: "+2" },
+      { mode: 2 },
+      { mode: "2" },
+      { type: "add", mode: 0 }
+    ]) {
+      assert.equal(ActiveEffectContextBuilder.isFormulaEligibleChange({
+        key: "system.attributes.hp.bonuses.level", ...change
+      }), true);
+    }
+    for (const change of [{ type: "custom" }, { mode: 0 }, { mode: "0" }, { mode: "custom" }]) {
+      assert.equal(ActiveEffectContextBuilder.isFormulaEligibleChange({ key: "system.test", ...change }), false);
+    }
+    for (const mode of [undefined, null, ""]) {
+      assert.equal(ActiveEffectContextBuilder.isCustomChange({ mode }), false);
+    }
+    const types = ["custom", "multiply", "add", "downgrade", "upgrade", "override"];
+    assert.deepEqual(
+      ActiveEffectContextBuilder.getChangeSignature(types.map((_, mode) => ({ key: "system.test", mode }))),
+      ActiveEffectContextBuilder.getChangeSignature(types.map(type => ({ key: "system.test", type })))
+    );
+  } finally {
+    globalThis.CONST = previous;
+  }
+});
+
 test("dnd5e 7 keeps the system.changes path the dnd5e 6 migration introduced", () => {
   game.system.version = "7.0.0";
   try {

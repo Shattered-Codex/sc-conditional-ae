@@ -26,6 +26,9 @@ export class Constants {
   static MACRO_EXECUTE_CHANGE_KEY = "cae.macro.execute";
   static LEGACY_MACRO_EXECUTE_CHANGE_KEY = `${Constants.MODULE_ID}.macro.execute`;
   static DAE_MACRO_EXECUTE_CHANGE_KEY = "macro.execute";
+  // CONST.ACTIVE_EFFECT_MODES.CUSTOM: a fixed persisted value. Reading the
+  // constant itself logs a deprecation warning on Foundry v14.
+  static LEGACY_CUSTOM_CHANGE_MODE = 0;
 
 
   static localize(key, fallback = key) {

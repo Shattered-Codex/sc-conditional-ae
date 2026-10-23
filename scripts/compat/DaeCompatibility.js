@@ -25,7 +25,8 @@ export class DaeCompatibility {
           "Execute a world macro when this Active Effect is applied or removed."
         )
       }),
-      CONST.ACTIVE_EFFECT_MODES.CUSTOM
+      // DAE for v13 expects the numeric mode; DAE for v14 maps it to "custom".
+      Constants.LEGACY_CUSTOM_CHANGE_MODE
     ];
   }
 

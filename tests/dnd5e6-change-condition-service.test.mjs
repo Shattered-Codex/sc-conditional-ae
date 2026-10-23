@@ -267,6 +267,48 @@ test("macro normalization uses the dnd5e 6 string change type", () => {
   assert.equal(source.system.changes[0].mode, undefined);
 });
 
+/** Runs `fn` with a CONST whose deprecated v14 modes constant throws when read. */
+function withoutDeprecatedModes(fn) {
+  const previous = globalThis.CONST;
+  globalThis.CONST = Object.defineProperty({}, "ACTIVE_EFFECT_MODES", {
+    get() { throw new Error("Deprecated ACTIVE_EFFECT_MODES was accessed"); }
+  });
+  try {
+    return fn();
+  } finally {
+    globalThis.CONST = previous;
+  }
+}
+
+test("legacy macro changes become custom without reading the deprecated modes constant", () => {
+  const source = { changes: [{ key: "cae.macro.execute", mode: 2, value: "test" }] };
+
+  withoutDeprecatedModes(() => {
+    assert.equal(ActiveEffectMacroChangeService.normalizeChanges(source), true);
+    assert.equal(ActiveEffectMacroChangeService.normalizeChanges(source), false);
+  });
+  assert.equal(source.changes[0].mode, 0);
+});
+
+test("the DAE macro special is registered as custom without reading the deprecated modes constant", async () => {
+  const { DaeCompatibility } = await import("../scripts/compat/DaeCompatibility.js");
+  const previousHooks = globalThis.Hooks;
+  const previousData = globalThis.foundry.data;
+  const handlers = new Map();
+  globalThis.Hooks = { on: (name, handler) => handlers.set(name, handler) };
+  globalThis.foundry.data = { fields: { StringField: class StringField { constructor(options) { this.options = options; } } } };
+  try {
+    DaeCompatibility.activate();
+    const specials = {};
+    withoutDeprecatedModes(() => handlers.get("dae.modifySpecials")("character", specials));
+    // DAE for v13 reads the numeric mode; DAE for v14 maps 0 to "custom".
+    assert.equal(specials["cae.macro.execute"][1], 0);
+  } finally {
+    globalThis.Hooks = previousHooks;
+    globalThis.foundry.data = previousData;
+  }
+});
+
 test("macro execution can target only changes whose individual state transitioned", async () => {
   const calls = [];
   game.macros = {

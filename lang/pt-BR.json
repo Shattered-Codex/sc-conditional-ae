@@ -113,6 +113,14 @@
         "Remove": "Remover",
         "Empty": "Nenhuma condição. O filtro será satisfeito.",
         "KeyPlaceholder": "ex.: attributes.hp.value",
+        "Picker": {
+          "Label": "Atributos",
+          "Common": "Comuns",
+          "Keys": "Atributos",
+          "Matches": "Em outros lugares",
+          "More": "Mais {count}: continue digitando para refinar a lista.",
+          "Empty": "Nenhum atributo corresponde."
+        },
         "ValuePlaceholder": "ex.: 5, true, \"fire\"",
         "GroupOperator": "Operador do grupo",
         "ComparisonOperator": "Operador de comparação",
